@@ -110,15 +110,6 @@
 - name: tie
 - name: tie-array
 - name: tie-big-array
-  bug: true
-  description: >
-               The implementation dont't support more that 4 temporary variable
-               (see output.c l194). This test may fails with a segfault
-               (exit_code -11), invalid identifier (empty names) or even random
-               symbol find on the stack (on my computer it is often `bool`).
-  disabled-checks:
-    - stderr
-    - generated_code
 
 - name: tie-immediate
   bug: true
@@ -174,3 +165,4 @@
   has_failed: true
   exit_code: 1
 
+- name: builtin

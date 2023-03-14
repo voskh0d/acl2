@@ -4,19 +4,26 @@
 
 Rac (rac|RAC|Rac)
 lineba ^"#"\ [0-9]+\ \"[^\"]*\".*\n
+
 %{
 #include <stdio.h>
-extern int yylex();
+#include "expressions.h"
+#include "functions.h"
 #include "parser.h"
-#include "parser.tab.h"
+#include "parser.tab.hpp"
+#include "statements.h"
+#include "types.h"
+
+extern int yylex ();
 extern void yyerror(const char *);
 static void comment();
-char* tokstr();
+char *tokstr();
 static void lineba();
 char yyfilenm[1024];
 %}
 
 %%
+
 
 {lineba}                    {lineba();}
 
@@ -124,29 +131,43 @@ char yyfilenm[1024];
 
 %%
 
-static void comment() {
+static void
+comment ()
+{
   int c;
-  while ((c = yyinput()) != 0) {
-    if (c == '*') {
-      while ((c = yyinput()) == '*') {}
-      if (c == '/') return;
-      if (c == 0) break;
+  while ((c = yyinput ()) != 0)
+    {
+      if (c == '*')
+        {
+          while ((c = yyinput ()) == '*')
+            {
+            }
+          if (c == '/')
+            return;
+          if (c == 0)
+            break;
+        }
     }
-  }
-  yyerror("unterminated comment");
+  yyerror ("unterminated comment");
 }
 
-char* tokstr() {
-  char *str = new char[yyleng+1];
-  strcpy(str, yytext);
+char *
+tokstr ()
+{
+  char *str = new char[yyleng + 1];
+  strcpy (str, yytext);
   return str;
 }
 
-int yywrap(void) {  // called at end of input
+int
+yywrap (void)
+{ // called at end of input
   return 1;
 }
 
-static void lineba() {
+static void
+lineba ()
+{
   char *i = strtok(yytext, "# \"");
   char *f = strtok(nullptr, "# \"");
   sscanf(i, "%d", &yylineno);
