@@ -28,7 +28,7 @@
   extern BreakStmt breakStmt;
 
   Program prog;
-  List<Builtin> builtins (new Builtin ("abs", &intType, &intType));
+  List<Builtin> builtins (new Builtin ("abs", &intType, new List<VarDec>(new VarDec("", &intType))));
   SymbolStack<SymDec> symTab;
 %}
 
@@ -429,11 +429,17 @@ postfix_expression : primary_expression | array_or_bit_ref | struct_ref
 
 array_or_bit_ref : postfix_expression '[' expression ']'
                  {
+/*
+  I don't think it's usefull, ArrayParamType is never use so, isArrayParam
+  can't be true.
+
   if ($1->isArrayParam ())
     {
       $$ = new ArrayParamRef ((SymRef *)$1, $3);
     }
-  else if ($1->isArray ())
+  else
+*/
+  if ($1->isArray ())
     {
       $$ = new ArrayRef ($1, $3);
     }

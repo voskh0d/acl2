@@ -221,7 +221,7 @@ ArrayType::makeDef (const char *name, ostream &os)
 {
   Type *b = baseType;
   List<Expression> *dims = new List<Expression> (dim);
-  while (b->isArrayType () && !(b->isArrayParamType ()))
+  while (b->isArrayType () /*&& !(b->isArrayParamType ())*/)
     {
       dims = dims->push (((ArrayType *)b)->dim);
       b = ((ArrayType *)b)->baseType;
@@ -237,35 +237,6 @@ ArrayType::makeDef (const char *name, ostream &os)
       dims = dims->next;
     }
   os << ";";
-}
-
-// class ArrayParamType : public ArrayType (array template type)
-// -------------------------------------------------------------
-
-ArrayParamType::ArrayParamType (Expression *d, Type *t) : ArrayType (d, t) {}
-
-void
-ArrayParamType::display (ostream &os) const
-{
-  ArrayType::display (os);
-}
-
-void
-ArrayParamType::displayVarType (ostream &os) const
-{
-  ArrayType::displayVarType (os);
-}
-
-void
-ArrayParamType::displayVarName (const char *name, ostream &os) const
-{
-  ArrayType::displayVarName (name, os);
-}
-
-void
-ArrayParamType::makeDef (const char *name, ostream &os)
-{
-  ArrayType::makeDef (name, os);
 }
 
 // class StructField
@@ -325,50 +296,6 @@ StructType::makeDef (const char *name, ostream &os)
   os << "\nstruct " << name << " ";
   displayFields (os);
   os << ";";
-}
-
-// class EnumConstDec : public SymDec
-// ----------------------------------
-
-EnumConstDec::EnumConstDec (const char *n, Expression *v)
-    : SymDec (n, &intType, v)
-{
-}
-
-void
-EnumConstDec::display (ostream &os) const
-{
-  os << getname ();
-  if (init)
-    {
-      os << "=";
-      init->display (os);
-    }
-}
-
-bool
-EnumConstDec::isConst ()
-{
-  return true;
-}
-
-Sexpression *
-EnumConstDec::ACL2Expr ()
-{
-  if (init)
-    {
-      return new Plist ({ sym, init->ACL2Expr () });
-    }
-  else
-    {
-      return sym;
-    }
-}
-
-Sexpression *
-EnumConstDec::ACL2SymExpr ()
-{
-  return ((EnumType *)type)->getEnumVal (sym);
 }
 
 // class EnumType : public Type

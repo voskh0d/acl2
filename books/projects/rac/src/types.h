@@ -25,8 +25,8 @@ class EnumConstDec;
 //   UfixedType         (unsigned fixed-point register
 //   FixedType          (signed fixed-point register
 //   ArrayType          (array type)
-//   ArrayParamType     (array template class, which may be passed as
-//   parameter) StructType         (struct type) EnumType (enumeration type)
+//   ArrayParamType     (array template class, which may be passed as parameter)
+//   StructType         (struct type) EnumType (enumeration type)
 //   MvType             (multiple value type)
 class Type
 {
@@ -50,11 +50,11 @@ public:
     return false;
   }
   // overridden by ArrayType
-  virtual bool
-  isArrayParamType () const
-  {
-    return false;
-  }
+//  virtual bool
+//  isArrayParamType () const
+//  {
+//    return false;
+//  }
   // overridden by ArrayParamType
   virtual bool
   isStructType () const
@@ -322,20 +322,20 @@ public:
   void makeDef (const char *name, ostream &os) override;
 };
 
-class ArrayParamType : public ArrayType
-{
-public:
-  ArrayParamType (Expression *d, Type *t);
-  bool
-  isArrayParamType () const override
-  {
-    return true;
-  }
-  void display (ostream &os) const override;
-  void displayVarType (ostream &os = cout) const override;
-  void displayVarName (const char *name, ostream &os = cout) const override;
-  void makeDef (const char *name, ostream &os) override;
-};
+//class ArrayParamType : public ArrayType
+//{
+//public:
+//  ArrayParamType (Expression *d, Type *t)
+//    : ArrayType (d, t)
+//  {
+//  }
+//
+//  bool
+//  isArrayParamType () const override
+//  {
+//    return true;
+//  }
+//};
 
 class StructField
 {

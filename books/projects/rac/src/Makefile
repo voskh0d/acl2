@@ -8,11 +8,11 @@ parse: parser.ll parser.yy parser.h expressions.cpp functions.cpp types.cpp outp
 #We should execute this rule every time, since it depends on some environment
 #variables.
 rac:
-	printf "#!/bin/bash\n\nRAC=${RAC}\nACL2=${ACL2}" | cat rac-skel > rac
+	printf "#!/bin/bash\n\nRAC=${RAC}\nACL2=${ACL2}" | cat - rac-skel > rac
 
 install: parse rac
 	install -m 775 parse ${RAC}/bin
-	install -m 775 rac ${RAC}/rac
+	install -m 775 rac ${RAC}/bin
 	rm rac parse
 
 clean:

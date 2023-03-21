@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FUNCTIONS_H
+#define FUNCTIONS_H
 
 #include "statements.h"
 #include "utils.h"
@@ -42,8 +43,10 @@ private:
 class Builtin : public FunDef
 {
 public:
-  Builtin (const char *n, Type *t, Type *a0 = nullptr, Type *a1 = nullptr,
-           Type *a2 = nullptr);
+  Builtin (const char *n, Type *t, List<VarDec> *p)
+    : FunDef(n, t, p, nullptr)
+  {
+  }
 };
 
 class Template : public FunDef
@@ -59,3 +62,5 @@ public:
   void bindParams (List<Expression> *a);
   void displayACL2Expr (ostream &os) override;
 };
+
+#endif // FUNCTIONS_H

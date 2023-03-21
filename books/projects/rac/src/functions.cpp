@@ -15,7 +15,6 @@ FunDef::FunDef (const char *n, Type *t, List<VarDec> *p, Block *b)
 void
 FunDef::displayPrototype (ostream &os, const char *prefix, unsigned indent)
 {
-
   os << "\n";
 
   if (indent)
@@ -68,27 +67,6 @@ FunDef::displayACL2Expr (ostream &os)
       .display (os);
 
   delete sparams;
-}
-
-// class Builtin : public FunDef
-// -----------------------------
-
-Builtin::Builtin (const char *n, Type *t, Type *a0, Type *a1, Type *a2)
-    : FunDef (n, t, nullptr, nullptr)
-{
-
-  if (a0)
-    params = new List<VarDec> (new VarDec ("", a0));
-  else
-    return;
-
-  if (a1)
-    params->add (new VarDec ("", a1));
-  else
-    return;
-
-  if (a2)
-    params->add (new VarDec ("", a2));
 }
 
 // class Template : public FunDef

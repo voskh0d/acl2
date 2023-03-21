@@ -102,6 +102,52 @@ SimpleStatement::display (ostream &os, unsigned indent)
   os << ";";
 }
 
+// class EnumConstDec : public SymDec
+// ----------------------------------
+
+EnumConstDec::EnumConstDec (const char *n, Expression *v)
+    : SymDec (n, &intType, v)
+{
+}
+
+void
+EnumConstDec::display (ostream &os) const
+{
+  os << getname ();
+  if (init)
+    {
+      os << "=";
+      init->display (os);
+    }
+}
+
+bool
+EnumConstDec::isConst ()
+{
+  return true;
+}
+
+Sexpression *
+EnumConstDec::ACL2Expr ()
+{
+  if (init)
+    {
+      return new Plist ({ sym, init->ACL2Expr () });
+    }
+  else
+    {
+      return sym;
+    }
+}
+
+Sexpression *
+EnumConstDec::ACL2SymExpr ()
+{
+  return ((EnumType *)type)->getEnumVal (sym);
+}
+
+
+
 // class VarDec : public SimpleStatement, public SymDec (variable declaration)
 // ---------------------------------------------------------------------------
 
@@ -227,7 +273,7 @@ ConstDec::isGlobal ()
 bool
 ConstDec::isROM ()
 {
-  return isGlobal () && type->isArrayType () && !type->isArrayParamType ();
+  return isGlobal () && type->isArrayType () /*&& !type->isArrayParamType ()*/;
 }
 
 Sexpression *

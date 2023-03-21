@@ -403,7 +403,9 @@ SymRef::isArray ()
 bool
 SymRef::isArrayParam ()
 {
-  return exprType ()->isArrayParamType ();
+  return false;
+  // TODO remove this
+//  return exprType ()->isArrayParamType ();
 }
 
 bool
@@ -481,7 +483,8 @@ FunCall::isArray ()
 bool
 FunCall::isArrayParam ()
 {
-  return exprType ()->isArrayParamType ();
+  // TODO remove this
+  return false; // exprType()->isArrayParamType ();
 }
 
 bool
@@ -730,7 +733,8 @@ ArrayRef::isArray ()
 bool
 ArrayRef::isArrayParam ()
 {
-  return exprType ()->isArrayParamType ();
+  // TODO remove this
+  return false; //exprType ()->isArrayParamType ();
 }
 
 bool
@@ -834,7 +838,8 @@ StructRef::isArray ()
 bool
 StructRef::isArrayParam ()
 {
-  return exprType ()->isArrayParamType ();
+  // TODO remove this
+  return false; //exprType ()->isArrayParamType ();
 }
 
 bool
