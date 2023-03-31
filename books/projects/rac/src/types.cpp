@@ -36,16 +36,21 @@ PrimType uint64Type ("uint64", "uint");
 Sexpression *
 RegType::ACL2Assign (Expression *rval)
 { // overridden by FPType
+
   Type *t = rval->exprType ();
   unsigned w = rval->ACL2ValWidth ();
+
   int width_evaluated = width_->evalConst ();
   assert (width_evaluated >= 0);
+
   if (t == this || (w && w <= (unsigned)width_evaluated))
     {
+//      UNREACHABLE();
       return rval->ACL2Expr (true);
     }
   else
     {
+      assert(width_evaluated);
       Sexpression *s = rval->ACL2Expr ();
       if (rval->isFP ())
         s = new Plist ({ &s_fl, s });
@@ -56,8 +61,6 @@ RegType::ACL2Assign (Expression *rval)
 
 // class UintType : public RegType
 // -------------------------------
-
-UintType::UintType (Expression *w) : RegType (w) {}
 
 void
 UintType::display (ostream &os) const
@@ -75,14 +78,6 @@ UintType::ACL2ValWidth ()
 
 // class IntType : public RegType
 // ------------------------------
-
-bool
-IntType::isSigned ()
-{
-  return true;
-}
-
-IntType::IntType (Expression *w) : RegType (w) {}
 
 void
 IntType::display (ostream &os) const
@@ -109,6 +104,8 @@ Sexpression *
 FPType::ACL2Assign (Expression *rval)
 {
   Type *t = rval->exprType ();
+  // ??? should be *this == *t sauf que vu que c'est des ptr partout ca
+  // marchera pas...
   if (t == this)
     {
       return rval->ACL2Expr (true);
@@ -168,7 +165,7 @@ FixedType::display (ostream &os) const
   width ()->displayNoParens (os);
   os << ", ";
   iwidth->displayNoParens (os);
-  os << ">";
+  os << '>';
 }
 
 Sexpression *
@@ -211,9 +208,9 @@ ArrayType::displayVarType (ostream &os) const
 void
 ArrayType::displayVarName (const char *name, ostream &os) const
 {
-  os << name << "[";
+  os << name << '[';
   dim->displayNoParens (os);
-  os << "]";
+  os << ']';
 }
 
 void
@@ -221,7 +218,7 @@ ArrayType::makeDef (const char *name, ostream &os)
 {
   Type *b = baseType;
   List<Expression> *dims = new List<Expression> (dim);
-  while (b->isArrayType () /*&& !(b->isArrayParamType ())*/)
+  while (b->isArrayType ())
     {
       dims = dims->push (((ArrayType *)b)->dim);
       b = ((ArrayType *)b)->baseType;

@@ -1,6 +1,10 @@
-
+* parser.yy, parser.ll: Fix bug where having RAC inside a comment was
+  generating a token which is not used and was causing a syntax error. Remove
+  lexer rule removing all tokens starting by Hector:: (instead use an #ifdef
+  directive). When an multine comment is missing the `*/` at the end, exit with
+  an error (TODO:improve the message).
 * statements.h, output.c: Fix bug where using tie with more that 4 array access
-  was causing some invalid read.
+  was causing an invalid read.
 * rac.h: Add array and tupple (for now, limited to 6 elements) for compiler
   which does not support C++11 yet (can be the case with EDA tools).
 * output.c: Fix regression where, in PC mode, the declaration was having

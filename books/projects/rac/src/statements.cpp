@@ -273,7 +273,7 @@ ConstDec::isGlobal ()
 bool
 ConstDec::isROM ()
 {
-  return isGlobal () && type->isArrayType () /*&& !type->isArrayParamType ()*/;
+  return isGlobal () && type->isArrayType ();
 }
 
 Sexpression *

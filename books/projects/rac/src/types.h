@@ -14,6 +14,21 @@ class Expression;
 class SymRef;
 class EnumConstDec;
 
+//enum class Kind {
+//  Unreachable,
+//  PrimType,
+//  DefinedType,
+//  RegType,
+//  UintType,
+//  IntType,
+//  FPType,
+//  UfixedType,
+//  FixedType,
+//  ArrayType,
+//  StructType,
+//  MvType,
+//};
+
 // Derived classes:
 //
 //   PrimType           (primitive type: uintTYpe, intType, boolType)
@@ -25,12 +40,14 @@ class EnumConstDec;
 //   UfixedType         (unsigned fixed-point register
 //   FixedType          (signed fixed-point register
 //   ArrayType          (array type)
-//   ArrayParamType     (array template class, which may be passed as parameter)
 //   StructType         (struct type) EnumType (enumeration type)
 //   MvType             (multiple value type)
 class Type
 {
 public:
+//  static inline bool classof(Type *) { return true; }
+//  Kind kind = Kind::Unreachable;
+
   // overridden by PrimType
   virtual bool
   isPrimType () const
@@ -50,12 +67,6 @@ public:
     return false;
   }
   // overridden by ArrayType
-//  virtual bool
-//  isArrayParamType () const
-//  {
-//    return false;
-//  }
-  // overridden by ArrayParamType
   virtual bool
   isStructType () const
   {
@@ -125,6 +136,10 @@ public:
   virtual unsigned
   ACL2ValWidth ()
   {
+    // TODO: shady, we should probably have something to express unbounded,
+    // unknown and zero (imagine a case were translate an unknown size value
+    // like it was unbounded...)
+    //
     // Boundary on the width of the value of an object of this type.
     // 0 indicates unknown or unbounded width.
     // Used to avoid unnecessary call to bits.
@@ -141,6 +156,13 @@ public:
   }
 };
 
+//#define CLASSOF_impl(BASE, THIS_T) \
+//static inline bool classof(THIS_T const *) { return true; } \
+//static inline bool classof(Base const* t) { \
+//  return t->kind == Kind::THIS_T; \
+//}
+
+
 class PrimType : public Symbol, public Type
 {
 public:
@@ -148,6 +170,8 @@ public:
       : Symbol (s), RACname_ (m ? std::optional (std::string (m)) : nullopt)
   {
   }
+
+//  CLASSOF_impl(PrimType)
 
   bool
   isPrimType () const override
@@ -248,7 +272,8 @@ private:
 class UintType : public RegType
 {
 public:
-  UintType (Expression *w);
+  UintType (Expression *w) : RegType (w) {}
+
   bool
   isIntegerType () const override
   {
@@ -261,8 +286,7 @@ public:
 class IntType : public RegType
 {
 public:
-  bool isSigned ();
-  IntType (Expression *w);
+  IntType (Expression *w) : RegType(w) {}
   bool
   isIntegerType () const override
   {
@@ -321,21 +345,6 @@ public:
   void displayVarName (const char *name, ostream &os = cout) const override;
   void makeDef (const char *name, ostream &os) override;
 };
-
-//class ArrayParamType : public ArrayType
-//{
-//public:
-//  ArrayParamType (Expression *d, Type *t)
-//    : ArrayType (d, t)
-//  {
-//  }
-//
-//  bool
-//  isArrayParamType () const override
-//  {
-//    return true;
-//  }
-//};
 
 class StructField
 {

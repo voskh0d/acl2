@@ -7,27 +7,26 @@
 #include "statements.h"
 #include "types.h"
 
-  int yylex ();
+int yylex ();
 
-  void yyerror (const char *s)
-  {
-    fflush (stdout);
-    fprintf (stderr, "%s:%d: %s\n", yyfilenm, yylineno, s);
-  }
+void yyerror (const char *s)
+{
+  fflush (stdout);
+  fprintf (stderr, "%s:%d: %s\n", yyfilenm, yylineno, s);
+}
 
-  // TODO: replace this horror by C++20 std::format().
-  template <typename... Args> void yyerror (const char *format, Args... args)
-  {
+// TODO: replace this horror by C++20 std::format().
+template <typename... Args> void yyerror (const char *format, Args... args)
+{
+  fflush (stdout);
+  std::fprintf (stderr, "%s:%d: ", yyfilenm, yylineno);
+  std::fprintf (stderr, format, args...);
+  std::fprintf (stderr, "\n");
+}
 
-    fflush (stdout);
-    std::fprintf (stderr, "%s:%d: ", yyfilenm, yylineno);
-    std::fprintf (stderr, format, args...);
-    std::fprintf (stderr, "\n");
-  }
+extern BreakStmt breakStmt;
 
-  extern BreakStmt breakStmt;
-
-  Program prog;
+Program prog;
   List<Builtin> builtins (new Builtin ("abs", &intType, new List<VarDec>(new VarDec("", &intType))));
   SymbolStack<SymDec> symTab;
 %}
@@ -59,7 +58,6 @@
 %define parse.lac full
 
 %token TYPEDEF CONST STRUCT ENUM TEMPLATE
-%token RAC
 %token INT UINT INT64 UINT64 BOOL
 %token SLC SET_SLC
 %token FOR IF ELSE WHILE DO SWITCH CASE DEFAULT BREAK RETURN ASSERT
@@ -181,8 +179,6 @@ typedef_dec : TYPEDEF typedef_type ID { $$ = new DefinedType ($3, $2); }
 {
   if ($3->isConst () && $3->evalConst () > 0)
     {
-      // TODO: very shady: if typedef_dec is a primitive, we end by modifying
-      // the global variable ??
       $1->getdef_mutref () = new ArrayType ($3, $1->getdef ());
       $$ = $1;
     }
@@ -429,17 +425,8 @@ postfix_expression : primary_expression | array_or_bit_ref | struct_ref
 
 array_or_bit_ref : postfix_expression '[' expression ']'
                  {
-/*
-  I don't think it's usefull, ArrayParamType is never use so, isArrayParam
-  can't be true.
 
-  if ($1->isArrayParam ())
-    {
-      $$ = new ArrayParamRef ((SymRef *)$1, $3);
-    }
-  else
-*/
-  if ($1->isArray ())
+if ($1->isArray ())
     {
       $$ = new ArrayRef ($1, $3);
     }

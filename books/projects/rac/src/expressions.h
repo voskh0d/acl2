@@ -27,7 +27,6 @@ public:
   virtual bool isConst ();
   virtual int evalConst ();
   virtual bool isArray ();
-  virtual bool isArrayParam ();
   virtual bool isStruct ();
   bool isNumber ();
   virtual bool isSubrange ();
@@ -103,7 +102,6 @@ public:
   virtual bool isConst () override;
   virtual int evalConst () override;
   bool isArray () override;
-  bool isArrayParam () override;
   bool isStruct () override;
   bool isInteger () override;
   void displayNoParens (ostream &os) const override;
@@ -123,7 +121,6 @@ public:
   List<Expression> *args;
   FunCall (FunDef *f, List<Expression> *a);
   bool isArray () override;
-  bool isArrayParam () override;
   bool isStruct () override;
   bool isInteger () override;
   Type *exprType () override;
@@ -164,7 +161,6 @@ public:
   Expression *index;
   ArrayRef (Expression *a, Expression *i);
   bool isArray () override;
-  bool isArrayParam () override;
   bool isInteger () override;
   Type *exprType () override;
   void displayNoParens (ostream &os) const override;
@@ -188,7 +184,6 @@ public:
   char *field;
   StructRef (Expression *s, char *f);
   bool isArray () override;
-  bool isArrayParam () override;
   bool isInteger () override;
   Type *exprType () override;
   void displayNoParens (ostream &os) const override;

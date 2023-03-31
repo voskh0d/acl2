@@ -16,7 +16,7 @@ lineba ^"#"\ [0-9]+\ \"[^\"]*\".*\n
 
 extern int yylex ();
 extern void yyerror(const char *);
-static void comment();
+static bool comment();
 char *tokstr();
 static void lineba();
 char yyfilenm[1024];
@@ -32,14 +32,10 @@ char yyfilenm[1024];
 
 <INITIAL>.*\n               {}
 
-"/*"                        {comment();}
-\/\/{Rac}\:?.*              {yyless(6); return RAC;}
-\/\/\ {Rac}\:?.*            {yyless(7); return RAC;}
+"/*"                        { if (!comment()) return 1; }
 "//".*                      {}
-"Hector::".*                {}
 "#pragma".*                 {}
 [ \n\t]                     {}
-.*print.*                   {}
 
 "typedef"                   {return TYPEDEF;}
 "template"                  {return TEMPLATE;}
@@ -131,24 +127,25 @@ char yyfilenm[1024];
 
 %%
 
-static void
+static bool
 comment ()
 {
-  int c;
-  while ((c = yyinput ()) != 0)
+  int c = yyinput();
+
+  while (c != '\0')
     {
       if (c == '*')
         {
-          while ((c = yyinput ()) == '*')
-            {
-            }
+          c = yyinput();
           if (c == '/')
-            return;
-          if (c == 0)
-            break;
+            return true;
         }
+      else {
+        c = yyinput();
+      }
     }
   yyerror ("unterminated comment");
+  return false;
 }
 
 char *

@@ -61,9 +61,6 @@
   args: ['unterminated-comment.cpp']
   has_failed: true
   exit_code: 1
-  disabled-checks:
-    - stderr
-    - generated_code
 
 # Those tests are directly taken the RAC specification as decribed in the
 # Chapter 15 of Formal verification of floating-point hardware design
@@ -72,10 +69,7 @@
 - name: guards-2
 
 - name: rac-in-comment-but-not-a-guard
-  bug: true
-  description: A token `RAC` is emitted and generate a syntax error for no reason.
-  has_failed: true
-  exit_code: 1
+  exit_code: 0
 
 - name: missing-guards-begin
   has_failed: true

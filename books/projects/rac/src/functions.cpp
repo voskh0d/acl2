@@ -77,8 +77,8 @@ FunDef::displayACL2Expr (ostream &os)
 Template::Template (const char *n, Type *t, List<VarDec> *p, Block *b,
                     List<TempParamDec> *tp)
     : FunDef (n, t, p, b)
+    , tempParams (tp)
 {
-  tempParams = tp;
 }
 
 void
@@ -86,9 +86,8 @@ Template::display (ostream &os, const char *prefix, unsigned indent)
 {
   os << "\n";
   if (indent)
-    {
-      os << setw (indent) << " ";
-    }
+    os << setw (indent) << " ";
+
   os << "template<";
   List<TempParamDec> *ptr = tempParams;
   while (ptr)

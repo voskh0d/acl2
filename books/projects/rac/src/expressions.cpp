@@ -39,12 +39,6 @@ Expression::isArray ()
 } // virtual
 
 bool
-Expression::isArrayParam ()
-{
-  return false;
-} // virtual
-
-bool
 Expression::isStruct ()
 {
   return false;
@@ -401,14 +395,6 @@ SymRef::isArray ()
 }
 
 bool
-SymRef::isArrayParam ()
-{
-  return false;
-  // TODO remove this
-//  return exprType ()->isArrayParamType ();
-}
-
-bool
 SymRef::isStruct ()
 {
   return exprType ()->isStructType ();
@@ -478,13 +464,6 @@ bool
 FunCall::isArray ()
 {
   return exprType ()->isArrayType ();
-}
-
-bool
-FunCall::isArrayParam ()
-{
-  // TODO remove this
-  return false; // exprType()->isArrayParamType ();
 }
 
 bool
@@ -731,13 +710,6 @@ ArrayRef::isArray ()
 }
 
 bool
-ArrayRef::isArrayParam ()
-{
-  // TODO remove this
-  return false; //exprType ()->isArrayParamType ();
-}
-
-bool
 ArrayRef::isInteger ()
 {
   return exprType ()->isIntegerType ();
@@ -833,13 +805,6 @@ bool
 StructRef::isArray ()
 {
   return exprType ()->isArrayType ();
-}
-
-bool
-StructRef::isArrayParam ()
-{
-  // TODO remove this
-  return false; //exprType ()->isArrayParamType ();
 }
 
 bool
