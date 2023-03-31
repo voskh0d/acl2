@@ -747,7 +747,7 @@ MultipleAssignment::ACL2Expr ()
   Plist *vars = new Plist ();
   Plist *result = new Plist ({ &s_mv_assign, vars, rval->ACL2Expr () });
   bool isBlock = false;
-  for (unsigned i = 0; i < 8 && lval[i]; i++)
+  for (unsigned i = 0; i < lval.size(); i++)
     {
       if (lval[i]->isSymRef ())
         {
