@@ -1,3 +1,4 @@
+* Add option -version.
 * parser.yy, parser.ll: Fix bug where having RAC inside a comment was
   generating a token which is not used and was causing a syntax error. Remove
   lexer rule removing all tokens starting by Hector:: (instead use an #ifdef
@@ -9,6 +10,12 @@
   which does not support C++11 yet (can be the case with EDA tools).
 * output.c: Fix regression where, in PC mode, the declaration was having
   a wrong semi-colon.
+* rac-skel: Disable the loading of configuration files which often was making
+  the certification fails.
+* expression.cpp, expression.h: Extend typing and now integer literal are
+  partially typed.
+* testsuite: add new tests to test the typing of literal and downcast of AC
+  types when using an initializer list.
 
 # bfe335137924e0956000b964d53c1ae94402855d (28/02/23)
 

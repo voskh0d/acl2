@@ -32,7 +32,7 @@ Program prog;
 %}
 
 %union {
-  int i;
+  int number;
   char *s;
   Type *t;
   DefinedType *dt;
@@ -356,7 +356,7 @@ mv_type : TUPLE '<' type_spec ',' type_spec '>'
 primary_expression : constant | symbol_ref | funcall | '(' expression ')'
                    {
   $$ = $2;
-  $$->needsParens = true;
+  $$->needsParens();
 };
 
 constant : integer | boolean;
@@ -801,11 +801,11 @@ assignment : expression assign_op expression
 | postfix_expression '.' SET_SLC '(' expression ',' expression ')'
 {
   unsigned w = 0;
-  if ($7->isSubrange ())
+  /*if ($7->isSubrange ())
     {
       w = ((Subrange *)$7)->width;
     }
-  else
+  else*/
     {
       Type *type = $7->exprType ();
       if (type)

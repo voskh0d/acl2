@@ -1,9 +1,11 @@
+$(shell echo "#include \"version.h\"\n\nchar const *const git_commit = \"$$(git describe --always --dirty --match 'NOT A TAG')\";" > version.cpp.tmp; if diff -q version.cpp.tmp version.cpp >/dev/null 2>&1; then rm version.cpp.tmp; else mv version.cpp.tmp version.cpp; fi)
+
 all : install
 
 parse: parser.ll parser.yy parser.h expressions.cpp functions.cpp types.cpp output.cpp main.cpp
 	bison -d -v -o parser.tab.cpp parser.yy
 	flex -o lex.yy.cpp parser.ll
-	clang++-12 -std=c++17 -g -o parse functions.cpp expressions.cpp statements.cpp parser.tab.cpp lex.yy.cpp types.cpp output.cpp main.cpp
+	clang++-12 -std=c++17 -g -o parse version.cpp functions.cpp expressions.cpp statements.cpp parser.tab.cpp lex.yy.cpp types.cpp output.cpp main.cpp
 
 #We should execute this rule every time, since it depends on some environment
 #variables.

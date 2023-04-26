@@ -133,11 +133,16 @@ then
       (certify-book "$basename" 1)
 EOF
 
+# Deativate locally -e since, in the "happy" path, we want grep to fail.
+set +e
 cat $basename.acl2.log | grep 'ACL2 Error' &> /dev/null
+
 if [[ $? == "0" ]]
 then
   echo "Certification failed ! Please check $basename.acl2.log for more details."
   exit 1
 fi
+
+set -e
 
 fi

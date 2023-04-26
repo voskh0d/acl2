@@ -7,6 +7,7 @@
 #include <vector>
 
 #define UNREACHABLE() assert (!"Woopsie, some unreachable code was reach")
+#define TODO() assert(!"Not implemented yet !")
 
 //***********************************************************************************
 // Linked Lists

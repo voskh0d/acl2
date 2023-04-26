@@ -14,21 +14,6 @@ class Expression;
 class SymRef;
 class EnumConstDec;
 
-//enum class Kind {
-//  Unreachable,
-//  PrimType,
-//  DefinedType,
-//  RegType,
-//  UintType,
-//  IntType,
-//  FPType,
-//  UfixedType,
-//  FixedType,
-//  ArrayType,
-//  StructType,
-//  MvType,
-//};
-
 // Derived classes:
 //
 //   PrimType           (primitive type: uintTYpe, intType, boolType)
@@ -45,8 +30,6 @@ class EnumConstDec;
 class Type
 {
 public:
-//  static inline bool classof(Type *) { return true; }
-//  Kind kind = Kind::Unreachable;
 
   // overridden by PrimType
   virtual bool
@@ -115,7 +98,7 @@ public:
 
   // overridden by ArrayType, StructType, and EnumType
   virtual void
-  makeDef ([[maybe_unused]] const char *name, ostream &os = cout)
+  makeDef ([[maybe_unused]] const char *name, ostream &os = cout) const
   {
     // How this type is displayed in a type definition.
     os << "\ntypedef ";
@@ -126,7 +109,7 @@ public:
   // TODO this line depends on Expression which is defined below. For now, the
   // implementation stays in output.c.
   // overridden by RegType
-  virtual Sexpression *ACL2Assign (Expression *rval);
+  virtual Sexpression *ACL2Assign (Expression *rval) const;
   //  {
   //    // Convert rval to an S-expression to be assigned to an object of this
   //    type. return rval->ACL2Expr()
@@ -134,7 +117,7 @@ public:
 
   // overridden by UintType
   virtual unsigned
-  ACL2ValWidth ()
+  ACL2ValWidth () const
   {
     // TODO: shady, we should probably have something to express unbounded,
     // unknown and zero (imagine a case were translate an unknown size value
@@ -148,7 +131,7 @@ public:
 
   // overridden by RegType
   virtual Sexpression *
-  ACL2Eval (Sexpression *s)
+  ACL2Eval (Sexpression *s) const
   {
     // For a RegType, the numerical value represented by a given bit vector s.
     // For any other type, just return s.
@@ -156,13 +139,7 @@ public:
   }
 };
 
-//#define CLASSOF_impl(BASE, THIS_T) \
-//static inline bool classof(THIS_T const *) { return true; } \
-//static inline bool classof(Base const* t) { \
-//  return t->kind == Kind::THIS_T; \
-//}
-
-
+// TODO remove this, should be replace by Uint/Int type
 class PrimType : public Symbol, public Type
 {
 public:
@@ -170,8 +147,6 @@ public:
       : Symbol (s), RACname_ (m ? std::optional (std::string (m)) : nullopt)
   {
   }
-
-//  CLASSOF_impl(PrimType)
 
   bool
   isPrimType () const override
@@ -201,11 +176,6 @@ private:
   const std::optional<std::string> RACname_;
 };
 
-extern PrimType boolType;
-extern PrimType intType;
-extern PrimType uintType;
-extern PrimType int64Type;
-extern PrimType uint64Type;
 
 class DefinedType : public Symbol, public Type
 {
@@ -213,7 +183,7 @@ public:
   DefinedType (const char *s, Type *t) : Symbol (s), def_ (t) {}
 
   void
-  display (ostream &os) const
+  display (ostream &os) const override
   {
     Symbol::display (os);
   }
@@ -228,19 +198,21 @@ public:
   }
 
   Type *
+  derefType () override
+  {
+    return def_->derefType ();
+  }
+
+  Type *
   getdef ()
   {
     return def_;
   }
+
   Type *&
   getdef_mutref ()
   {
     return def_;
-  }
-  Type *
-  derefType ()
-  {
-    return def_->derefType ();
   }
 
 private:
@@ -263,7 +235,7 @@ public:
   {
     return true;
   }
-  Sexpression *ACL2Assign (Expression *rval) override;
+  Sexpression *ACL2Assign (Expression *rval) const override;
 
 private:
   Expression *width_;
@@ -280,7 +252,7 @@ public:
     return true;
   }
   void display (ostream &os = cout) const override;
-  unsigned ACL2ValWidth () override;
+  unsigned ACL2ValWidth () const override;
 };
 
 class IntType : public RegType
@@ -293,7 +265,7 @@ public:
     return true;
   }
   void display (ostream &os = cout) const override;
-  Sexpression *ACL2Eval (Sexpression *s) override;
+  Sexpression *ACL2Eval (Sexpression *s) const override;
 };
 
 class FPType : public RegType
@@ -306,7 +278,7 @@ public:
   {
     return true;
   }
-  Sexpression *ACL2Assign (Expression *rval) override;
+  Sexpression *ACL2Assign (Expression *rval) const override;
 };
 
 class UfixedType : public FPType
@@ -314,7 +286,7 @@ class UfixedType : public FPType
 public:
   UfixedType (Expression *w, Expression *iw);
   void display (ostream &os = cout) const;
-  Sexpression *ACL2Eval (Sexpression *s);
+  Sexpression *ACL2Eval (Sexpression *s) const;
 };
 
 class FixedType : public FPType
@@ -323,7 +295,7 @@ public:
   bool isSigned ();
   FixedType (Expression *w, Expression *iw);
   void display (ostream &os = cout) const;
-  Sexpression *ACL2Eval (Sexpression *s);
+  Sexpression *ACL2Eval (Sexpression *s) const;
 };
 
 class ArrayType : public Type
@@ -334,7 +306,7 @@ public:
 
   ArrayType (Expression *d, Type *t) : baseType (t), dim (d) {}
 
-  Type *getBaseType ();
+  Type *getBaseType () const;
   bool
   isArrayType () const override
   {
@@ -343,7 +315,7 @@ public:
   void display (ostream &os) const override;
   void displayVarType (ostream &os = cout) const override;
   void displayVarName (const char *name, ostream &os = cout) const override;
-  void makeDef (const char *name, ostream &os) override;
+  void makeDef (const char *name, ostream &os) const override;
 };
 
 class StructField
@@ -372,7 +344,7 @@ public:
   }
   void displayFields (ostream &os) const;
   void display (ostream &os) const override;
-  void makeDef (const char *name, ostream &os = cout) override;
+  void makeDef (const char *name, ostream &os = cout) const override;
 };
 
 class EnumType : public Type
@@ -392,10 +364,10 @@ public:
   }
   void displayConsts (ostream &os) const;
   void display (ostream &os) const override;
-  void makeDef (const char *name, ostream &os = cout) override;
+  void makeDef (const char *name, ostream &os = cout) const override;
   // ACL2expr Weird
   Sexpression *ACL2Expr ();
-  Sexpression *getEnumVal (Symbol *s);
+  Sexpression *getEnumVal (Symbol *s) const;
 };
 
 class MvType : public Type
@@ -405,5 +377,12 @@ public:
   MvType (std::initializer_list<Type *> &&t) : type (t) {}
   void display (ostream &os) const;
 };
+
+extern PrimType boolType;
+extern PrimType intType;
+extern PrimType uintType;
+extern PrimType int64Type;
+extern PrimType uint64Type;
+extern UintType bitType;
 
 #endif // TYPES_H

@@ -152,7 +152,8 @@ public:
 enum class DispMode
 {
   rac,
-  acl2
+  acl2,
+  none,
 };
 
 class DefinedType;
@@ -186,11 +187,6 @@ public:
 };
 
 extern Program prog;
-
-//#include "types.h"
-//#include "expressions.h"
-//#include "statements.h"
-//#include "functions.h"
 
 extern Symbol s_ag;
 extern Symbol s_as;
