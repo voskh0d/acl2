@@ -22,7 +22,7 @@ PrimType intType("int");
 PrimType uintType("uint");
 PrimType int64Type("int64", "int");
 PrimType uint64Type("uint64", "uint");
-UintType bitType(new Integer(1));
+IntType bitType(new Integer(1), false);
 
 // class RegType : public Type (Algorithmic C register type)
 // ---------------------------------------------------
@@ -48,40 +48,55 @@ RegType::ACL2Assign(Expression *rval) const { // overridden by FPType
   }
 }
 
-// class UintType : public RegType
-// -------------------------------
-
-void UintType::display(ostream &os) const {
-  os << "sc_uint<";
-  width()->displayNoParens(os);
-  os << ">";
-}
-
-unsigned UintType::ACL2ValWidth() const { return width()->evalConst(); }
-
 // class IntType : public RegType
 // ------------------------------
 
 void IntType::display(ostream &os) const {
-  os << "sc_int<";
+  os << (is_signed_ ? "sc_int<" : "sc_uint");
   width()->displayNoParens(os);
   os << ">";
 }
 
 Sexpression *IntType::ACL2Eval(Sexpression *s) const {
-  return new Plist({ &s_si, s, new Integer(width()->evalConst()) });
+  if (is_signed_)
+    return new Plist({ &s_si, s, new Integer(width()->evalConst()) });
+  else
+    return s;
 }
 
 unsigned IntType::ACL2ValWidth() const { return width()->evalConst(); }
 
-// class FPType :public RegType
-// ----------------------------
+// class FixedType : public RegType
+// --------------------------------
 
-// Data member:  Expression *iwidth
+void FixedType::display(ostream &os) const {
+  os << (is_signed_ ? "sc_fixed<" : "sc_ufixed<");
+  width()->displayNoParens(os);
+  os << ", ";
+  iwidth->displayNoParens(os);
+  os << '>';
+}
 
-FPType::FPType(Expression *w, Expression *iw) : RegType(w) { iwidth = iw; }
+Sexpression *FixedType::ACL2Eval(Sexpression *s) const {
 
-Sexpression *FPType::ACL2Assign(Expression *rval) const {
+  if (is_signed_) {
+
+    Sexpression *numerator
+        = new Plist({ &s_si, s, new Integer(width()->evalConst()) });
+    Sexpression *denominator = new Plist(
+        { &s_expt, &i_2,
+          new Integer(width()->evalConst() - iwidth->evalConst()) });
+    return new Plist({ &s_divide, numerator, denominator });
+  } else {
+
+    return new Plist({ &s_divide, s,
+                       new Plist({ &s_expt, &i_2,
+                                   new Integer(width()->evalConst()
+                                               - iwidth->evalConst()) }) });
+  }
+}
+
+Sexpression *FixedType::ACL2Assign(Expression *rval) const {
   Type *t = rval->exprType();
   // ??? should be *this == *t sauf que vu que c'est des ptr partout ca
   // marchera pas...
@@ -96,50 +111,6 @@ Sexpression *FPType::ACL2Assign(Expression *rval) const {
       s = new Plist({ &s_fl, s });
     return new Plist({ &s_bits, s, new Integer(wVal - 1), &i_0 });
   }
-}
-
-// class UfixedType : public FPType
-// ---------------------------------
-
-UfixedType::UfixedType(Expression *w, Expression *iw) : FPType(w, iw) {}
-
-void UfixedType::display(ostream &os) const {
-  os << "sc_ufixed<";
-  width()->displayNoParens(os);
-  os << ", ";
-  iwidth->displayNoParens(os);
-  os << ">";
-}
-
-Sexpression *UfixedType::ACL2Eval(Sexpression *s) const {
-  return new Plist({ &s_divide, s,
-                     new Plist({ &s_expt, &i_2,
-                                 new Integer(width()->evalConst()
-                                             - iwidth->evalConst()) }) });
-}
-
-// class FixedType : public RegType
-// --------------------------------
-
-FixedType::FixedType(Expression *w, Expression *iw) : FPType(w, iw) {}
-
-bool FixedType::isSigned() { return true; }
-
-void FixedType::display(ostream &os) const {
-  os << "sc_fixed<";
-  width()->displayNoParens(os);
-  os << ", ";
-  iwidth->displayNoParens(os);
-  os << '>';
-}
-
-Sexpression *FixedType::ACL2Eval(Sexpression *s) const {
-  Sexpression *numerator
-      = new Plist({ &s_si, s, new Integer(width()->evalConst()) });
-  Sexpression *denominator
-      = new Plist({ &s_expt, &i_2,
-                    new Integer(width()->evalConst() - iwidth->evalConst()) });
-  return new Plist({ &s_divide, numerator, denominator });
 }
 
 // class ArrayType : public Type

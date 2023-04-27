@@ -224,10 +224,7 @@ public:
     // TODO Remove ternary: it is needed since 0 is consider as no or unknown
     // bounds.
     unsigned width = val ? std::floor(std::log2(val)) : 1;
-    if (val >= 0)
-      return new UintType(new Integer(width));
-    else
-      return new IntType(new Integer(width));
+    return new IntType(new Integer(width), val < 0);
   }
 
   // astnode implementation
@@ -380,7 +377,7 @@ public:
   Sexpression *ACL2Expr (bool isBV = false) override;
   Sexpression *ACL2Assign (Sexpression *rval) override;
 
-  Type *exprType() override { return new UintType(new Integer(1)); }
+  Type *exprType() override { return new IntType(new Integer(1), false); }
 };
 
 class Subrange : public Expression
@@ -406,7 +403,7 @@ public:
   Sexpression *ACL2Assign (Sexpression *rval) override;
 
   Type *exprType() override {
-    return new UintType(new Integer(compute_size()));
+    return new IntType(new Integer(compute_size()), false);
   }
 };
 

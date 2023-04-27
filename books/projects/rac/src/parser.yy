@@ -179,8 +179,8 @@ typedef_dec : TYPEDEF typedef_type ID { $$ = new DefinedType ($3, $2); }
 {
   if ($3->isConst () && $3->evalConst () > 0)
     {
-      $1->getdef_mutref () = new ArrayType ($3, $1->getdef ());
-      $$ = $1;
+      // TODO delete $1
+      $$ = new DefinedType($1->getname(), new ArrayType($3, $1->getdef ()));
     }
   else
     {
@@ -217,12 +217,13 @@ primitive_type : INT { $$ = &intType; }
 | BOOL { $$ = &boolType; };
 
 register_type
-    : AC_FIXED '<' arithmetic_expression ',' arithmetic_expression ',' TRUE '>'
+    : AC_FIXED '<' arithmetic_expression ',' arithmetic_expression ',' boolean '>'
 {
   if ($3->isConst () && $3->isInteger ()
       && ($3->evalConst () >= 0) & $5->isConst () && $5->isInteger ())
     {
-      $$ = new FixedType ($3, $5);
+//TODO dirty
+      $$ = new FixedType ($3, $5, $7 == &b_true);
     }
   else
     {
@@ -230,24 +231,12 @@ register_type
       YYERROR;
     }
 }
-| AC_FIXED '<' arithmetic_expression ',' arithmetic_expression ',' FALSE '>'
-{
-  if ($3->isConst () && $3->isInteger ()
-      && ($3->evalConst () >= 0) & $5->isConst () && $5->isInteger ())
-    {
-      $$ = new UfixedType ($3, $5);
-    }
-  else
-    {
-      yyerror ("Illegal parameter of ac_fixed");
-      YYERROR;
-    }
-}
-| AC_INT '<' arithmetic_expression ',' FALSE '>'
+| AC_INT '<' arithmetic_expression ',' boolean '>'
 {
   if ($3->isConst () && $3->isInteger () && $3->evalConst () >= 0)
     {
-      $$ = new UintType ($3);
+      // TODO: this is dirty
+      $$ = new IntType ($3, $5 == &b_true);
     }
   else
     {
@@ -255,19 +244,6 @@ register_type
       YYERROR;
     }
 }
-| AC_INT '<' arithmetic_expression ',' TRUE '>'
-{
-  if ($3->isConst () && $3->isInteger () && $3->evalConst () >= 0)
-    {
-      $$ = new IntType ($3);
-    }
-  else
-    {
-      yyerror ("Illegal parameter of ac_int");
-      YYERROR;
-    }
-}
-
 ;
 
 array_param_type : ARRAY '<' type_spec ',' arithmetic_expression '>'

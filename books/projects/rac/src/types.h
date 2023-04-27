@@ -17,19 +17,13 @@ class EnumConstDec;
 // Derived classes:
 //
 //   PrimType           (primitive type: uintTYpe, intType, boolType)
-//   DefinedType        (introduced by typedef)
 //   RegType            (Algorithmic C register type)
-//   UintType           (unsigned limited integer register)
-//   IntType            (signed limited integer register)
-//   FPType             (fixed-point register
-//   UfixedType         (unsigned fixed-point register
-//   FixedType          (signed fixed-point register
+//   IntType            (signed limited integer register signed or unsigned)
+//   FixedType          (fixed-point register signed or unsigned)
 //   ArrayType          (array type)
 //   StructType         (struct type) EnumType (enumeration type)
 //   MvType             (multiple value type)
-//
-//
-//
+//   DefinedType        (introduced by typedef)
 //
 //
 // Type
@@ -37,22 +31,17 @@ class EnumConstDec;
 // |-- PrimType
 // |
 // |-- RegType
-// |   |
-// |   |-- UintType
 // |   |-- IntType
-// |   |-- FPType
-// |   |-- UFixedType
 // |   `-- FixedType
 // |
 // |-- ArrayType
 // |-- StructType [StructField]
 // |-- EnumType
 // |-- MvType
-// 1-- DefinedType
+// `-- DefinedType
 //
-//
-//
-//
+
+
 class Type
 {
 public:
@@ -66,6 +55,7 @@ public:
   {
     return this;
   }
+
   virtual void display (ostream &os = cout) const = 0;
 
   virtual void
@@ -172,58 +162,37 @@ private:
   Expression *width_;
 };
 
-class UintType : public RegType
-{
-public:
-  UintType (Expression *w) : RegType (w) {}
-
-  bool
-  isIntegerType () const override
-  {
-    return true;
-  }
-  void display (ostream &os = cout) const override;
-  unsigned ACL2ValWidth () const override;
-
-};
-
 class IntType : public RegType
 {
+  bool is_signed_;
 public:
-  IntType (Expression *w) : RegType(w) {}
+  IntType (Expression *w, bool is_signed) : RegType(w), is_signed_(is_signed) {}
+
   bool
   isIntegerType () const override
   {
     return true;
   }
+
   void display (ostream &os = cout) const override;
   Sexpression *ACL2Eval (Sexpression *s) const override;
   unsigned ACL2ValWidth () const override;
 };
 
-class FPType : public RegType
+class FixedType : public RegType
 {
-public:
+  bool is_signed_;
   Expression *iwidth;
-  FPType (Expression *w, Expression *iw);
+public:
+  FixedType(Expression *w, Expression *iw, bool is_signed)
+    : RegType(w)
+    , iwidth(iw)
+    , is_signed_(is_signed)
+  {}
+
+  void display (ostream &os = cout) const override;
+  Sexpression *ACL2Eval (Sexpression *s) const override;
   Sexpression *ACL2Assign (Expression *rval) const override;
-};
-
-class UfixedType : public FPType
-{
-public:
-  UfixedType (Expression *w, Expression *iw);
-  void display (ostream &os = cout) const;
-  Sexpression *ACL2Eval (Sexpression *s) const;
-};
-
-class FixedType : public FPType
-{
-public:
-  bool isSigned ();
-  FixedType (Expression *w, Expression *iw);
-  void display (ostream &os = cout) const;
-  Sexpression *ACL2Eval (Sexpression *s) const;
 };
 
 class ArrayType : public Type
@@ -307,10 +276,8 @@ public:
   void
   displayDef (ostream &os = cout) const
   {
-    if (!(dynamic_cast<RegType *>(def_)))
-      {
-        def_->makeDef (getname (), os);
-      }
+    if (!isa<RegType>(def_))
+      def_->makeDef (getname (), os);
   }
 
   Type *
@@ -325,12 +292,6 @@ public:
     return def_;
   }
 
-  Type *&
-  getdef_mutref ()
-  {
-    return def_;
-  }
-
 private:
   Type *def_;
 };
@@ -340,6 +301,6 @@ extern PrimType intType;
 extern PrimType uintType;
 extern PrimType int64Type;
 extern PrimType uint64Type;
-extern UintType bitType;
+extern IntType bitType;
 
 #endif // TYPES_H
