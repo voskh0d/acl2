@@ -53,7 +53,7 @@ public:
   virtual bool isStruct () { return false; }
   virtual bool isSubrange () { return false; }
   virtual bool isInteger () { return false; }
-  virtual bool isInitializer () { return false; }
+
   virtual int evalConst () const {
     assert (!"attempt to evaluate a non-constant expression");
     return 0;
@@ -323,7 +323,6 @@ class Initializer : public Expression
 public:
   List<Constant> *vals;
   Initializer (List<Constant> *v);
-  bool isInitializer () override;
   void displayNoParens (ostream &os) const override;
   Sexpression *ACL2Expr (bool isBV = false) override;
   Sexpression *ACL2ArrayExpr () override;

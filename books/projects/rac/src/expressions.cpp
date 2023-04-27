@@ -93,9 +93,9 @@ int SymRef::evalConst() const {
   }
 }
 
-bool SymRef::isArray() { return exprType()->isArrayType(); }
+bool SymRef::isArray() { return isa<ArrayType>(exprType()); }
 
-bool SymRef::isStruct() { return exprType()->isStructType(); }
+bool SymRef::isStruct() { return isa<StructType>(exprType()); }
 
 bool SymRef::isInteger() { return exprType()->isIntegerType(); }
 
@@ -133,9 +133,9 @@ Type *FunCall::exprType() {
   return func->returnType->derefType();
 }
 
-bool FunCall::isArray() { return exprType()->isArrayType(); }
+bool FunCall::isArray() { return isa<ArrayType>(exprType()); }
 
-bool FunCall::isStruct() { return exprType()->isStructType(); }
+bool FunCall::isStruct() { return isa<StructType>(exprType()); }
 
 bool FunCall::isInteger() { return exprType()->isIntegerType(); }
 
@@ -233,8 +233,7 @@ Expression *TempCall::subst(SymRef *var, Expression *val) {
 }
 
 Sexpression *TempCall::ACL2Expr(bool isBV) {
-  dynamic_cast<Template *>(func)->bindParams(params);
-  Plist *result = dynamic_cast<Plist *>(FunCall::ACL2Expr(isBV));
+  auto *result = static_cast<Plist *>(FunCall::ACL2Expr(isBV));
   result->list->value = instanceSym;
   return result;
 }
@@ -245,8 +244,6 @@ Sexpression *TempCall::ACL2Expr(bool isBV) {
 // Data member:  List<Constant> *vals;
 
 Initializer::Initializer(List<Constant> *v) : Expression() { vals = v; }
-
-bool Initializer::isInitializer() { return true; }
 
 void Initializer::displayNoParens(ostream &os) const {
   os << "{";
@@ -316,7 +313,7 @@ Type *ArrayRef::exprType() {
   return ((ArrayType *)(array->exprType()))->getBaseType();
 }
 
-bool ArrayRef::isArray() { return exprType()->isArrayType(); }
+bool ArrayRef::isArray() { return isa<ArrayType>(exprType()); }
 
 bool ArrayRef::isInteger() { return exprType()->isIntegerType(); }
 
@@ -335,13 +332,13 @@ Expression *ArrayRef::subst(SymRef *var, Expression *val) {
 Sexpression *ArrayRef::ACL2Expr(bool isBV) {
   Sexpression *s;
 
-  SymRef *ref = dynamic_cast<SymRef *>(array);
-  if (ref && ref->symDec->isROM()) {
+  auto *refT = dynamic_cast<SymRef *>(array);
+  if (refT && refT->symDec->isROM()) {
     s = new Plist(
-        { &s_nth, index->ACL2Expr(), new Plist({ ref->symDec->sym }) });
-  } else if (ref && ref->symDec->isGlobal()) {
+        { &s_nth, index->ACL2Expr(), new Plist({ refT->symDec->sym }) });
+  } else if (refT && refT->symDec->isGlobal()) {
     s = new Plist(
-        { &s_ag, index->ACL2Expr(), new Plist({ ref->symDec->sym }) });
+        { &s_ag, index->ACL2Expr(), new Plist({ refT->symDec->sym }) });
   } else {
     s = new Plist({ &s_ag, index->ACL2Expr(), array->ACL2Expr() });
   }
@@ -390,7 +387,7 @@ Type *StructRef::exprType() {
       ->type->derefType();
 }
 
-bool StructRef::isArray() { return exprType()->isArrayType(); }
+bool StructRef::isArray() { return isa<ArrayType>(exprType()); }
 
 bool StructRef::isInteger() { return exprType()->isIntegerType(); }
 
@@ -583,8 +580,9 @@ Sexpression *PrefixExpr::ACL2Expr(bool isBV) {
     Type *t = exprType();
     if (t) {
       Plist *bv = new Plist({ &s_lognot, expr->ACL2Expr(true) });
-      if (isBV && t->isRegType()) {
-        unsigned w = (((const RegType *)t)->width())->evalConst();
+      auto *regT = dynamic_cast<RegType *>(t);
+      if (bv && regT) {
+        unsigned w = regT->width()->evalConst();
         return new Plist({ &s_bits, bv, new Integer(w - 1), &i_0 });
       } else {
         return t->ACL2Eval(bv);

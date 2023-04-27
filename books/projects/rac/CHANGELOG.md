@@ -15,7 +15,9 @@
 * expression.cpp, expression.h: Extend typing and now integer literal are
   partially typed.
 * testsuite: add new tests to test the typing of literal and downcast of AC
-  types when using an initializer list.
+  types when using an initializer list. Modify `get-set-slices` (from ac_types)
+  and `typedef_ac` (from data_types) tests to reflect changes on typing (now
+  some unnecessary bouds are removed.
 
 # bfe335137924e0956000b964d53c1ae94402855d (28/02/23)
 

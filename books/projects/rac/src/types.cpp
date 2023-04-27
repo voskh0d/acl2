@@ -72,6 +72,8 @@ Sexpression *IntType::ACL2Eval(Sexpression *s) const {
   return new Plist({ &s_si, s, new Integer(width()->evalConst()) });
 }
 
+unsigned IntType::ACL2ValWidth() const { return width()->evalConst(); }
+
 // class FPType :public RegType
 // ----------------------------
 
@@ -165,7 +167,7 @@ void ArrayType::displayVarName(const char *name, ostream &os) const {
 void ArrayType::makeDef(const char *name, ostream &os) const {
   Type *b = baseType;
   List<Expression> *dims = new List<Expression>(dim);
-  while (b->isArrayType()) {
+  while (isa<ArrayType>(b)) {
     dims = dims->push(((const ArrayType *)b)->dim);
     b = ((const ArrayType *)b)->baseType;
   }

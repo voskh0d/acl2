@@ -138,7 +138,7 @@ Statement *VarDec::subst(SymRef *var, Expression *val) {
 
 Sexpression *VarDec::ACL2Expr() {
   Sexpression *val;
-  if (type->derefType()->isArrayType()) {
+  if (isa<ArrayType>(type->derefType())) {
     if (!init) {
       val = new Plist();
     } else if (isROM()) {
@@ -146,13 +146,11 @@ Sexpression *VarDec::ACL2Expr() {
     } else {
       val = init->ACL2ArrayExpr();
     }
-  } else if (type->derefType()->isStructType()) {
-    type = type->derefType();
+  } else if (auto *structT = dynamic_cast<StructType *>(type->derefType())) {
     if (!init) {
       val = new Plist();
-    } else if (init->isInitializer()) {
-      val = ((Initializer *)init)
-                ->ACL2StructExpr(((const StructType *)type)->fields);
+    } else if (auto *initT = dynamic_cast<Initializer *>(this->init)) {
+      val = initT->ACL2StructExpr(structT->fields);
     } else {
       val = init->ACL2ArrayExpr();
     }
@@ -193,7 +191,7 @@ bool ConstDec::isGlobal() {
   return false;
 }
 
-bool ConstDec::isROM() { return isGlobal() && type->isArrayType(); }
+bool ConstDec::isROM() { return isGlobal() && isa<ArrayType>(type); }
 
 Sexpression *ConstDec::ACL2SymExpr() {
   if (isGlobal()) {
@@ -549,8 +547,8 @@ Sexpression *MultipleAssignment::ACL2Expr() {
   Plist *result = new Plist({ &s_mv_assign, vars, rval->ACL2Expr() });
   bool isBlock = false;
   for (unsigned i = 0; i < lval.size(); i++) {
-    if (SymRef *ref = dynamic_cast<SymRef *>(lval[i])) {
-      vars->add(ref->symDec->sym);
+    if (auto *refT = dynamic_cast<SymRef *>(lval[i])) {
+      vars->add(refT->symDec->sym);
     } else {
       if (!isBlock) {
         result = new Plist({ result });

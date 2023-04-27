@@ -27,53 +27,40 @@ class EnumConstDec;
 //   ArrayType          (array type)
 //   StructType         (struct type) EnumType (enumeration type)
 //   MvType             (multiple value type)
+//
+//
+//
+//
+//
+// Type
+// |
+// |-- PrimType
+// |
+// |-- RegType
+// |   |
+// |   |-- UintType
+// |   |-- IntType
+// |   |-- FPType
+// |   |-- UFixedType
+// |   `-- FixedType
+// |
+// |-- ArrayType
+// |-- StructType [StructField]
+// |-- EnumType
+// |-- MvType
+// 1-- DefinedType
+//
+//
+//
+//
 class Type
 {
 public:
-
-  // overridden by PrimType
-  virtual bool
-  isPrimType () const
-  {
-    return false;
-  }
-  // overridden by RegType
-  virtual bool
-  isRegType () const
-  {
-    return false;
-  }
-  // overridden by FPType
-  virtual bool
-  isArrayType () const
-  {
-    return false;
-  }
-  // overridden by ArrayType
-  virtual bool
-  isStructType () const
-  {
-    return false;
-  }
-  // overridden by StructType
   virtual bool
   isIntegerType () const
   {
     return false;
   }
-  // overridden by EnumType
-  virtual bool
-  isFPType () const
-  {
-    return false;
-  }
-  // overridden by integer types
-  virtual bool
-  isEnumType () const
-  {
-    return false;
-  }
-  // overridden by DefinedType
   virtual Type *
   derefType ()
   {
@@ -110,10 +97,6 @@ public:
   // implementation stays in output.c.
   // overridden by RegType
   virtual Sexpression *ACL2Assign (Expression *rval) const;
-  //  {
-  //    // Convert rval to an S-expression to be assigned to an object of this
-  //    type. return rval->ACL2Expr()
-  //  }
 
   // overridden by UintType
   virtual unsigned
@@ -149,11 +132,6 @@ public:
   }
 
   bool
-  isPrimType () const override
-  {
-    return true;
-  }
-  bool
   isIntegerType () const override
   {
     return true;
@@ -177,48 +155,6 @@ private:
 };
 
 
-class DefinedType : public Symbol, public Type
-{
-public:
-  DefinedType (const char *s, Type *t) : Symbol (s), def_ (t) {}
-
-  void
-  display (ostream &os) const override
-  {
-    Symbol::display (os);
-  }
-
-  void
-  displayDef (ostream &os = cout) const
-  {
-    if (!(def_->isRegType ()))
-      {
-        def_->makeDef (getname (), os);
-      }
-  }
-
-  Type *
-  derefType () override
-  {
-    return def_->derefType ();
-  }
-
-  Type *
-  getdef ()
-  {
-    return def_;
-  }
-
-  Type *&
-  getdef_mutref ()
-  {
-    return def_;
-  }
-
-private:
-  Type *def_;
-};
-
 class RegType : public Type
 {
 public:
@@ -230,11 +166,6 @@ public:
     return width_;
   }
 
-  bool
-  isRegType () const override
-  {
-    return true;
-  }
   Sexpression *ACL2Assign (Expression *rval) const override;
 
 private:
@@ -253,6 +184,7 @@ public:
   }
   void display (ostream &os = cout) const override;
   unsigned ACL2ValWidth () const override;
+
 };
 
 class IntType : public RegType
@@ -266,6 +198,7 @@ public:
   }
   void display (ostream &os = cout) const override;
   Sexpression *ACL2Eval (Sexpression *s) const override;
+  unsigned ACL2ValWidth () const override;
 };
 
 class FPType : public RegType
@@ -273,11 +206,6 @@ class FPType : public RegType
 public:
   Expression *iwidth;
   FPType (Expression *w, Expression *iw);
-  bool
-  isFPType () const override
-  {
-    return true;
-  }
   Sexpression *ACL2Assign (Expression *rval) const override;
 };
 
@@ -307,11 +235,7 @@ public:
   ArrayType (Expression *d, Type *t) : baseType (t), dim (d) {}
 
   Type *getBaseType () const;
-  bool
-  isArrayType () const override
-  {
-    return true;
-  }
+
   void display (ostream &os) const override;
   void displayVarType (ostream &os = cout) const override;
   void displayVarName (const char *name, ostream &os = cout) const override;
@@ -337,11 +261,7 @@ class StructType : public Type
 public:
   List<StructField> *fields;
   StructType (List<StructField> *f);
-  bool
-  isStructType () const override
-  {
-    return true;
-  }
+
   void displayFields (ostream &os) const;
   void display (ostream &os) const override;
   void makeDef (const char *name, ostream &os = cout) const override;
@@ -352,11 +272,6 @@ class EnumType : public Type
 public:
   List<EnumConstDec> *vals;
   EnumType (List<EnumConstDec> *v);
-  bool
-  isEnumType () const override
-  {
-    return true;
-  }
   bool
   isIntegerType () const override
   {
@@ -376,6 +291,48 @@ public:
   std::vector<Type *> type;
   MvType (std::initializer_list<Type *> &&t) : type (t) {}
   void display (ostream &os) const;
+};
+
+class DefinedType : public Symbol, public Type
+{
+public:
+  DefinedType (const char *s, Type *t) : Symbol (s), def_ (t) {}
+
+  void
+  display (ostream &os) const override
+  {
+    Symbol::display (os);
+  }
+
+  void
+  displayDef (ostream &os = cout) const
+  {
+    if (!(dynamic_cast<RegType *>(def_)))
+      {
+        def_->makeDef (getname (), os);
+      }
+  }
+
+  Type *
+  derefType () override
+  {
+    return def_->derefType ();
+  }
+
+  Type *
+  getdef ()
+  {
+    return def_;
+  }
+
+  Type *&
+  getdef_mutref ()
+  {
+    return def_;
+  }
+
+private:
+  Type *def_;
 };
 
 extern PrimType boolType;

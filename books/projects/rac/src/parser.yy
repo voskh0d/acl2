@@ -811,9 +811,9 @@ assignment : expression assign_op expression
       if (type)
         {
           type = type->derefType ();
-          if (type->isRegType ())
+          if (auto *reg = dynamic_cast<RegType *>(type))
             {
-              w = ((RegType *)type)->width ()->evalConst ();
+              w = reg->width ()->evalConst ();
             }
         }
     }
@@ -920,7 +920,7 @@ case:
 
 case_label : constant | symbol_ref
            {
-  if ($1->exprType ()->isEnumType ())
+  if (isa<EnumType>($1->exprType ()))
     {
       $$ = $1;
     }

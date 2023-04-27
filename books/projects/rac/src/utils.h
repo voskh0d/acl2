@@ -9,6 +9,12 @@
 #define UNREACHABLE() assert (!"Woopsie, some unreachable code was reach")
 #define TODO() assert(!"Not implemented yet !")
 
+// Check if a pointer to a Base class points to an instance of Child.
+template <typename Child, typename Base>
+bool isa(Base *b) {
+  return dynamic_cast<Child *>(b);
+}
+
 //***********************************************************************************
 // Linked Lists
 //***********************************************************************************
