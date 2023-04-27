@@ -27,13 +27,12 @@ IntType bitType(new Integer(1), false);
 // class RegType : public Type (Algorithmic C register type)
 // ---------------------------------------------------
 
-Sexpression *
-RegType::ACL2Assign(Expression *rval) const { // overridden by FPType
+Sexpression *IntType::ACL2Assign(Expression *rval) const {
 
   Type *t = rval->exprType();
   unsigned w = rval->ACL2ValWidth();
 
-  int width_evaluated = width_->evalConst();
+  int width_evaluated = width()->evalConst();
   assert(width_evaluated >= 0);
 
   if (t == this || (w && w <= (unsigned)width_evaluated)) {
@@ -44,7 +43,7 @@ RegType::ACL2Assign(Expression *rval) const { // overridden by FPType
     if (rval->isFP())
       s = new Plist({ &s_fl, s });
     return new Plist(
-        { &s_bits, s, new Integer(width_->evalConst() - 1), &i_0 });
+        { &s_bits, s, new Integer(width()->evalConst() - 1), &i_0 });
   }
 }
 
@@ -64,7 +63,7 @@ Sexpression *IntType::ACL2Eval(Sexpression *s) const {
     return s;
 }
 
-unsigned IntType::ACL2ValWidth() const { return width()->evalConst(); }
+unsigned RegType::ACL2ValWidth() const { return width()->evalConst(); }
 
 // class FixedType : public RegType
 // --------------------------------

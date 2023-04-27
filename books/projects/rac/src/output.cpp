@@ -1,5 +1,6 @@
 #include "functions.h"
 #include "parser.h"
+#include "program.h"
 #include "statements.h"
 #include "types.h"
 
@@ -130,15 +131,18 @@ SymDec::ACL2SymExpr() { // Sexpression for a reference to this symbol.
 //***********************************************************************************
 
 Program::Program()
-    : typeDefs(List<DefinedType>::empty()), constDecs(List<ConstDec>::empty()),
-      templates(List<Template>::empty()), funDefs(List<FunDef>::empty()) {}
+    : constDecs(List<ConstDec>::empty()), templates(List<Template>::empty()),
+      funDefs(List<FunDef>::empty()) {
+  typeDefs.reserve(64);
+}
 
 void Program::displayTypeDefs(ostream &os, DispMode mode) const {
   // Note that type definitions are used in generating S-expressions for
   // constant declarations and function definitions, but are not represented
   // explicitly in the ACL2 translation.
   if (mode == DispMode::rac) {
-    for_each(typeDefs, [&os](auto v) { v->displayDef(os); });
+    for_each(typeDefs.begin(), typeDefs.end(),
+             [&os](auto v) { v->displayDef(os); });
   }
 }
 

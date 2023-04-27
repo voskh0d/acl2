@@ -145,49 +145,6 @@ public:
   }
 };
 
-//***********************************************************************************
-// Programs
-//***********************************************************************************
-
-enum class DispMode
-{
-  rac,
-  acl2,
-  none,
-};
-
-class DefinedType;
-class ConstDec;
-class Template;
-class FunDef;
-
-// A program consists of type definitions, global constant declarations, and
-// function definitions.
-class Program
-{
-public:
-  List<DefinedType> *typeDefs;
-  List<ConstDec> *constDecs;
-  List<Template> *templates;
-  List<FunDef> *funDefs;
-
-  Program ();
-  void displayTypeDefs (ostream &os, DispMode mode) const;
-
-  // TODO constify ACL2Exp, then this can become const
-  void displayConstDecs (ostream &os, DispMode mode);
-
-  // Why this one is not defined
-  //  void displayTemplates(ostream& os, DispMode mode, const char *prefix="");
-
-  void displayFunDefs (ostream &os, DispMode mode);
-  void displayFunDecs (ostream &os) const;
-  void display (ostream &os, DispMode mode = DispMode::rac);
-  bool isEmpty () const;
-};
-
-extern Program prog;
-
 extern Symbol s_ag;
 extern Symbol s_as;
 extern Symbol s_ash;

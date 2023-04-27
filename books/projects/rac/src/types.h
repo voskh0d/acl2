@@ -25,20 +25,21 @@ class EnumConstDec;
 //   MvType             (multiple value type)
 //   DefinedType        (introduced by typedef)
 //
+//   TODO: PrimType should be removed and replaced by IntType.
 //
-// Type
-// |
-// |-- PrimType
-// |
-// |-- RegType
-// |   |-- IntType
-// |   `-- FixedType
-// |
-// |-- ArrayType
-// |-- StructType [StructField]
-// |-- EnumType
-// |-- MvType
-// `-- DefinedType
+//  Type
+//  |
+//  |-- PrimType
+//  |
+//  |-- RegType
+//  |   |-- IntType
+//  |   `-- FixedType
+//  |
+//  |-- ArrayType
+//  |-- StructType [StructField]
+//  |-- EnumType
+//  |-- MvType
+//  `-- DefinedType
 //
 
 
@@ -50,6 +51,7 @@ public:
   {
     return false;
   }
+
   virtual Type *
   derefType ()
   {
@@ -88,7 +90,8 @@ public:
   // overridden by RegType
   virtual Sexpression *ACL2Assign (Expression *rval) const;
 
-  // overridden by UintType
+
+  // overridden by RegType
   virtual unsigned
   ACL2ValWidth () const
   {
@@ -113,11 +116,11 @@ public:
 };
 
 // TODO remove this, should be replace by Uint/Int type
-class PrimType : public Symbol, public Type
+class PrimType : public Type
 {
 public:
   PrimType (const char *s, const char *m = nullptr)
-      : Symbol (s), RACname_ (m ? std::optional (std::string (m)) : nullopt)
+      : name_ (s), RACname_ (m ? std::optional (std::string (m)) : nullopt)
   {
   }
 
@@ -130,17 +133,11 @@ public:
   void
   display (ostream &os) const override
   {
-    if (RACname_)
-      {
-        os << *RACname_;
-      }
-    else
-      {
-        Symbol::display (os);
-      }
+    os << (RACname_ ? *RACname_ : name_);
   }
 
 private:
+  const std::string name_;
   const std::optional<std::string> RACname_;
 };
 
@@ -156,7 +153,7 @@ public:
     return width_;
   }
 
-  Sexpression *ACL2Assign (Expression *rval) const override;
+  unsigned ACL2ValWidth () const override;
 
 private:
   Expression *width_;
@@ -176,7 +173,8 @@ public:
 
   void display (ostream &os = cout) const override;
   Sexpression *ACL2Eval (Sexpression *s) const override;
-  unsigned ACL2ValWidth () const override;
+
+  Sexpression *ACL2Assign (Expression *rval) const override;
 };
 
 class FixedType : public RegType
@@ -241,14 +239,22 @@ class EnumType : public Type
 public:
   List<EnumConstDec> *vals;
   EnumType (List<EnumConstDec> *v);
+
   bool
   isIntegerType () const override
   {
     return true;
   }
+
+  // TODO derefType -> int32
+//  Type *
+//  derefType () override
+
+
   void displayConsts (ostream &os) const;
   void display (ostream &os) const override;
   void makeDef (const char *name, ostream &os = cout) const override;
+
   // ACL2expr Weird
   Sexpression *ACL2Expr ();
   Sexpression *getEnumVal (Symbol *s) const;
@@ -262,22 +268,25 @@ public:
   void display (ostream &os) const;
 };
 
-class DefinedType : public Symbol, public Type
+class DefinedType : public Type
 {
 public:
-  DefinedType (const char *s, Type *t) : Symbol (s), def_ (t) {}
+  DefinedType (const char *s, Type *t) : name_(s), def_ (t) {}
+
+  const std::string& name() { return name_; }
+  Type *typeDefined () { return def_; }
 
   void
   display (ostream &os) const override
   {
-    Symbol::display (os);
+    os << name_;
   }
 
   void
   displayDef (ostream &os = cout) const
   {
     if (!isa<RegType>(def_))
-      def_->makeDef (getname (), os);
+      def_->makeDef (name_.c_str(), os);
   }
 
   Type *
@@ -286,13 +295,9 @@ public:
     return def_->derefType ();
   }
 
-  Type *
-  getdef ()
-  {
-    return def_;
-  }
 
 private:
+  std::string name_;
   Type *def_;
 };
 

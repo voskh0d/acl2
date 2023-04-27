@@ -4,6 +4,7 @@
 #include <string>
 
 #include "parser.h"
+#include "program.h"
 #include "version.h"
 
 void version() {

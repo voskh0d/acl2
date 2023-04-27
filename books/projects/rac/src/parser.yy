@@ -1,6 +1,8 @@
 %{
-#include "parser.h"
 #include <stdio.h>
+
+#include "parser.h"
+#include "program.h"
 
 #include "expressions.h"
 #include "functions.h"
@@ -116,19 +118,15 @@ program : program program_element{}
         | program_element;
 
 program_element : type_dec ';'
-                {
-  if (!prog.typeDefs)
-    {
-      prog.typeDefs = new List<DefinedType> ($1);
-    }
-  else if (prog.typeDefs->find ($1->getname ()))
+{
+  if (prog.findDefinedType ($1->name()))
     {
       yyerror ("Duplicate type definition");
       YYERROR;
     }
   else
     {
-      prog.typeDefs->add ($1);
+      prog.registerType ($1);
     }
 }
 | const_dec ';'
@@ -180,7 +178,9 @@ typedef_dec : TYPEDEF typedef_type ID { $$ = new DefinedType ($3, $2); }
   if ($3->isConst () && $3->evalConst () > 0)
     {
       // TODO delete $1
-      $$ = new DefinedType($1->getname(), new ArrayType($3, $1->getdef ()));
+      $$ = new DefinedType($1->name().c_str(),
+                            new ArrayType($3,
+                            $1->typeDefined()));
     }
   else
     {
@@ -195,7 +195,14 @@ typedef_type : primitive_type     // name of a primitive C numerical type
                | mv_type          // instantiation of mv class template
                | TYPEID
 {
-  $$ = prog.typeDefs->find ($1);
+  auto type = prog.findDefinedType ($1);
+  // Right now this can't happen: typeid is generated only is already defined.
+  // See parse.ll for more details.
+  if (!type) {
+    yyerror("Unknown type `%s`", $1);
+    YYERROR;
+  }
+  $$ = *type;
 } // name of a previously declared type
 ;
 

@@ -10,6 +10,7 @@ lineba ^"#"\ [0-9]+\ \"[^\"]*\".*\n
 #include "expressions.h"
 #include "functions.h"
 #include "parser.h"
+#include "program.h"
 #include "parser.tab.hpp"
 #include "statements.h"
 #include "types.h"
@@ -71,7 +72,7 @@ char yyfilenm[1024];
 "true"                      {yylval.s = tokstr(); return TRUE;}
 "false"                     {yylval.s = tokstr(); return FALSE;}
 
-[a-zA-Z_][a-zA-Z_0-9]*      {yylval.s = tokstr(); return (prog.typeDefs->find(yytext)) ? TYPEID : (prog.templates->find(yytext)) ? TEMPLATEID : ID;}
+[a-zA-Z_][a-zA-Z_0-9]*      {yylval.s = tokstr(); return (prog.findDefinedType(yytext)) ? TYPEID : (prog.templates->find(yytext)) ? TEMPLATEID : ID;}
 
 [0-9]+ |
 "0x"[a-fA-F_0-9]+           {yylval.s = tokstr(); return NAT;}
@@ -151,9 +152,7 @@ comment ()
 char *
 tokstr ()
 {
-  char *str = new char[yyleng + 1];
-  strcpy (str, yytext);
-  return str;
+  return strndup(yytext, yyleng);
 }
 
 int
