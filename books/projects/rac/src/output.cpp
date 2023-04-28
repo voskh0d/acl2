@@ -134,6 +134,9 @@ Program::Program()
     : constDecs(List<ConstDec>::empty()), templates(List<Template>::empty()),
       funDefs(List<FunDef>::empty()) {
   typeDefs.reserve(64);
+
+  Builtin *abs = new Builtin("abs", &intType, { new VarDec("", &intType) });
+  funDefs = new List<FunDef>(abs);
 }
 
 void Program::displayTypeDefs(ostream &os, DispMode mode) const {

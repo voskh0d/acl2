@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <iomanip>
 
 #include "expressions.h"
@@ -129,8 +130,8 @@ FunCall::FunCall(FunDef *f, List<Expression> *a) : Expression() {
 }
 
 Type *FunCall::exprType() {
-  assert(func->returnType->derefType());
-  return func->returnType->derefType();
+  assert(func->returnType()->derefType());
+  return func->returnType()->derefType();
 }
 
 bool FunCall::isArray() { return isa<ArrayType>(exprType()); }
@@ -170,13 +171,13 @@ Expression *FunCall::subst(SymRef *var, Expression *val) {
 
 Sexpression *FunCall::ACL2Expr(bool isBV) {
   Plist *result = new Plist({ new Symbol(func->getname()) });
-  List<VarDec> *p = func->params;
   List<Expression> *a = args;
-  while (a) {
-    result->add(p->value->type->derefType()->ACL2Assign(a->value));
+
+  std::for_each(func->params().begin(), func->params().end(), [&](VarDec *v) {
+    result->add(v->type->derefType()->ACL2Assign(a->value));
     a = a->next;
-    p = p->next;
-  }
+  });
+
   return isBV ? result : exprType()->ACL2Eval(result);
 }
 
@@ -186,13 +187,8 @@ Sexpression *FunCall::ACL2Expr(bool isBV) {
 // call members:  Symbol *instanceSym; List<Expression> *params;
 
 TempCall::TempCall(Template *f, List<Expression> *a, List<Expression> *p)
-    : FunCall(f, a) {
-  params = p;
-  if (f->calls == nullptr) {
-    f->calls = new List<TempCall>(this);
-  } else {
-    f->calls->add(this);
-  }
+    : FunCall(f, a), params(p) {
+  f->registerCall(this);
 }
 
 void TempCall::displayNoParens(ostream &os) const {
@@ -568,7 +564,7 @@ Type *PrefixExpr::exprType() {
   }
 }
 
-Sexpression *PrefixExpr::ACL2Expr(bool isBV) {
+Sexpression *PrefixExpr::ACL2Expr([[maybe_unused]] bool isBV) {
   Sexpression *s = expr->ACL2Expr();
   if (!strcmp(op, "+")) {
     return s;

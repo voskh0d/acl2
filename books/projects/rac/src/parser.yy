@@ -29,8 +29,8 @@ template <typename... Args> void yyerror (const char *format, Args... args)
 extern BreakStmt breakStmt;
 
 Program prog;
-  List<Builtin> builtins (new Builtin ("abs", &intType, new List<VarDec>(new VarDec("", &intType))));
-  SymbolStack<SymDec> symTab;
+//List<Builtin> builtins (new Builtin ("abs", &intType, new List<VarDec>(new VarDec("", &intType))));
+SymbolStack<SymDec> symTab;
 %}
 
 %union {
@@ -133,9 +133,9 @@ program_element : type_dec ';'
 {
   if (!prog.constDecs)
     {
-      prog.constDecs = new List<ConstDec> ((ConstDec *)$1);
+      prog.constDecs = new List<ConstDec> (static_cast<ConstDec *>($1));
     }
-  else if (prog.constDecs->find (((ConstDec *)$1)->sym->getname ()))
+  else if (prog.constDecs->find (static_cast<ConstDec *>($1)->sym->getname ()))
     {
       yyerror ("Duplicate global constant declaration");
       YYERROR;
@@ -147,11 +147,7 @@ program_element : type_dec ';'
 }
 | func_def
 {
-  if (!prog.funDefs)
-    {
-      prog.funDefs = new List<FunDef> ($1);
-    }
-  else if (prog.funDefs->find ($1->getname ()))
+  if (prog.funDefs->find ($1->getname ()))
     {
       yyerror ("Duplicate function definition");
       YYERROR;
@@ -373,30 +369,27 @@ symbol_ref : ID
 ;
 
 funcall : ID '(' expr_list ')'
-        {
-  FunDef *f;
-  if ((f = prog.funDefs->find ($1)) == nullptr
-      && (f = builtins.find ($1)) == NULL)
+{
+  if (FunDef *f = prog.funDefs->find ($1))
+    {
+      $$ = new FunCall (f, $3);
+    }
+  else
     {
       yyerror ("Undefined function");
       YYERROR;
     }
-  else
-    {
-      $$ = new FunCall (f, $3);
-    }
 }
 | TEMPLATEID '<' arith_expr_list '>' '(' arith_expr_list ')'
 {
-  Template *f;
-  if ((f = (Template *)prog.funDefs->find ($1)) == nullptr)
+  if (Template *f = static_cast<Template *>(prog.funDefs->find ($1)))
     {
-      yyerror ("Undefined function template");
-      YYERROR;
+      $$ = new TempCall (f, $6, $3);
     }
   else
     {
-      $$ = new TempCall (f, $6, $3);
+      yyerror ("Undefined function template");
+      YYERROR;
     }
 };
 
@@ -927,7 +920,7 @@ final_statement : return_statement ';'
 func_def : type_spec ID { symTab.pushFrame (); }
          '(' param_dec_list ')' r_block
 {
-  $$ = new FunDef ($2, $1, $5, (Block *)$7);
+  $$ = new FunDef ($2, $1, collect($5), static_cast<Block *>($7));
   symTab.popFrame ();
 }
 | func_template;
@@ -941,7 +934,7 @@ nontrivial_param_dec_list : var_dec { $$ = new List<VarDec> ((VarDec *)$1); }
 func_template : TEMPLATE { symTab.pushFrame (); }
               '<' template_param_dec_list '>' type_spec ID '(' param_dec_list ')' r_block
 {
-  $$ = new Template ($7, $6, $9, (Block *)$11, $4);
+  $$ = new Template ($7, $6, collect($9), static_cast<Block *>($11), collect($4));
   symTab.popFrame ();
   if (!prog.templates)
     {

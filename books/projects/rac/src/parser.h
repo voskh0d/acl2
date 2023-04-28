@@ -16,7 +16,7 @@ class Program;
 
 extern int yylineno;
 
-extern int yyparse ();
+extern int yyparse();
 extern FILE *yyin;
 extern FILE *yyout;
 extern Program prog;
@@ -32,88 +32,70 @@ extern char yyfilenm[];
 
 // An Sexpression is a Symbol, a Cons, or a Plist (proper list of
 // S-expressions). Note that Constant is a derived class of Symbol.
-class Sexpression
-{
+class Sexpression {
 public:
-  virtual void display (ostream &os) const = 0;
+  virtual void display(ostream &os) const = 0;
 };
 
-class Plist : public Sexpression
-{
+class Plist : public Sexpression {
 public:
   // TODO list -> private
   List<Sexpression> *list;
 
-  Plist () : list (nullptr){};
+  Plist() : list(nullptr){};
 
-  Plist (std::initializer_list<Sexpression *> sexprs)
-  {
+  virtual ~Plist() {}
 
-    auto it = crbegin (sexprs);
-    if (it == crend (sexprs))
-      {
-        list = nullptr;
-        return;
-      }
+  Plist(std::initializer_list<Sexpression *> sexprs) {
 
-    list = new List<Sexpression> (*it);
-    for (++it; it != crend (sexprs); ++it)
-      {
-        list = list->push (*it);
-      }
+    auto it = crbegin(sexprs);
+    if (it == crend(sexprs)) {
+      list = nullptr;
+      return;
+    }
+
+    list = new List<Sexpression>(*it);
+    for (++it; it != crend(sexprs); ++it) {
+      list = list->push(*it);
+    }
   }
 
-  static Plist *
-  FromList (List<Sexpression> *l = nullptr)
-  {
-    auto pl = new Plist ();
+  static Plist *FromList(List<Sexpression> *l = nullptr) {
+    auto pl = new Plist();
     pl->list = l;
     return pl;
   }
 
-  Plist *
-  add (Sexpression *s)
-  {
-    if (list)
-      {
-        list->add (s);
-      }
-    else
-      {
-        list = new List<Sexpression> (s);
-      }
+  Plist *add(Sexpression *s) {
+    if (list) {
+      list->add(s);
+    } else {
+      list = new List<Sexpression>(s);
+    }
     return this;
   }
 
-  Plist *
-  push (Sexpression *s)
-  {
-    if (list)
-      {
-        list = list->push (s);
-      }
-    else
-      {
-        list = new List<Sexpression> (s);
-      }
+  Plist *push(Sexpression *s) {
+    if (list) {
+      list = list->push(s);
+    } else {
+      list = new List<Sexpression>(s);
+    }
     return this;
   }
 
-  void display (ostream &os) const;
+  void display(ostream &os) const;
 };
 
-class Cons : public Sexpression
-{
+class Cons : public Sexpression {
 public:
-  Cons (Sexpression *a, Sexpression *d) : car_ (a), cdr_ (d) {}
+  Cons(Sexpression *a, Sexpression *d) : car_(a), cdr_(d) {}
 
-  void
-  display (ostream &os) const
-  {
+  void display(ostream &os) const {
     os << "(";
-    car_->display (os);
+    car_->display(os);
     os << " . ";
-    cdr_->display (os);
+    cdr_->display(os);
     os << ")";
   }
 
@@ -122,27 +104,18 @@ private:
   Sexpression *cdr_;
 };
 
-class Symbol : public Sexpression
-{
+class Symbol : public Sexpression {
   std::string name_;
 
 public:
-  Symbol (std::string &&s) : name_ (s) {}
+  Symbol(std::string &&s) : name_(s) {}
 
-  Symbol (const char *s) : name_ (s) {}
+  Symbol(const char *s) : name_(s) {}
 
-  Symbol (int n) : name_ (std::to_string (n)) {}
+  Symbol(int n) : name_(std::to_string(n)) {}
 
-  const char *
-  getname () const
-  {
-    return name_.c_str ();
-  }
-  void
-  display (ostream &os) const
-  {
-    os << name_;
-  }
+  const char *getname() const { return name_.c_str(); }
+  void display(ostream &os) const { os << name_; }
 };
 
 extern Symbol s_ag;

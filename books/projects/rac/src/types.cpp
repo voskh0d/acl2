@@ -213,8 +213,7 @@ EnumType::EnumType(List<EnumConstDec> *v) {
 
 Sexpression *EnumType::ACL2Expr() {
   Plist *result = new Plist();
-  for_each(vals,
-           [this, result](EnumConstDec *e) { result->add(e->ACL2Expr()); });
+  for_each(vals, [result](EnumConstDec *e) { result->add(e->ACL2Expr()); });
   return result;
 }
 
