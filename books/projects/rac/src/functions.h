@@ -7,8 +7,6 @@
 #include <iomanip>
 #include <vector>
 
-using namespace std;
-
 //***********************************************************************************
 // Functions
 //***********************************************************************************
@@ -28,10 +26,11 @@ public:
   Type *returnType() { return returnType_; }
   std::vector<VarDec *> &params() { return params_; }
 
-  void displayDec(ostream &os, const char *prefix = "", unsigned indent = 0);
-  virtual void display(ostream &os, const char *prefix = "",
+  void displayDec(std::ostream &os, const char *prefix = "",
+                  unsigned indent = 0);
+  virtual void display(std::ostream &os, const char *prefix = "",
                        unsigned indent = 0);
-  virtual void displayACL2Expr(ostream &os);
+  virtual void displayACL2Expr(std::ostream &os);
 
 protected:
   FunDef(const char *n, Type *t, std::vector<VarDec *> p)
@@ -46,7 +45,7 @@ protected:
   Block *body_;
 
 private:
-  void displayPrototype(ostream &os, const char *prefix, unsigned indent);
+  void displayPrototype(std::ostream &os, const char *prefix, unsigned indent);
 };
 
 // A builtin does not need an implemtation and should not be displayed.
@@ -54,11 +53,11 @@ class Builtin : public FunDef {
 public:
   Builtin(const char *n, Type *t, std::vector<VarDec *> p) : FunDef(n, t, p) {}
 
-  virtual void display([[maybe_unused]] ostream &os,
+  virtual void display([[maybe_unused]] std::ostream &os,
                        [[maybe_unused]] const char *prefix = "",
                        [[maybe_unused]] unsigned indent = 0) override {}
 
-  virtual void displayACL2Expr([[maybe_unused]] ostream &os) override {}
+  virtual void displayACL2Expr([[maybe_unused]] std::ostream &os) override {}
 };
 
 class Template : public FunDef {
@@ -71,11 +70,11 @@ public:
 
   void registerCall(TempCall *tc) { calls_.push_back(tc); }
 
-  void display(ostream &os, const char *prefix = "",
+  void display(std::ostream &os, const char *prefix = "",
                unsigned indent = 0) override;
 
   void bindParams(std::vector<Expression *> a);
-  void displayACL2Expr(ostream &os) override;
+  void displayACL2Expr(std::ostream &os) override;
 
 private:
   std::vector<TempParamDec *> tempParams_;

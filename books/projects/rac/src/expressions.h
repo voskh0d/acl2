@@ -7,8 +7,6 @@
 #include "types.h"
 #include "utils.h"
 
-using namespace std;
-
 //***********************************************************************************
 // Expressions
 //***********************************************************************************
@@ -33,6 +31,21 @@ class MvType;
 //    std::fprintf (stderr, "\n");
 //  }
 //};
+
+template <typename Expr>
+class NoParenthesis {
+public:
+  NoParenthesis(const Expr &e) : expr_(e) {}
+
+  friend std::ostream &operator<<(std::ostream &os,
+                                  const NoParenthesis<Expr> &e) {
+    e.expr_->displayNoParens(os);
+    return os;
+  }
+
+private:
+  const Expr &expr_;
+};
 
 class Expression //: public ASTNode
 {
@@ -71,13 +84,18 @@ public:
 
   // displayNoParens is defined for each class of expressions and is called by
   // the non-virtual display method, which inserts parentheses as required:
-  virtual void displayNoParens(ostream &os) const = 0;
-  void display(ostream &os) const {
+  virtual void displayNoParens(std::ostream &os) const = 0;
+  void display(std::ostream &os) const {
     if (needsParens_)
       os << "(";
     displayNoParens(os);
     if (needsParens_)
       os << ")";
+  }
+
+  friend std::ostream &operator<<(std::ostream &os, const Expression &e) {
+    e.display(os);
+    return os;
   }
 
   // The following method substitutes each occurrence of a given variable with
@@ -185,7 +203,7 @@ public:
   bool isConst() const override { return true; }
   bool isInteger() override { return true; }
 
-  void displayNoParens(ostream &os) const override { os << getname(); }
+  void displayNoParens(std::ostream &os) const override { os << getname(); }
 
   Sexpression *ACL2Expr([[maybe_unused]] bool isBV = false) override {
     return this;
@@ -203,44 +221,74 @@ public:
 
 class Integer : public Constant {
 public:
-  Integer(const char *n);
-  Integer(int n);
-  int evalConst() const override;
+  Integer(const char *n) : Constant(n) {
+    if (!strncmp(getname(), "0x", 2)) {
+      val_ = strtol(getname() + 2, nullptr, 16);
+      is_hex_ = true;
+    } else if (!strncmp(getname(), "-0x", 3)) {
+      val_ = -strtol(getname() + 3, nullptr, 16);
+      is_hex_ = true;
+    } else {
+      val_ = atoi(getname());
+      is_hex_ = false;
+    }
+  }
+
+  static Integer *zero() { return new Integer(0); };
+  static Integer *one() { return new Integer(1); };
+  static Integer *two() { return new Integer(2); };
+
+  Integer(int n) : Constant(n), val_(n), is_hex_(false) {}
+
+  int evalConst() const override { return val_; }
+
   Sexpression *ACL2Expr(bool isBV) override;
 
   Type *exprType() override {
-    int val = evalConst();
     // TODO Remove ternary: it is needed since 0 is consider as no or unknown
     // bounds.
-    unsigned width = val ? std::floor(std::log2(val)) : 1;
-    return new IntType(new Integer(width), val < 0);
+    unsigned width = val_ ? std::floor(std::log2(val_)) : 1;
+    return new IntType(new Integer(width), val_ < 0);
   }
 
   // astnode implementation
   //  bool bindNames(SymbolStack<SymDec> &symTab) override { return true; }
+private:
+  long val_;
+  bool is_hex_;
 };
-
-extern Integer i_0;
-extern Integer i_1;
-extern Integer i_2;
 
 class Boolean : public Constant {
 public:
-  Boolean(const char *n);
-  int evalConst() const override;
-  Sexpression *ACL2Expr(bool isBV = false) override;
+  Boolean(const char *n) : Constant(n) {
+    if (!strcmp(getname(), "true"))
+      val_ = true;
+    else if (!strcmp(getname(), "false"))
+      val_ = false;
+    else
+      UNREACHABLE();
+  }
+
+  Boolean(bool val) : Constant(val ? "true" : "false"), val_(val){};
+
+  int evalConst() const override { return val_; }
+
+  Sexpression *ACL2Expr([[maybe_unused]] bool isBV) {
+    return val_ ? new Plist({ &s_true }) : new Plist({ &s_false });
+  }
 
   Type *exprType() override { return &boolType; }
 
   // astnode implementation
   //  bool bindNames(SymbolStack<SymDec> &symTab) override { return true; }
+private:
+  bool val_;
 };
 
 extern Boolean b_true;
 extern Boolean b_false;
 
 class SymRef : public Expression {
-  //  const char *id;
 
 public:
   SymDec *symDec;
@@ -251,7 +299,7 @@ public:
   bool isArray() override;
   bool isStruct() override;
   bool isInteger() override;
-  void displayNoParens(ostream &os) const override;
+  void displayNoParens(std::ostream &os) const override;
   Expression *subst(SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr(bool isBV = false) override;
   Sexpression *ACL2Assign(Sexpression *rval) override;
@@ -281,7 +329,7 @@ public:
   bool isStruct() override;
   bool isInteger() override;
   Type *exprType() override;
-  void displayNoParens(ostream &os) const override;
+  void displayNoParens(std::ostream &os) const override;
   Expression *subst(SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr(bool isBV = false) override;
 };
@@ -293,7 +341,7 @@ public:
   Symbol *instanceSym = nullptr;
   List<Expression> *params;
   TempCall(Template *f, List<Expression> *a, List<Expression> *p);
-  void displayNoParens(ostream &os) const override;
+  void displayNoParens(std::ostream &os) const override;
   Expression *subst(SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr(bool isBV = false) override;
 };
@@ -302,7 +350,7 @@ class Initializer : public Expression {
 public:
   List<Constant> *vals;
   Initializer(List<Constant> *v);
-  void displayNoParens(ostream &os) const override;
+  void displayNoParens(std::ostream &os) const override;
   Sexpression *ACL2Expr(bool isBV = false) override;
   Sexpression *ACL2ArrayExpr() override;
   Sexpression *ACL2StructExpr(List<StructField> *fields);
@@ -321,7 +369,7 @@ public:
   bool isArray() override;
   bool isInteger() override;
   Type *exprType() override;
-  void displayNoParens(ostream &os) const override;
+  void displayNoParens(std::ostream &os) const override;
   Expression *subst(SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr(bool isBV = false) override;
   Sexpression *ACL2Assign(Sexpression *rval) override;
@@ -330,7 +378,7 @@ public:
 class ArrayParamRef : public ArrayRef {
 public:
   ArrayParamRef(Expression *a, Expression *i);
-  void displayNoParens(ostream &os) const override;
+  void displayNoParens(std::ostream &os) const override;
   Expression *subst(SymRef *var, Expression *val) override;
 };
 
@@ -342,7 +390,7 @@ public:
   bool isArray() override;
   bool isInteger() override;
   Type *exprType() override;
-  void displayNoParens(ostream &os) const override;
+  void displayNoParens(std::ostream &os) const override;
   Sexpression *ACL2Expr(bool isBV = false) override;
   Sexpression *ACL2Assign(Sexpression *rval) override;
 };
@@ -353,7 +401,7 @@ public:
   Expression *index;
   BitRef(Expression *b, Expression *i);
   bool isInteger() override;
-  void displayNoParens(ostream &os) const override;
+  void displayNoParens(std::ostream &os) const override;
   Expression *subst(SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr(bool isBV = false) override;
   Sexpression *ACL2Assign(Sexpression *rval) override;
@@ -376,7 +424,7 @@ public:
 
   bool isSubrange() override;
   bool isInteger() override;
-  void displayNoParens(ostream &os) const override;
+  void displayNoParens(std::ostream &os) const override;
 
   Expression *subst(SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr(bool isBV = false) override;
@@ -395,7 +443,7 @@ public:
   bool isConst() const override;
   int evalConst() const override;
   bool isInteger() override;
-  void displayNoParens(ostream &os) const override;
+  void displayNoParens(std::ostream &os) const override;
   Expression *subst(SymRef *var, Expression *val) override;
   Type *exprType() override;
   Sexpression *ACL2Expr(bool isBV = false) override;
@@ -412,7 +460,7 @@ public:
   bool isConst() const override;
   int evalConst() const override;
   bool isInteger() override;
-  void displayNoParens(ostream &os) const override;
+  void displayNoParens(std::ostream &os) const override;
   Expression *subst(SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr(bool isBV = false) override;
 };
@@ -427,7 +475,7 @@ public:
   bool isConst() const override;
   int evalConst() const override;
   bool isInteger() override;
-  void displayNoParens(ostream &os) const override;
+  void displayNoParens(std::ostream &os) const override;
   Expression *subst(SymRef *var, Expression *val) override;
   Type *exprType() override;
   Sexpression *ACL2Expr(bool isBV = false) override;
@@ -445,7 +493,7 @@ public:
   Expression *test;
   CondExpr(Expression *e1, Expression *e2, Expression *t);
   bool isInteger() override;
-  void displayNoParens(ostream &os) const override;
+  void displayNoParens(std::ostream &os) const override;
   Expression *subst(SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr(bool isBV = false) override;
 
@@ -463,7 +511,7 @@ public:
   MultipleValue(MvType *t, std::vector<Expression *> &&e) : type(t), expr(e) {}
   MultipleValue(MvType *t, List<Expression> *e);
 
-  void displayNoParens(ostream &os) const override;
+  void displayNoParens(std::ostream &os) const override;
   Expression *subst(SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr(bool isBV = false) override;
 

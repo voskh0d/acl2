@@ -3,14 +3,12 @@
 
 #include <assert.h>
 #include <cstring> // for strlen, strcpy, etc
-#include <iostream>
+#include <ostream>
 #include <stdio.h>
 
 #include <deque>
 #include <optional>
 #include <vector>
-
-using namespace std;
 
 class Program;
 
@@ -34,7 +32,7 @@ extern char yyfilenm[];
 // S-expressions). Note that Constant is a derived class of Symbol.
 class Sexpression {
 public:
-  virtual void display(ostream &os) const = 0;
+  virtual void display(std::ostream &os) const = 0;
 };
 
 class Plist : public Sexpression {
@@ -84,14 +82,14 @@ public:
     return this;
   }
 
-  void display(ostream &os) const;
+  void display(std::ostream &os) const;
 };
 
 class Cons : public Sexpression {
 public:
   Cons(Sexpression *a, Sexpression *d) : car_(a), cdr_(d) {}
 
-  void display(ostream &os) const {
+  void display(std::ostream &os) const {
     os << "(";
     car_->display(os);
     os << " . ";
@@ -115,7 +113,7 @@ public:
   Symbol(int n) : name_(std::to_string(n)) {}
 
   const char *getname() const { return name_.c_str(); }
-  void display(ostream &os) const { os << name_; }
+  void display(std::ostream &os) const { os << name_; }
 };
 
 extern Symbol s_ag;

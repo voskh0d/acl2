@@ -1,6 +1,6 @@
-#include "types.h"
 #include "expressions.h"
 #include "statements.h"
+#include "types.h"
 
 #include <iomanip>
 
@@ -42,18 +42,16 @@ Sexpression *IntType::ACL2Assign(Expression *rval) const {
     Sexpression *s = rval->ACL2Expr();
     if (rval->isFP())
       s = new Plist({ &s_fl, s });
-    return new Plist(
-        { &s_bits, s, new Integer(width()->evalConst() - 1), &i_0 });
+    return new Plist({ &s_bits, s, new Integer(width()->evalConst() - 1),
+                       Integer::zero() });
   }
 }
 
 // class IntType : public RegType
 // ------------------------------
 
-void IntType::display(ostream &os) const {
-  os << (is_signed_ ? "sc_int<" : "sc_uint");
-  width()->displayNoParens(os);
-  os << ">";
+void IntType::display(std::ostream &os) const {
+  os << (is_signed_ ? "sc_int<" : "sc_uint") << NoParenthesis(width()) << ">";
 }
 
 Sexpression *IntType::ACL2Eval(Sexpression *s) const {
@@ -68,12 +66,9 @@ unsigned RegType::ACL2ValWidth() const { return width()->evalConst(); }
 // class FixedType : public RegType
 // --------------------------------
 
-void FixedType::display(ostream &os) const {
-  os << (is_signed_ ? "sc_fixed<" : "sc_ufixed<");
-  width()->displayNoParens(os);
-  os << ", ";
-  iwidth->displayNoParens(os);
-  os << '>';
+void FixedType::display(std::ostream &os) const {
+  os << (is_signed_ ? "sc_fixed<" : "sc_ufixed<") << NoParenthesis(width())
+     << ", " << NoParenthesis(iwidth) << '>';
 }
 
 Sexpression *FixedType::ACL2Eval(Sexpression *s) const {
@@ -83,13 +78,13 @@ Sexpression *FixedType::ACL2Eval(Sexpression *s) const {
     Sexpression *numerator
         = new Plist({ &s_si, s, new Integer(width()->evalConst()) });
     Sexpression *denominator = new Plist(
-        { &s_expt, &i_2,
+        { &s_expt, Integer::two(),
           new Integer(width()->evalConst() - iwidth->evalConst()) });
     return new Plist({ &s_divide, numerator, denominator });
   } else {
 
     return new Plist({ &s_divide, s,
-                       new Plist({ &s_expt, &i_2,
+                       new Plist({ &s_expt, Integer::two(),
                                    new Integer(width()->evalConst()
                                                - iwidth->evalConst()) }) });
   }
@@ -104,11 +99,12 @@ Sexpression *FixedType::ACL2Assign(Expression *rval) const {
   } else {
     Sexpression *s = rval->ACL2Expr();
     int wVal = width()->evalConst(), iwVal = iwidth->evalConst();
-    s = new Plist({ &s_times, s,
-                    new Plist({ &s_expt, &i_2, new Integer(wVal - iwVal) }) });
+    s = new Plist(
+        { &s_times, s,
+          new Plist({ &s_expt, Integer::two(), new Integer(wVal - iwVal) }) });
     if ((rval->isFP()) || wVal < iwVal)
       s = new Plist({ &s_fl, s });
-    return new Plist({ &s_bits, s, new Integer(wVal - 1), &i_0 });
+    return new Plist({ &s_bits, s, new Integer(wVal - 1), Integer::zero() });
   }
 }
 
@@ -119,36 +115,25 @@ Sexpression *FixedType::ACL2Assign(Expression *rval) const {
 
 Type *ArrayType::getBaseType() const { return baseType->derefType(); }
 
-void ArrayType::display(ostream &os) const {
-  baseType->display(os);
-  os << "[";
-  dim->displayNoParens(os);
-  os << "]";
+void ArrayType::display(std::ostream &os) const {
+  os << *baseType << "[" << NoParenthesis(dim) << "]";
 }
 
-void ArrayType::displayVarType(ostream &os) const { baseType->display(os); }
+void ArrayType::displayVarType(std::ostream &os) const { os << *baseType; }
 
-void ArrayType::displayVarName(const char *name, ostream &os) const {
-  os << name << '[';
-  dim->displayNoParens(os);
-  os << ']';
+void ArrayType::displayVarName(const char *name, std::ostream &os) const {
+  os << name << '[' << NoParenthesis(dim) << ']';
 }
 
-void ArrayType::makeDef(const char *name, ostream &os) const {
+void ArrayType::makeDef(const char *name, std::ostream &os) const {
+
   Type *b = baseType;
-  List<Expression> *dims = new List<Expression>(dim);
-  while (isa<ArrayType>(b)) {
-    dims = dims->push(((const ArrayType *)b)->dim);
-    b = ((const ArrayType *)b)->baseType;
-  }
-  os << "\ntypedef ";
-  b->display(os);
-  os << " " << name;
-  while (dims) {
-    os << "[";
-    (dims->value)->displayNoParens(os);
-    os << "]";
-    dims = dims->next;
+  os << "\ntypedef " << *b << " " << name;
+
+  os << "[" << NoParenthesis(dim) << "]";
+  while (auto arrayType = dynamic_cast<ArrayType *>(b)) {
+    os << "[" << NoParenthesis(arrayType->dim) << "]";
+    b = arrayType->baseType;
   }
   os << ";";
 }
@@ -163,12 +148,8 @@ StructField::StructField(Type *t, char *n) {
   type = t;
 }
 
-void StructField::display(ostream &os, unsigned indent) const {
-  if (indent) {
-    os << setw(indent) << " ";
-  }
-  type->display(os);
-  os << " " << getname() << ";";
+void StructField::display(std::ostream &os) const {
+  os << *type << " " << getname() << ";";
 }
 
 // class StructType : public Type
@@ -178,24 +159,31 @@ void StructField::display(ostream &os, unsigned indent) const {
 
 StructType::StructType(List<StructField> *f) { fields = f; }
 
-void StructType::displayFields(ostream &os) const {
+void StructType::displayFields(std::ostream &os) const {
   os << "{";
-  List<StructField> *ptr = fields;
-  while (ptr) {
-    ptr->value->display(os);
-    if (ptr->next)
+  //  List<StructField> *ptr = fields;
+  //  while (ptr) {
+  //    ptr->value->display(os);
+  //    if (ptr->next)
+  //      os << " ";
+  //    ptr = ptr->next;
+  //  }
+
+  bool first = true;
+  for_each(fields, [&](StructField *sf) {
+    if (!first)
       os << " ";
-    ptr = ptr->next;
-  }
+    os << *sf;
+  });
   os << "}";
 }
 
-void StructType::display(ostream &os) const {
+void StructType::display(std::ostream &os) const {
   os << "struct ";
   this->displayFields(os);
 }
 
-void StructType::makeDef(const char *name, ostream &os) const {
+void StructType::makeDef(const char *name, std::ostream &os) const {
   os << "\nstruct " << name << " ";
   displayFields(os);
   os << ";";
@@ -217,7 +205,7 @@ Sexpression *EnumType::ACL2Expr() {
   return result;
 }
 
-void EnumType::displayConsts(ostream &os) const {
+void EnumType::displayConsts(std::ostream &os) const {
   os << "{";
   bool is_first = true;
   for_each(vals, [&](EnumConstDec *e) {
@@ -229,7 +217,7 @@ void EnumType::displayConsts(ostream &os) const {
   os << "}";
 }
 
-void EnumType::display(ostream &os) const {
+void EnumType::display(std::ostream &os) const {
   os << "enum ";
   displayConsts(os);
 }
@@ -253,7 +241,7 @@ Sexpression *EnumType::getEnumVal(Symbol *s) const {
   return 0;
 }
 
-void EnumType::makeDef(const char *name, ostream &os) const {
+void EnumType::makeDef(const char *name, std::ostream &os) const {
   os << "\nenum " << name << " ";
   displayConsts(os);
   os << ";";
@@ -265,7 +253,7 @@ void EnumType::makeDef(const char *name, ostream &os) const {
 // Data members:  unsigned numVals; Type *type[8];
 // 2 <= numVals <= 8; determines number of valid entries of type[].
 
-void MvType::display(ostream &os) const {
+void MvType::display(std::ostream &os) const {
 
   assert(type.size() >= 2
          && "It does not make sense to have a mv with 1 or 0 elem");

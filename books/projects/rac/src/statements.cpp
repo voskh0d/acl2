@@ -1,6 +1,6 @@
-#include "statements.h"
 #include "functions.h"
 #include "program.h"
+#include "statements.h"
 
 #include <iomanip>
 
@@ -29,14 +29,14 @@
 // This method is designed to handle if ... else if ... :
 
 void Statement::displayAsRightBranch(
-    ostream &os, unsigned indent) { // virtual (overridden by IfStmt)
+    std::ostream &os, unsigned indent) { // virtual (overridden by IfStmt)
   display(os, indent + 2);
 }
 
 // This method is designed to handle nested blocks:
 
 void Statement::displayWithinBlock(
-    ostream &os, unsigned indent) { // virtual (overridden by Block)
+    std::ostream &os, unsigned indent) { // virtual (overridden by Block)
   display(os, indent);
 }
 
@@ -82,10 +82,10 @@ void Statement::markAssertions([
 
 SimpleStatement::SimpleStatement() : Statement() {}
 
-void SimpleStatement::display(ostream &os, unsigned indent) {
+void SimpleStatement::display(std::ostream &os, unsigned indent) {
   os << "\n";
   if (indent) {
-    os << setw(indent) << " ";
+    os << std::setw(indent) << " ";
   }
   displaySimple(os);
   os << ";";
@@ -97,7 +97,7 @@ void SimpleStatement::display(ostream &os, unsigned indent) {
 EnumConstDec::EnumConstDec(const char *n, Expression *v)
     : SymDec(n, &intType, v) {}
 
-void EnumConstDec::display(ostream &os) const {
+void EnumConstDec::display(std::ostream &os) const {
   os << getname();
   if (init) {
     os << "=";
@@ -125,7 +125,7 @@ Sexpression *EnumConstDec::ACL2SymExpr() {
 VarDec::VarDec(const char *n, Type *t, Expression *i)
     : SimpleStatement(), SymDec(n, t, i) {}
 
-void VarDec::displaySimple(ostream &os) { displaySymDec(os); }
+void VarDec::displaySimple(std::ostream &os) { displaySymDec(os); }
 
 Statement *VarDec::subst(SymRef *var, Expression *val) {
   assert(var->symDec != this);
@@ -158,7 +158,7 @@ Sexpression *VarDec::ACL2Expr() {
   } else if (init) {
     val = type->derefType()->ACL2Assign(init);
   } else {
-    val = &i_0;
+    val = Integer::zero()->ACL2Expr(false);
   }
   return new Plist({ &s_declare, sym, val });
 }
@@ -170,7 +170,7 @@ Sexpression *VarDec::ACL2SymExpr() { return sym; }
 
 ConstDec::ConstDec(const char *n, Type *t, Expression *i) : VarDec(n, t, i) {}
 
-void ConstDec::displaySimple(ostream &os) {
+void ConstDec::displaySimple(std::ostream &os) {
   os << "const ";
   VarDec::displaySimple(os);
 }
@@ -232,7 +232,7 @@ Sexpression *MulVarDec::ACL2Expr() {
   return result;
 }
 
-void MulVarDec::displaySimple(ostream &os) {
+void MulVarDec::displaySimple(std::ostream &os) {
   List<VarDec> *dlist = decs;
   VarDec *d = decs->value;
   d->type->displayVarType(os);
@@ -281,7 +281,7 @@ Sexpression *MulConstDec::ACL2Expr() {
   return result;
 }
 
-void MulConstDec::displaySimple(ostream &os) {
+void MulConstDec::displaySimple(std::ostream &os) {
   List<ConstDec> *dlist = decs;
   ConstDec *d = decs->value;
   d->type->displayVarType(os);
@@ -304,13 +304,14 @@ void MulConstDec::displaySimple(ostream &os) {
 // --------------------------------------------------------------------
 
 TempParamDec::TempParamDec(const char *n, Type *t) : SymDec(n, t) {
-  init = &i_1;
+  init = Integer::one();
 }
 
 bool TempParamDec::isConst() { return true; }
 
 Sexpression *TempParamDec::ACL2SymExpr() {
-  return init ? type->derefType()->ACL2Assign(init) : &i_0;
+  return init ? type->derefType()->ACL2Assign(init)
+              : Integer::zero()->ACL2Expr(false);
 }
 
 // class BreakStmt : public SimpleStatement
@@ -318,7 +319,7 @@ Sexpression *TempParamDec::ACL2SymExpr() {
 
 BreakStmt::BreakStmt() : SimpleStatement() {}
 
-void BreakStmt::displaySimple(ostream &os) { os << "break"; }
+void BreakStmt::displaySimple(std::ostream &os) { os << "break"; }
 
 Sexpression *BreakStmt::ACL2Expr() { return &s_break; }
 
@@ -331,7 +332,7 @@ BreakStmt breakStmt;
 
 ReturnStmt::ReturnStmt(Expression *v) : SimpleStatement() { value = v; }
 
-void ReturnStmt::displaySimple(ostream &os) {
+void ReturnStmt::displaySimple(std::ostream &os) {
   os << "return ";
   value->display(os);
 }
@@ -354,7 +355,7 @@ void ReturnStmt::noteReturnType(Type *t) { returnType = t; }
 
 Assertion::Assertion(Expression *e) : SimpleStatement() { expr = e; }
 
-void Assertion::displaySimple(ostream &os) {
+void Assertion::displaySimple(std::ostream &os) {
   os << "assert(";
   expr->display(os);
   os << ")";
@@ -383,7 +384,7 @@ Assignment::Assignment(Expression *l, const char *o, Expression *r)
   rval = r;
 }
 
-void Assignment::displaySimple(ostream &os) {
+void Assignment::displaySimple(std::ostream &os) {
   lval->display(os);
   if (rval) {
     os << " " << op << " ";
@@ -405,9 +406,9 @@ Sexpression *Assignment::ACL2Expr() {
   if (!strcmp(op, "=")) {
     expr = rval;
   } else if (!strcmp(op, "++")) {
-    expr = new BinaryExpr(lval, &i_1, "+");
+    expr = new BinaryExpr(lval, Integer::one(), "+");
   } else if (!strcmp(op, "--")) {
-    expr = new BinaryExpr(lval, &i_1, "-");
+    expr = new BinaryExpr(lval, Integer::one(), "-");
   } else if (!strcmp(op, ">>=")) {
     expr = new BinaryExpr(lval, rval, ">>");
   } else if (!strcmp(op, "<<=")) {
@@ -445,7 +446,7 @@ AssignBit::AssignBit(Expression *b, Expression *i, Expression *v)
   val = v;
 }
 
-void AssignBit::displaySimple(ostream &os) {
+void AssignBit::displaySimple(std::ostream &os) {
   base->display(os);
   os << ".assign_bit(";
   index->display(os);
@@ -469,7 +470,7 @@ AssignRange::AssignRange(Expression *b, Expression *h, Expression *l,
   val = v;
 }
 
-void AssignRange::displaySimple(ostream &os) {
+void AssignRange::displaySimple(std::ostream &os) {
   base->display(os);
   os << ".assign_range<";
   high->display(os);
@@ -492,7 +493,7 @@ void AssignRange::displaySimple(ostream &os) {
 MultipleAssignment::MultipleAssignment(FunCall *r, std::vector<Expression *> e)
     : SimpleStatement(), lval(e), rval(r) {}
 
-void MultipleAssignment::displaySimple(ostream &os) {
+void MultipleAssignment::displaySimple(std::ostream &os) {
   assert(lval.size() > 0);
   os << "<";
   lval[0]->display(os);
@@ -573,7 +574,7 @@ Sexpression *MultipleAssignment::ACL2Expr() {
 
 NullStmt::NullStmt() : SimpleStatement() {}
 
-void NullStmt::displaySimple([[maybe_unused]] ostream &os) {}
+void NullStmt::displaySimple([[maybe_unused]] std::ostream &os) {}
 
 Sexpression *NullStmt::ACL2Expr() { return new Plist({ &s_null }); }
 
@@ -604,7 +605,7 @@ Block *Block::blockify(Statement *s) {
                             : new List<Statement>(s));
 }
 
-void Block::display(ostream &os, unsigned indent) {
+void Block::display(std::ostream &os, unsigned indent) {
   os << " {";
   if (stmtList) {
     List<Statement> *ptr = stmtList;
@@ -614,14 +615,14 @@ void Block::display(ostream &os, unsigned indent) {
     }
     os << "\n";
     if (indent > 2) {
-      os << setw(indent - 2) << " ";
+      os << std::setw(indent - 2) << " ";
     }
   }
   os << "}";
 }
 
-void Block::displayWithinBlock(ostream &os, unsigned indent) {
-  os << "\n" << setw(indent) << (indent ? " " : "") << "{";
+void Block::displayWithinBlock(std::ostream &os, unsigned indent) {
+  os << "\n" << std::setw(indent) << (indent ? " " : "") << "{";
   List<Statement> *ptr = stmtList;
   while (ptr) {
     ptr->value->displayWithinBlock(os, indent + 2);
@@ -629,7 +630,7 @@ void Block::displayWithinBlock(ostream &os, unsigned indent) {
   }
   os << "\n";
   if (indent) {
-    os << setw(indent) << " ";
+    os << std::setw(indent) << " ";
   }
   os << "}";
 }
@@ -690,19 +691,19 @@ IfStmt::IfStmt(Expression *t, Statement *l, Statement *r) : Statement() {
   right = r;
 }
 
-void IfStmt::display(ostream &os, unsigned indent) {
-  os << "\n" << setw(indent) << " ";
+void IfStmt::display(std::ostream &os, unsigned indent) {
+  os << "\n" << std::setw(indent) << " ";
   displayAsRightBranch(os, indent);
 }
 
-void IfStmt::displayAsRightBranch(ostream &os, unsigned indent) {
+void IfStmt::displayAsRightBranch(std::ostream &os, unsigned indent) {
   os << "if (";
   test->display(os);
   os << ")";
   left->display(os, indent + 2);
   if (right) {
     os << "\n"
-       << setw(indent) << " "
+       << std::setw(indent) << " "
        << "else ";
     right->displayAsRightBranch(os, indent);
   }
@@ -747,9 +748,9 @@ ForStmt::ForStmt(SimpleStatement *v, Expression *t, Assignment *u,
   body = b;
 }
 
-void ForStmt::display(ostream &os, unsigned indent) {
+void ForStmt::display(std::ostream &os, unsigned indent) {
   os << "\n"
-     << setw(indent) << " "
+     << std::setw(indent) << " "
      << "for (";
   init->displaySimple(os);
   os << "; ";
@@ -790,8 +791,8 @@ Case::Case(Expression *l, List<Statement> *a) {
   action = a;
 }
 
-void Case::display(ostream &os, unsigned indent) {
-  os << "\n" << setw(indent) << " ";
+void Case::display(std::ostream &os, unsigned indent) {
+  os << "\n" << std::setw(indent) << " ";
   if (label) {
     os << "case ";
     label->display(os);
@@ -841,15 +842,15 @@ void Case::markAssertions(FunDef *f) {
 SwitchStmt::SwitchStmt(Expression *t, List<Case> *c)
     : Statement(), test(t), cases(BetterList<Case>::_from_raw(c)) {}
 
-void SwitchStmt::display(ostream &os, unsigned indent) {
+void SwitchStmt::display(std::ostream &os, unsigned indent) {
   os << "\n"
-     << setw(indent) << " "
+     << std::setw(indent) << " "
      << "switch (";
   test->display(os);
   os << ") {";
   cases.displayList(os, indent);
   os << "\n"
-     << setw(indent) << " "
+     << std::setw(indent) << " "
      << "}";
 }
 

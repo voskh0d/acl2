@@ -3,7 +3,7 @@
 
 #include <cassert>
 #include <deque>
-#include <ostream>
+#include <iostream>
 #include <vector>
 
 #define UNREACHABLE() assert(!"Woopsie, some unreachable code was reach")
@@ -13,6 +13,18 @@
 template <typename Child, typename Base>
 bool isa(Base *b) {
   return dynamic_cast<Child *>(b);
+}
+
+// Try to convert a pointer from type Base to Chlid. If the types are not
+// compatibles, cause an assertion failure.
+template <typename Child, typename Base>
+Child *cast(Base *b) {
+  auto new_ptr = dynamic_cast<Child *>(b);
+  if (!b) {
+    std::cerr << "Tried to convert incompatibles type !";
+    std::abort();
+  }
+  return new_ptr;
 }
 
 //***********************************************************************************

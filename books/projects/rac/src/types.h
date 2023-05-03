@@ -4,7 +4,8 @@
 #include "parser.h"
 #include "utils.h"
 
-using namespace std;
+// TODO remove
+#include <iostream>
 
 //***********************************************************************************
 // Types
@@ -36,7 +37,8 @@ class EnumConstDec;
 //  |   `-- FixedType
 //  |
 //  |-- ArrayType
-//  |-- StructType [StructField]
+//  |-- StructField
+//  |-- StructType
 //  |-- EnumType
 //  |-- MvType
 //  `-- DefinedType
@@ -48,27 +50,25 @@ public:
 
   virtual Type *derefType() { return this; }
 
-  virtual void display(ostream &os = cout) const = 0;
+  virtual void display(std::ostream &os) const = 0;
 
-  virtual void displayVarType(ostream &os = cout) const {
+  virtual void displayVarType(std::ostream &os) const {
     // How this type is displayed in a variable declaration
     display(os);
   }
 
   // overridden by ArrayType
   virtual void displayVarName([[maybe_unused]] const char *name,
-                              ostream &os = cout) const {
+                              std::ostream &os) const {
     // How a variable of this type is displayed in a variable declaration
-    display(os);
+    os << name;
   }
 
   // overridden by ArrayType, StructType, and EnumType
   virtual void makeDef([[maybe_unused]] const char *name,
-                       ostream &os = cout) const {
+                       std::ostream &os) const {
     // How this type is displayed in a type definition.
-    os << "\ntypedef ";
-    display(os);
-    os << " " << name << ";";
+    os << "\ntypedef " << *this << " " << name << ";";
   }
 
   // TODO this line depends on Expression which is defined below. For now, the
@@ -94,17 +94,22 @@ public:
     // For any other type, just return s.
     return s;
   }
+
+  friend std::ostream &operator<<(std::ostream &os, const Type &t) {
+    t.display(os);
+    return os;
+  }
 };
 
 // TODO remove this, should be replace by Uint/Int type
 class PrimType : public Type {
 public:
   PrimType(const char *s, const char *m = nullptr)
-      : name_(s), RACname_(m ? std::optional(std::string(m)) : nullopt) {}
+      : name_(s), RACname_(m ? std::optional(std::string(m)) : std::nullopt) {}
 
   bool isIntegerType() const override { return true; }
 
-  void display(ostream &os) const override {
+  void display(std::ostream &os) const override {
     os << (RACname_ ? *RACname_ : name_);
   }
 
@@ -133,7 +138,7 @@ public:
 
   bool isIntegerType() const override { return true; }
 
-  void display(ostream &os = cout) const override;
+  void display(std::ostream &os) const override;
   Sexpression *ACL2Eval(Sexpression *s) const override;
 
   Sexpression *ACL2Assign(Expression *rval) const override;
@@ -147,7 +152,7 @@ public:
   FixedType(Expression *w, Expression *iw, bool is_signed)
       : RegType(w), is_signed_(is_signed), iwidth(iw) {}
 
-  void display(ostream &os = cout) const override;
+  void display(std::ostream &os) const override;
   Sexpression *ACL2Eval(Sexpression *s) const override;
   Sexpression *ACL2Assign(Expression *rval) const override;
 };
@@ -161,19 +166,19 @@ public:
 
   Type *getBaseType() const;
 
-  void display(ostream &os) const override;
-  void displayVarType(ostream &os = cout) const override;
-  void displayVarName(const char *name, ostream &os = cout) const override;
-  void makeDef(const char *name, ostream &os) const override;
+  void display(std::ostream &os) const override;
+  void displayVarType(std::ostream &os) const override;
+  void displayVarName(const char *name, std::ostream &os) const override;
+  void makeDef(const char *name, std::ostream &os) const override;
 };
 
-class StructField {
+class StructField : public Type {
 public:
   Symbol *sym;
   Type *type;
   StructField(Type *t, char *n);
   const char *getname() const { return sym->getname(); }
-  void display(ostream &os, unsigned indent = 0) const;
+  void display(std::ostream &os) const override;
 };
 
 class StructType : public Type {
@@ -181,14 +186,13 @@ public:
   List<StructField> *fields;
   StructType(List<StructField> *f);
 
-  void displayFields(ostream &os) const;
-  void display(ostream &os) const override;
-  void makeDef(const char *name, ostream &os = cout) const override;
+  void displayFields(std::ostream &os) const;
+  void display(std::ostream &os) const override;
+  void makeDef(const char *name, std::ostream &os) const override;
 };
 
 class EnumType : public Type {
 public:
-  List<EnumConstDec> *vals;
   EnumType(List<EnumConstDec> *v);
 
   bool isIntegerType() const override { return true; }
@@ -197,20 +201,31 @@ public:
   //  Type *
   //  derefType () override
 
-  void displayConsts(ostream &os) const;
-  void display(ostream &os) const override;
-  void makeDef(const char *name, ostream &os = cout) const override;
+  void displayConsts(std::ostream &os) const;
+  void display(std::ostream &os) const override;
+  void makeDef(const char *name, std::ostream &os) const override;
 
   // ACL2expr Weird
   Sexpression *ACL2Expr();
   Sexpression *getEnumVal(Symbol *s) const;
+
+private:
+  List<EnumConstDec> *vals;
 };
 
 class MvType : public Type {
 public:
-  std::vector<Type *> type;
   MvType(std::initializer_list<Type *> &&t) : type(t) {}
-  void display(ostream &os) const;
+  void display(std::ostream &os) const;
+
+  Type *typeOfNth(unsigned i) { return type[i]; }
+
+#ifndef NDEBUG
+  unsigned size() { return type.size(); }
+#endif // NDEBUG
+
+private:
+  std::vector<Type *> type;
 };
 
 class DefinedType : public Type {
@@ -220,9 +235,9 @@ public:
   const std::string &name() { return name_; }
   Type *typeDefined() { return def_; }
 
-  void display(ostream &os) const override { os << name_; }
+  void display(std::ostream &os) const override { os << name_; }
 
-  void displayDef(ostream &os = cout) const {
+  void displayDef(std::ostream &os) const {
     if (!isa<RegType>(def_))
       def_->makeDef(name_.c_str(), os);
   }

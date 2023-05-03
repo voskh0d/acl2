@@ -6,12 +6,12 @@
 // class FunDef
 //***********************************************************************************
 
-void FunDef::displayPrototype(ostream &os, const char *prefix,
+void FunDef::displayPrototype(std::ostream &os, const char *prefix,
                               unsigned indent) {
   os << "\n";
 
   if (indent)
-    os << setw(indent) << " ";
+    os << std::setw(indent) << " ";
 
   returnType_->display(os);
 
@@ -28,12 +28,13 @@ void FunDef::displayPrototype(ostream &os, const char *prefix,
   os << ")";
 }
 
-void FunDef::displayDec(ostream &os, const char *prefix, unsigned indent) {
+void FunDef::displayDec(std::ostream &os, const char *prefix,
+                        unsigned indent) {
   displayPrototype(os, prefix, indent);
   os << ';';
 }
 
-void FunDef::display(ostream &os, const char *prefix, unsigned indent) {
+void FunDef::display(std::ostream &os, const char *prefix, unsigned indent) {
 
   displayPrototype(os, prefix, indent);
   body_->display(os, indent + 2);
@@ -42,7 +43,7 @@ void FunDef::display(ostream &os, const char *prefix, unsigned indent) {
 
 Symbol s_funcdef("funcdef");
 
-void FunDef::displayACL2Expr(ostream &os) {
+void FunDef::displayACL2Expr(std::ostream &os) {
 
   Plist *sparams = new Plist();
   std::for_each(params_.begin(), params_.end(),
@@ -64,10 +65,10 @@ void FunDef::displayACL2Expr(ostream &os) {
 
 // Data members: List<TempParamDec> *tempParams; List<TempCall> *calls;
 
-void Template::display(ostream &os, const char *prefix, unsigned indent) {
+void Template::display(std::ostream &os, const char *prefix, unsigned indent) {
   os << "\n";
   if (indent)
-    os << setw(indent) << " ";
+    os << std::setw(indent) << " ";
 
   os << "template<";
 
@@ -95,7 +96,7 @@ void Template::bindParams(std::vector<Expression *> actuals) {
                  });
 }
 
-void Template::displayACL2Expr(ostream &os) {
+void Template::displayACL2Expr(std::ostream &os) {
   unsigned numCalls = 0;
   const std::string saved_name = name_;
 
@@ -103,7 +104,7 @@ void Template::displayACL2Expr(ostream &os) {
     // Generate a unique identifier and transform this into an instance for
     // the call.
     // TODO make sure it does not existe yet in Program::fundefs !
-    ostringstream ostr;
+    std::ostringstream ostr;
     ostr << saved_name << "-" << numCalls++;
     name_ = ostr.str();
 

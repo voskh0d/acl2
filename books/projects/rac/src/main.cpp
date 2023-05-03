@@ -79,7 +79,7 @@ int main(int argc, char **argv) {
   buf += type == DispMode::acl2 ? ".ast.lsp" : ".pc";
 
   std::fstream fout;
-  fout.open(buf, fstream::out);
+  fout.open(buf, std::fstream::out);
   if (!fout.is_open())
     std::cerr << "Failed to open file " << buf << ": " << strerror(errno)
               << '\n';

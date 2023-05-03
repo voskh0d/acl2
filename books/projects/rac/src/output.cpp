@@ -17,7 +17,7 @@
 // S-expressions
 //***********************************************************************************
 
-void Plist::display(ostream &os) const {
+void Plist::display(std::ostream &os) const {
   os << '(';
 
   bool first = true;
@@ -97,7 +97,7 @@ Symbol s_switch("switch");
 SymDec::SymDec(const char *n, Type *t, Expression *i)
     : sym(new Symbol(n)), type(t), init(i) {}
 
-void SymDec::displaySymDec(ostream &os) const {
+void SymDec::displaySymDec(std::ostream &os) const {
   type->displayVarType(os);
   os << " ";
   type->displayVarName(getname(), os);
@@ -139,7 +139,7 @@ Program::Program()
   funDefs = new List<FunDef>(abs);
 }
 
-void Program::displayTypeDefs(ostream &os, DispMode mode) const {
+void Program::displayTypeDefs(std::ostream &os, DispMode mode) const {
   // Note that type definitions are used in generating S-expressions for
   // constant declarations and function definitions, but are not represented
   // explicitly in the ACL2 translation.
@@ -150,7 +150,7 @@ void Program::displayTypeDefs(ostream &os, DispMode mode) const {
 }
 
 // TODO constify ACL2Exp, then this can become const
-void Program::displayConstDecs(ostream &os, DispMode mode) {
+void Program::displayConstDecs(std::ostream &os, DispMode mode) {
   if (mode == DispMode::rac) {
     for_each(constDecs, [&os](auto v) { v->display(os); });
   } else {
@@ -159,9 +159,10 @@ void Program::displayConstDecs(ostream &os, DispMode mode) {
 }
 
 // Why this one is not defined
-//  void displayTemplates(ostream& os, DispMode mode, const char *prefix="");
+//  void displayTemplates(std::ostream& os, DispMode mode, const char
+//  *prefix="");
 
-void Program::displayFunDefs(ostream &os, DispMode mode) {
+void Program::displayFunDefs(std::ostream &os, DispMode mode) {
   if (mode == DispMode::rac) {
     for_each(funDefs, [&os](auto v) { v->display(os); });
   } else {
@@ -169,11 +170,11 @@ void Program::displayFunDefs(ostream &os, DispMode mode) {
   }
 }
 
-void Program::displayFunDecs(ostream &os) const {
+void Program::displayFunDecs(std::ostream &os) const {
   for_each(funDefs, [&os](auto v) { v->displayDec(os); });
 }
 
-void Program::display(ostream &os, DispMode mode) {
+void Program::display(std::ostream &os, DispMode mode) {
   displayTypeDefs(os, mode);
   os << "\n";
   displayConstDecs(os, mode);
