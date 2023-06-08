@@ -3,7 +3,8 @@
   generating a token which is not used and was causing a syntax error. Remove
   lexer rule removing all tokens starting by Hector:: (instead use an #ifdef
   directive). When an multine comment is missing the `*/` at the end, exit with
-  an error (TODO:improve the message).
+  an error (TODO:improve the message). Modified the `tuple` rule, now supports
+  arbitrary large tuple.
 * statements.h, output.c: Fix bug where using tie with more that 4 array access
   was causing an invalid read.
 * rac.h: Add array and tupple (for now, limited to 6 elements) for compiler
@@ -17,7 +18,8 @@
 * testsuite: add new tests to test the typing of literal and downcast of AC
   types when using an initializer list. Modify `get-set-slices` (from ac_types)
   and `typedef_ac` (from data_types) tests to reflect changes on typing (now
-  some unnecessary bouds are removed.
+  some unnecessary bouds are removed. Add test `std-tupple-order.cpp` to check
+  the order of the fields of a tuple.
 
 # bfe335137924e0956000b964d53c1ae94402855d (28/02/23)
 

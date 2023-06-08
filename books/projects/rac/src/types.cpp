@@ -22,7 +22,7 @@ PrimType intType("int");
 PrimType uintType("uint");
 PrimType int64Type("int64", "int");
 PrimType uint64Type("uint64", "uint");
-IntType bitType(new Integer(1), false);
+IntType bitType(Integer::one(), false);
 
 // class RegType : public Type (Algorithmic C register type)
 // ---------------------------------------------------
@@ -42,8 +42,10 @@ Sexpression *IntType::ACL2Assign(Expression *rval) const {
     Sexpression *s = rval->ACL2Expr();
     if (rval->isFP())
       s = new Plist({ &s_fl, s });
-    return new Plist({ &s_bits, s, new Integer(width()->evalConst() - 1),
-                       Integer::zero() });
+    // TODO location
+    return new Plist(
+        { &s_bits, s, new Integer(Location::dummy(), width()->evalConst() - 1),
+          Integer::zero() });
   }
 }
 
@@ -51,12 +53,13 @@ Sexpression *IntType::ACL2Assign(Expression *rval) const {
 // ------------------------------
 
 void IntType::display(std::ostream &os) const {
-  os << (is_signed_ ? "sc_int<" : "sc_uint") << NoParenthesis(width()) << ">";
+  os << (is_signed_ ? "sc_int<" : "sc_uint<") << NoParenthesis(width()) << ">";
 }
 
 Sexpression *IntType::ACL2Eval(Sexpression *s) const {
   if (is_signed_)
-    return new Plist({ &s_si, s, new Integer(width()->evalConst()) });
+    return new Plist(
+        { &s_si, s, new Integer(Location::dummy(), width()->evalConst()) });
   else
     return s;
 }
@@ -75,18 +78,21 @@ Sexpression *FixedType::ACL2Eval(Sexpression *s) const {
 
   if (is_signed_) {
 
-    Sexpression *numerator
-        = new Plist({ &s_si, s, new Integer(width()->evalConst()) });
+    Sexpression *numerator = new Plist(
+        { &s_si, s, new Integer(Location::dummy(), width()->evalConst()) });
     Sexpression *denominator = new Plist(
         { &s_expt, Integer::two(),
-          new Integer(width()->evalConst() - iwidth->evalConst()) });
+          new Integer(Location::dummy(),
+                      width()->evalConst() - iwidth->evalConst()) });
     return new Plist({ &s_divide, numerator, denominator });
   } else {
 
-    return new Plist({ &s_divide, s,
-                       new Plist({ &s_expt, Integer::two(),
-                                   new Integer(width()->evalConst()
-                                               - iwidth->evalConst()) }) });
+    return new Plist(
+        { &s_divide, s,
+          new Plist(
+              { &s_expt, Integer::two(),
+                new Integer(Location::dummy(),
+                            width()->evalConst() - iwidth->evalConst()) }) });
   }
 }
 
@@ -101,10 +107,12 @@ Sexpression *FixedType::ACL2Assign(Expression *rval) const {
     int wVal = width()->evalConst(), iwVal = iwidth->evalConst();
     s = new Plist(
         { &s_times, s,
-          new Plist({ &s_expt, Integer::two(), new Integer(wVal - iwVal) }) });
+          new Plist({ &s_expt, Integer::two(),
+                      new Integer(Location::dummy(), wVal - iwVal) }) });
     if ((rval->isFP()) || wVal < iwVal)
       s = new Plist({ &s_fl, s });
-    return new Plist({ &s_bits, s, new Integer(wVal - 1), Integer::zero() });
+    return new Plist({ &s_bits, s, new Integer(Location::dummy(), wVal - 1),
+                       Integer::zero() });
   }
 }
 
@@ -231,7 +239,7 @@ Sexpression *EnumType::getEnumVal(Symbol *s) const {
       count = ptr->value->init->evalConst();
     }
     if (ptr->value->sym == s) {
-      return new Integer(count);
+      return new Integer(Location::dummy(), count);
     } else {
       count++;
       ptr = ptr->next;

@@ -128,7 +128,7 @@ VarDec::VarDec(const char *n, Type *t, Expression *i)
 void VarDec::displaySimple(std::ostream &os) { displaySymDec(os); }
 
 Statement *VarDec::subst(SymRef *var, Expression *val) {
-  assert(var->symDec != this);
+  assert(var->symbolDec() != this);
   if (init) {
     Expression *newInit = init->subst(var, val);
     return (init == newInit) ? this : new VarDec(getname(), type, newInit);
@@ -402,31 +402,32 @@ Statement *Assignment::subst(SymRef *var, Expression *val) {
 }
 
 Sexpression *Assignment::ACL2Expr() {
+  // TODO why assign is a statement ?
   Expression *expr = rval;
   if (!strcmp(op, "=")) {
     expr = rval;
   } else if (!strcmp(op, "++")) {
-    expr = new BinaryExpr(lval, Integer::one(), "+");
+    expr = new BinaryExpr(Location::dummy(), lval, Integer::one(), "+");
   } else if (!strcmp(op, "--")) {
-    expr = new BinaryExpr(lval, Integer::one(), "-");
+    expr = new BinaryExpr(Location::dummy(), lval, Integer::one(), "-");
   } else if (!strcmp(op, ">>=")) {
-    expr = new BinaryExpr(lval, rval, ">>");
+    expr = new BinaryExpr(Location::dummy(), lval, rval, ">>");
   } else if (!strcmp(op, "<<=")) {
-    expr = new BinaryExpr(lval, rval, "<<");
+    expr = new BinaryExpr(Location::dummy(), lval, rval, "<<");
   } else if (!strcmp(op, "+=")) {
-    expr = new BinaryExpr(lval, rval, "+");
+    expr = new BinaryExpr(Location::dummy(), lval, rval, "+");
   } else if (!strcmp(op, "-=")) {
-    expr = new BinaryExpr(lval, rval, "-");
+    expr = new BinaryExpr(Location::dummy(), lval, rval, "-");
   } else if (!strcmp(op, "*=")) {
-    expr = new BinaryExpr(lval, rval, "*");
+    expr = new BinaryExpr(Location::dummy(), lval, rval, "*");
   } else if (!strcmp(op, "%=")) {
-    expr = new BinaryExpr(lval, rval, "%");
+    expr = new BinaryExpr(Location::dummy(), lval, rval, "%");
   } else if (!strcmp(op, "&=")) {
-    expr = new BinaryExpr(lval, rval, "&");
+    expr = new BinaryExpr(Location::dummy(), lval, rval, "&");
   } else if (!strcmp(op, "^=")) {
-    expr = new BinaryExpr(lval, rval, "^");
+    expr = new BinaryExpr(Location::dummy(), lval, rval, "^");
   } else if (!strcmp(op, "|=")) {
-    expr = new BinaryExpr(lval, rval, "|");
+    expr = new BinaryExpr(Location::dummy(), lval, rval, "|");
   } else {
     assert(!"Unknown assignment operator");
   }
@@ -550,7 +551,7 @@ Sexpression *MultipleAssignment::ACL2Expr() {
   bool isBlock = false;
   for (unsigned i = 0; i < lval.size(); i++) {
     if (auto *refT = dynamic_cast<SymRef *>(lval[i])) {
-      vars->add(refT->symDec->sym);
+      vars->add(refT->symbolDec()->sym);
     } else {
       if (!isBlock) {
         result = new Plist({ result });

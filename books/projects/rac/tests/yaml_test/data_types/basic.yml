@@ -31,8 +31,6 @@
 - name: std-tupple-big
 
 - name: std-tupple-too-big
-  has_failed: true
-  exit_code: 1
 
 - name: std-tupple-init-not-enought-args
   description: >
@@ -130,3 +128,12 @@
 - name: initializer-list-ac-types
   bug: true
   description: The assignement overflow.
+
+- name: std-tupple-order
+
+- name: si-up-cast
+  bug: true
+  description: For the foo(), the signed part is not handled. For bar(), we have
+               the same issue, but note that bar() should return 12 since ac is
+               doing the cast on -12, and thus there is an infinty of 1 to the
+               left.

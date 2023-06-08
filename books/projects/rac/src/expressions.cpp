@@ -33,8 +33,8 @@ Sexpression *Integer::ACL2Expr([[maybe_unused]] bool isBV) {
 // class Boolean : public Constant
 // -------------------------------
 
-Boolean b_true("true");
-Boolean b_false("false");
+Boolean b_true(Location::dummy(), "true");
+Boolean b_false(Location::dummy(), "false");
 
 // class SymRef : public Expression
 // ---------------------------------------------------------------
@@ -44,26 +44,14 @@ Boolean b_false("false");
 
 // Data member: SymDec *symDec;
 
-SymRef::SymRef(SymDec *s) : Expression() { symDec = s; }
-
-Type *SymRef::exprType() {
-  assert(symDec->type->derefType());
-  return symDec->type->derefType();
-}
+Type *SymRef::exprType() { return symDec->type->derefType(); }
 
 bool SymRef::isConst() const { return symDec->isConst(); }
 
 int SymRef::evalConst() const {
-  if (isConst()) {
-    return symDec->evalConst();
-  } else {
-    assert(!"Attempt to evaluate a non-constant symbol reference.");
-  }
+  assert(isConst() && "Attempt to evaluate a non-constant symbol reference.");
+  return symDec->evalConst();
 }
-
-bool SymRef::isArray() { return isa<ArrayType>(exprType()); }
-
-bool SymRef::isStruct() { return isa<StructType>(exprType()); }
 
 bool SymRef::isInteger() { return exprType()->isIntegerType(); }
 
@@ -93,7 +81,8 @@ bool SymRef::isEqualSymRef(SymDec *s) { return s == symDec; }
 
 // Data members:  FunDef *func; List<Expression> *args;
 
-FunCall::FunCall(FunDef *f, List<Expression> *a) : Expression() {
+FunCall::FunCall(Location loc, FunDef *f, List<Expression> *a)
+    : Expression(loc) {
   func = f;
   args = a;
 }
@@ -102,10 +91,6 @@ Type *FunCall::exprType() {
   assert(func->returnType()->derefType());
   return func->returnType()->derefType();
 }
-
-bool FunCall::isArray() { return isa<ArrayType>(exprType()); }
-
-bool FunCall::isStruct() { return isa<StructType>(exprType()); }
 
 bool FunCall::isInteger() { return exprType()->isIntegerType(); }
 
@@ -135,7 +120,7 @@ Expression *FunCall::subst(SymRef *var, Expression *val) {
     }
     ptr = ptr->next;
   }
-  return new FunCall(func, newArgs);
+  return new FunCall(this->location(), func, newArgs);
 }
 
 Sexpression *FunCall::ACL2Expr(bool isBV) {
@@ -155,8 +140,9 @@ Sexpression *FunCall::ACL2Expr(bool isBV) {
 
 // call members:  Symbol *instanceSym; List<Expression> *params;
 
-TempCall::TempCall(Template *f, List<Expression> *a, List<Expression> *p)
-    : FunCall(f, a), params(p) {
+TempCall::TempCall(Location loc, Template *f, List<Expression> *a,
+                   List<Expression> *p)
+    : FunCall(loc, f, a), params(p) {
   f->registerCall(this);
 }
 
@@ -208,7 +194,9 @@ Sexpression *TempCall::ACL2Expr(bool isBV) {
 
 // Data member:  List<Constant> *vals;
 
-Initializer::Initializer(List<Constant> *v) : Expression() { vals = v; }
+Initializer::Initializer(Location loc, List<Constant> *v) : Expression(loc) {
+  vals = v;
+}
 
 void Initializer::displayNoParens(std::ostream &os) const {
   os << "{";
@@ -239,7 +227,7 @@ Sexpression *Initializer::ACL2ArrayExpr() {
   unsigned i = 0;
   while (entries) {
     if (strcmp(((Constant *)(entries->value))->getname(), "0")) {
-      p->add(new Cons(new Integer(i), entries->value));
+      p->add(new Cons(new Integer(this->location(), i), entries->value));
     }
     i++;
     entries = entries->next;
@@ -268,7 +256,8 @@ Sexpression *Initializer::ACL2StructExpr(List<StructField> *fields) {
 
 // Data members:  Expression *array; Expression *index;
 
-ArrayRef::ArrayRef(Expression *a, Expression *i) : Expression() {
+ArrayRef::ArrayRef(Location loc, Expression *a, Expression *i)
+    : Expression(loc) {
   array = a;
   index = i;
 }
@@ -277,8 +266,6 @@ Type *ArrayRef::exprType() {
   assert(((ArrayType *)(array->exprType()))->getBaseType());
   return ((ArrayType *)(array->exprType()))->getBaseType();
 }
-
-bool ArrayRef::isArray() { return isa<ArrayType>(exprType()); }
 
 bool ArrayRef::isInteger() { return exprType()->isIntegerType(); }
 
@@ -291,19 +278,20 @@ void ArrayRef::displayNoParens(std::ostream &os) const {
 
 Expression *ArrayRef::subst(SymRef *var, Expression *val) {
   Expression *newIndex = index->subst(var, val);
-  return (newIndex == index) ? this : new ArrayRef(array, newIndex);
+  return (newIndex == index) ? this
+                             : new ArrayRef(this->location(), array, newIndex);
 }
 
 Sexpression *ArrayRef::ACL2Expr(bool isBV) {
   Sexpression *s;
 
   auto *refT = dynamic_cast<SymRef *>(array);
-  if (refT && refT->symDec->isROM()) {
+  if (refT && refT->symbolDec()->isROM()) {
     s = new Plist(
-        { &s_nth, index->ACL2Expr(), new Plist({ refT->symDec->sym }) });
-  } else if (refT && refT->symDec->isGlobal()) {
+        { &s_nth, index->ACL2Expr(), new Plist({ refT->symbolDec()->sym }) });
+  } else if (refT && refT->symbolDec()->isGlobal()) {
     s = new Plist(
-        { &s_ag, index->ACL2Expr(), new Plist({ refT->symDec->sym }) });
+        { &s_ag, index->ACL2Expr(), new Plist({ refT->symbolDec()->sym }) });
   } else {
     s = new Plist({ &s_ag, index->ACL2Expr(), array->ACL2Expr() });
   }
@@ -318,26 +306,27 @@ Sexpression *ArrayRef::ACL2Assign(Sexpression *rval) {
 // class ArrayParamRef : public ArrayRef
 // -------------------------------------
 
-ArrayParamRef::ArrayParamRef(Expression *a, Expression *i) : ArrayRef(a, i) {}
-
-Expression *ArrayParamRef::subst(SymRef *var, Expression *val) {
-  Expression *newIndex = index->subst(var, val);
-  return (newIndex == index) ? this : new ArrayParamRef(array, newIndex);
-}
-
-void ArrayParamRef::displayNoParens(std::ostream &os) const {
-  array->display(os);
-  os << "[";
-  index->display(os);
-  os << "]";
-}
+// ArrayParamRef::ArrayParamRef(Location loc, Expression *a, Expression *i) :
+// ArrayRef(a, i) {}
+//
+// Expression *ArrayParamRef::subst(SymRef *var, Expression *val) {
+//  Expression *newIndex = index->subst(var, val);
+//  return (newIndex == index) ? this : new ArrayParamRef(array, newIndex);
+//}
+//
+// void ArrayParamRef::displayNoParens(std::ostream &os) const {
+//  array->display(os);
+//  os << "[";
+//  index->display(os);
+//  os << "]";
+//}
 
 // class StructRef : public Expression
 // -----------------------------------
 
 // Data members:  Expression *base; char *field;
 
-StructRef::StructRef(Expression *s, char *f) : Expression() {
+StructRef::StructRef(Location loc, Expression *s, char *f) : Expression(loc) {
   base = s;
   field = f;
 }
@@ -348,8 +337,6 @@ Type *StructRef::exprType() {
       ->fields->find(field)
       ->type->derefType();
 }
-
-bool StructRef::isArray() { return isa<ArrayType>(exprType()); }
 
 bool StructRef::isInteger() { return exprType()->isIntegerType(); }
 
@@ -378,7 +365,7 @@ Sexpression *StructRef::ACL2Assign(Sexpression *rval) {
 
 // Data members: Expression *base; Expression *index;
 
-BitRef::BitRef(Expression *b, Expression *i) : Expression() {
+BitRef::BitRef(Location loc, Expression *b, Expression *i) : Expression(loc) {
   base = b;
   index = i;
 }
@@ -397,7 +384,7 @@ Expression *BitRef::subst(SymRef *var, Expression *val) {
   Expression *newIndex = index->subst(var, val);
   return (newBase == base && newIndex == index)
              ? this
-             : new BitRef(newBase, newIndex);
+             : new BitRef(this->location(), newBase, newIndex);
 }
 
 Sexpression *BitRef::ACL2Expr([[maybe_unused]] bool isBV) {
@@ -410,7 +397,7 @@ Sexpression *BitRef::ACL2Assign(Sexpression *rval) {
   Sexpression *b = base->ACL2Expr(true);
   Sexpression *i = index->ACL2Expr();
   unsigned n = (((const RegType *)(base->exprType()))->width())->evalConst();
-  Integer *s = new Integer(n);
+  Integer *s = new Integer(this->location(), n);
   return base->ACL2Assign(new Plist({ &s_setbitn, b, s, i, rval }));
 }
 
@@ -419,23 +406,22 @@ Sexpression *BitRef::ACL2Assign(Sexpression *rval) {
 
 // Data members: Expression *base; Expression *high; Expression *low;
 
-Subrange::Subrange(Expression *b, Expression *h, Expression *l)
-    : Expression() {
+Subrange::Subrange(Location loc, Expression *b, Expression *h, Expression *l)
+    : Expression(loc) {
   base = b;
   high = h;
   low = l;
   width_ = std::nullopt;
 }
 
-Subrange::Subrange(Expression *b, Expression *h, Expression *l, unsigned w)
-    : Expression() {
+Subrange::Subrange(Location loc, Expression *b, Expression *h, Expression *l,
+                   unsigned w)
+    : Expression(loc) {
   base = b;
   high = h;
   low = l;
   width_ = { w };
 }
-
-bool Subrange::isSubrange() { return true; }
 
 bool Subrange::isInteger() { return true; }
 
@@ -454,7 +440,7 @@ Expression *Subrange::subst(SymRef *var, Expression *val) {
   Expression *newLow = low->subst(var, val);
   return (newBase == base && newHigh == high && newLow == low)
              ? this
-             : new Subrange(newBase, newHigh, newLow);
+             : new Subrange(this->location(), newBase, newHigh, newLow);
 }
 
 Sexpression *Subrange::ACL2Expr([[maybe_unused]] bool isBV) {
@@ -469,7 +455,7 @@ Sexpression *Subrange::ACL2Assign(Sexpression *rval) {
   Sexpression *hi = high->ACL2Expr();
   Sexpression *lo = low->ACL2Expr();
   unsigned n = (((const RegType *)(base->exprType()))->width())->evalConst();
-  Integer *s = new Integer(n);
+  Integer *s = new Integer(this->location(), n);
   return base->ACL2Assign(new Plist({ &s_setbits, b, s, hi, lo, rval }));
 }
 
@@ -489,63 +475,97 @@ unsigned Subrange::compute_size() const {
 
 // Data members: Expression *expr; const char *op;
 
-PrefixExpr::PrefixExpr(Expression *e, const char *o) : Expression() {
-  expr = e;
-  op = o;
-}
-
 bool PrefixExpr::isConst() const { return expr->isConst(); }
 
 int PrefixExpr::evalConst() const {
   int val = expr->evalConst();
-  if (!strcmp(op, "+")) {
+  switch (op_) {
+  case PrefixOp::Plus:
     return val;
-  } else if (!strcmp(op, "-")) {
+  case PrefixOp::Minus:
     return -val;
-  } else if (!strcmp(op, "~")) {
+  case PrefixOp::BitwiseNot:
     return -1 - val;
-  } else if (!strcmp(op, "!")) {
-    return val ? 1 : 0;
-  } else
-    UNREACHABLE();
+  case PrefixOp::LogicalNot:
+    return !val;
+  }
+  UNREACHABLE();
 }
 
 bool PrefixExpr::isInteger() { return expr->isInteger(); }
 
 void PrefixExpr::displayNoParens(std::ostream &os) const {
-  os << op;
+  switch (op_) {
+  case PrefixOp::Plus:
+    os << '+';
+    break;
+  case PrefixOp::Minus:
+    os << '-';
+    break;
+  case PrefixOp::BitwiseNot:
+    os << '~';
+    break;
+  case PrefixOp::LogicalNot:
+    os << '!';
+    break;
+  }
   expr->display(os);
 }
 
 Expression *PrefixExpr::subst(SymRef *var, Expression *val) {
   Expression *newExpr = expr->subst(var, val);
-  return (newExpr == expr) ? this : new PrefixExpr(newExpr, op);
+  return (newExpr == expr) ? this
+                           : new PrefixExpr(this->location(), newExpr, op_);
 }
 
 Type *PrefixExpr::exprType() {
-  if (!strcmp(op, "~")) {
-    return expr->exprType();
+
+  if (IntType *t = dynamic_cast<IntType *>(expr->exprType())) {
+    // Otherwise, the behavior is describe in section 2.3.4 of
+    // ac_datatypes_ref.
+    switch (op_) {
+    case PrefixOp::Plus:
+      return expr->exprType();
+    case PrefixOp::Minus:
+      // result type is ac_int<W + 1, true>
+      return new IntType(
+          new BinaryExpr(expr->location(), t->width(), Integer::one(), "+"),
+          true);
+    case PrefixOp::BitwiseNot:
+      // result type is ac_int<W + !S, true>
+      return new IntType(
+          new BinaryExpr(expr->location(), t->width(),
+                         new Integer(expr->location(), !t->is_signed()), "+"),
+          true);
+    case PrefixOp::LogicalNot:
+      return &boolType;
+    default:
+      UNREACHABLE();
+    }
   } else {
-    return nullptr;
+    // TODO: fixed point + int + bool
+    return expr->exprType();
   }
 }
 
 Sexpression *PrefixExpr::ACL2Expr([[maybe_unused]] bool isBV) {
   Sexpression *s = expr->ACL2Expr();
-  if (!strcmp(op, "+")) {
+  switch (op_) {
+  case PrefixOp::Plus:
     return s;
-  } else if (!strcmp(op, "-")) {
+  case PrefixOp::Minus:
     return new Plist({ &s_minus, s });
-  } else if (!strcmp(op, "!")) {
+  case PrefixOp::LogicalNot:
     return new Plist({ &s_lognot1, s });
-  } else if (!strcmp(op, "~")) {
+  case PrefixOp::BitwiseNot:
     Type *t = exprType();
     if (t) {
       Plist *bv = new Plist({ &s_lognot, expr->ACL2Expr(true) });
       auto *regT = dynamic_cast<RegType *>(t);
       if (bv && regT) {
         unsigned w = regT->width()->evalConst();
-        return new Plist({ &s_bits, bv, new Integer(w - 1), Integer::zero() });
+        return new Plist({ &s_bits, bv, new Integer(this->location(), w - 1),
+                           Integer::zero() });
       } else {
         return t->ACL2Eval(bv);
         //?? return bv;
@@ -553,16 +573,16 @@ Sexpression *PrefixExpr::ACL2Expr([[maybe_unused]] bool isBV) {
     } else {
       return new Plist({ &s_lognot, s });
     }
-  } else
-    UNREACHABLE();
+  }
+  UNREACHABLE();
 }
 
 bool PrefixExpr::isEqual(Expression *e) {
-  return this == e || e->isEqualPrefix(op, expr);
+  return this == e || e->isEqualPrefix(op_, expr);
 }
 
-bool PrefixExpr::isEqualPrefix(const char *o, Expression *e) {
-  return !strcmp(o, op) && e->isEqual(expr);
+bool PrefixExpr::isEqualPrefix(const PrefixOp o, Expression *e) {
+  return o == op_ && e->isEqual(expr);
 }
 
 // class CastExpr : public Expression
@@ -570,7 +590,7 @@ bool PrefixExpr::isEqualPrefix(const char *o, Expression *e) {
 
 // Data members: Expression *expr; Type *type;
 
-CastExpr::CastExpr(Expression *e, Type *t) : Expression() {
+CastExpr::CastExpr(Location loc, Expression *e, Type *t) : Expression(loc) {
   expr = e;
   type = t;
 }
@@ -587,7 +607,8 @@ void CastExpr::displayNoParens(std::ostream &os) const { expr->display(os); }
 
 Expression *CastExpr::subst(SymRef *var, Expression *val) {
   Expression *newExpr = expr->subst(var, val);
-  return (newExpr == expr) ? this : new CastExpr(newExpr, type);
+  return (newExpr == expr) ? this
+                           : new CastExpr(this->location(), newExpr, type);
 }
 
 Sexpression *CastExpr::ACL2Expr([[maybe_unused]] bool isBV) {
@@ -599,12 +620,9 @@ Sexpression *CastExpr::ACL2Expr([[maybe_unused]] bool isBV) {
 
 // Data members: Expression *expr1; Expression *expr2; const char *op;
 
-BinaryExpr::BinaryExpr(Expression *e1, Expression *e2, const char *o)
-    : Expression() {
-  expr1 = e1;
-  expr2 = e2;
-  op = o;
-}
+BinaryExpr::BinaryExpr(Location loc, Expression *e1, Expression *e2,
+                       const char *o)
+    : Expression(loc), expr1(e1), expr2(e2), op(o), op_(parse_op(o)) {}
 
 bool BinaryExpr::isConst() const {
   return expr1->isConst() && expr2->isConst();
@@ -667,25 +685,98 @@ Expression *BinaryExpr::subst(SymRef *var, Expression *val) {
   Expression *newExpr2 = expr2->subst(var, val);
   return (newExpr1 == expr1 && newExpr2 == expr2)
              ? this
-             : new BinaryExpr(newExpr1, newExpr2, op);
+             : new BinaryExpr(this->location(), newExpr1, newExpr2, op);
 }
 
 Type *BinaryExpr::exprType() {
-  Type *t1 = expr1->exprType();
-  Type *t2 = expr2->exprType();
-  if ((!strcmp(op, "&") || !strcmp(op, "|") || !strcmp(op, "^"))
-      && (t1 == t2)) {
-    return t1;
-  } else {
-    return t2;
-    //    TODO(); // This should not happen since it would be run after the
-    //    type
-    //            // pass.
-    //    return nullptr;
-  }
+
+  IntType *t1 = dynamic_cast<IntType *>(expr1->exprType());
+  IntType *t2 = dynamic_cast<IntType *>(expr2->exprType());
+
+  if (t1 && t2) {
+    // This behavior is describe in section 2.3.1 of ac_datatypes_ref.
+    switch (op_) {
+
+    case BinaryOp::Times:
+    case BinaryOp::Div: {
+      // W1+W2
+      Expression *width
+          = new BinaryExpr(this->location(), t1->width(), t2->width(), "+");
+      return new IntType(width, t1->is_signed() || t2->is_signed());
+    }
+
+    case BinaryOp::Mod: {
+      // W2 + !S2&S1
+      Expression *rigth = new BinaryExpr(
+          this->location(), t2->width(),
+          new Integer(this->location(), (!t2->is_signed()) && t1->is_signed()),
+          "+");
+
+      return new IntType(
+          new Integer(this->location(),
+                      std::min(t1->width()->evalConst(), rigth->evalConst())),
+          t1->is_signed());
+    }
+
+    case BinaryOp::LShift:
+    case BinaryOp::RShift:
+      return t1;
+
+    case BinaryOp::Plus:
+    case BinaryOp::Minus:
+    case BinaryOp::BitwiseAnd:
+    case BinaryOp::BitwiseXor:
+    case BinaryOp::BitwiseOr: {
+      // W1 + !S1&S2
+      Expression *left = new BinaryExpr(
+          this->location(), t1->width(),
+          new Integer(this->location(), (!t1->is_signed()) && t2->is_signed()),
+          "+");
+      // W2 + !S2&S1
+      Expression *rigth = new BinaryExpr(
+          this->location(), t2->width(),
+          new Integer(this->location(), (!t2->is_signed()) && t1->is_signed()),
+          "+");
+      // max(left, rigth)
+      Expression *max = new Integer(
+          this->location(), std::max(left->evalConst(), rigth->evalConst()));
+
+      // If we are in the + / - case, we add + 1 for the overflow bit.
+      Expression *width = nullptr;
+      if (op_ == BinaryOp::Plus || op_ == BinaryOp::Minus) {
+        width = new BinaryExpr(this->location(), max, Integer::one(), "+");
+      } else {
+        width = max;
+      }
+
+      // sign: s1 | s2 || op == minus
+      return new IntType(width, t1->is_signed() || t2->is_signed()
+                                    || op_ == BinaryOp::Minus);
+    }
+
+    case BinaryOp::Less:
+    case BinaryOp::Greater:
+    case BinaryOp::LessEqual:
+    case BinaryOp::GreaterEqual:
+    case BinaryOp::Equal:
+    case BinaryOp::NotEqual:
+    case BinaryOp::LogicalAnd:
+    case BinaryOp::LogicalOr:
+      return &boolType;
+
+    default:
+      UNREACHABLE();
+    }
+
+  } /*else  if () {
+    Mixed type: ac_int OP primType
+  } */
+  else
+    return expr2->exprType();
 }
 
 Sexpression *BinaryExpr::ACL2Expr(bool isBV) {
+  // TODO add cast for operation that can exceed the type (ash...)
   Symbol *ptr;
   Sexpression *sexpr1 = expr1->ACL2Expr();
   Sexpression *sexpr2 = expr2->ACL2Expr();
@@ -764,8 +855,8 @@ int BinaryExpr::getPlusConst() { return expr2->evalConst(); }
 
 // Data members:  Expression *expr1; Expression *expr2; Expression *test;
 
-CondExpr::CondExpr(Expression *e1, Expression *e2, Expression *t)
-    : Expression() {
+CondExpr::CondExpr(Location loc, Expression *e1, Expression *e2, Expression *t)
+    : Expression(loc) {
   expr1 = e1;
   expr2 = e2;
   test = t;
@@ -787,7 +878,7 @@ Expression *CondExpr::subst(SymRef *var, Expression *val) {
   Expression *newTest = test->subst(var, val);
   return (newExpr1 == expr1 && newExpr2 == expr2 && newTest == test)
              ? this
-             : new CondExpr(newExpr1, newExpr2, newTest);
+             : new CondExpr(this->location(), newExpr1, newExpr2, newTest);
 }
 
 Sexpression *CondExpr::ACL2Expr([[maybe_unused]] bool isBV) {
@@ -800,14 +891,17 @@ Sexpression *CondExpr::ACL2Expr([[maybe_unused]] bool isBV) {
 
 // Data members: MvType *type; Expression *expr[8];
 
-MultipleValue::MultipleValue(MvType *t, List<Expression> *e)
-    : Expression(), type(t) {
+MultipleValue::MultipleValue(Location loc, MvType *t, List<Expression> *e)
+    : Expression(loc), type(t), expr(collect(e)) {
+  //  expr.reserve(8);
+  //  for_each(e, [&](Expression *ee) { expr.push_back(ee); })
 
-  expr.reserve(8);
-  for (unsigned i = 0; i < 8 && e; ++i) {
-    expr.push_back(e->value);
-    e = e->pop();
-  }
+  //  for (unsigned i = 0; i < 8 && e; ++i) {
+  //    expr.push_back(e->value);
+  //    e = e->pop();
+  //  }
+  //
+  //  std::cerr << type->size() << ' ' << expr.size() << '\n';
 
   assert(expr.size() >= 2
          && "It does not make sense to have a mv with 1 or 0 elem");
@@ -816,7 +910,6 @@ MultipleValue::MultipleValue(MvType *t, List<Expression> *e)
 }
 
 void MultipleValue::displayNoParens(std::ostream &os) const {
-
   os << "<";
   bool first = true;
   for (const auto e : expr) {
@@ -829,7 +922,6 @@ void MultipleValue::displayNoParens(std::ostream &os) const {
 }
 
 Expression *MultipleValue::subst(SymRef *var, Expression *val) {
-
   std::vector<Expression *> newExpr;
   newExpr.reserve(8);
   bool isNew = false;
@@ -840,11 +932,11 @@ Expression *MultipleValue::subst(SymRef *var, Expression *val) {
       isNew = true;
     }
   }
-  return isNew ? new MultipleValue(type, std::move(newExpr)) : this;
+  return isNew ? new MultipleValue(this->location(), type, std::move(newExpr))
+               : this;
 }
 
 Sexpression *MultipleValue::ACL2Expr([[maybe_unused]] bool isBV) {
-
   Plist *result = new Plist({ &s_mv });
 
   for (unsigned i = 0; i < expr.size(); ++i) {

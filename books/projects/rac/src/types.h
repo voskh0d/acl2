@@ -138,6 +138,8 @@ public:
 
   bool isIntegerType() const override { return true; }
 
+  bool is_signed() const { return is_signed_; }
+
   void display(std::ostream &os) const override;
   Sexpression *ACL2Eval(Sexpression *s) const override;
 
@@ -216,6 +218,7 @@ private:
 class MvType : public Type {
 public:
   MvType(std::initializer_list<Type *> &&t) : type(t) {}
+  MvType(const std::vector<Type *> &t) : type(t) {}
   void display(std::ostream &os) const;
 
   Type *typeOfNth(unsigned i) { return type[i]; }

@@ -22,7 +22,11 @@ static bool comment();
 char *tokstr();
 static void lineba();
 char yyfilenm[1024];
+
+#define YY_USER_ACTION yylloc.first_line = yylloc.last_line = yylineno;
 %}
+
+%option yylineno
 
 %%
 

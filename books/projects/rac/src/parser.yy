@@ -26,6 +26,8 @@ template <typename... Args> void yyerror (const char *format, Args... args)
   std::fprintf (stderr, "\n");
 }
 
+#define LOCATION Location(yyloc.first_line, yyloc.first_column, yyloc.last_line, yyloc.last_column)
+
 extern BreakStmt breakStmt;
 
 Program prog;
@@ -54,10 +56,12 @@ SymbolStack<SymDec> symTab;
   List<Statement> *stml;
   Case *c;
   List<Case> *cl;
+  std::vector<Type *> *types;
 }
 
 %define parse.error verbose
 %define parse.lac full
+%locations
 
 %token TYPEDEF CONST STRUCT ENUM TEMPLATE
 %token INT UINT INT64 UINT64 BOOL
@@ -73,6 +77,7 @@ SymbolStack<SymDec> symTab;
 %token<s> '=' '+' '-' '&' '|' '!' '~' '*' '%' '<' '>' '^' '/'
 %start program
 
+%type<types> mv_type_rec
 %type<t> type_spec typedef_type
 %type<t> primitive_type array_param_type mv_type register_type struct_type enum_type
 %type<dt> type_dec typedef_dec
@@ -299,34 +304,15 @@ enum_const_dec : ID
   symTab.push ($$);
 };
 
-mv_type : TUPLE '<' type_spec ',' type_spec '>'
-        {
-  $$ = new MvType ({ $3, $5 });
+mv_type: TUPLE '<' mv_type_rec {
+  // We collected the type from right to left, so we need to reverse it.
+  std::reverse($3->begin(), $3->end());
+  $$ = new MvType(*$3);
+  delete $3;
 }
-| TUPLE '<' type_spec ',' type_spec ',' type_spec '>'
-{
-  $$ = new MvType ({ $3, $5, $7 });
-}
-| TUPLE '<' type_spec ',' type_spec ',' type_spec ',' type_spec '>'
-{
-  $$ = new MvType ({ $3, $5, $7, $9 });
-}
-| TUPLE '<' type_spec ',' type_spec ',' type_spec ',' type_spec ',' type_spec '>'
-{
-  $$ = new MvType ({ $3, $5, $7, $9, $11 });
-}
-| TUPLE '<' type_spec ',' type_spec ',' type_spec ',' type_spec ',' type_spec ',' type_spec '>'
-{
-  $$ = new MvType ({ $3, $5, $7, $9, $11, $13 });
-}
-| TUPLE '<' type_spec ',' type_spec ',' type_spec ',' type_spec ',' type_spec ',' type_spec ',' type_spec '>'
-{
-  $$ = new MvType ({ $3, $5, $7, $9, $11, $13, $15 });
-}
-| TUPLE '<' type_spec ',' type_spec ',' type_spec ',' type_spec ',' type_spec ',' type_spec ',' type_spec ',' type_spec '>'
-{
-  $$ = new MvType ({ $3, $5, $7, $9, $11, $13, $15, $17 });
-};
+
+mv_type_rec: type_spec '>' { $$ = new std::vector({$1}); }
+           | type_spec ',' mv_type_rec { $$ = $3; $$->push_back($1); }
 
 //*************************************************************************************
 // Expressions
@@ -340,13 +326,13 @@ primary_expression : constant | symbol_ref | funcall | '(' expression ')'
 
 constant : integer | boolean;
 
-integer : NAT { $$ = new Integer ($1); }
+integer : NAT { $$ = new Integer (LOCATION, $1); }
         | '-' NAT
 {
   char *name = new char[strlen ($2) + 2];
   strcpy (name + 1, $2);
   name[0] = '-';
-  $$ = new Integer (name);
+  $$ = new Integer (LOCATION, name);
 };
 
 boolean : TRUE { $$ = &b_true; }
@@ -357,7 +343,7 @@ symbol_ref : ID
   SymDec *s = symTab.find ($1);
   if (s)
     {
-      $$ = new SymRef (s);
+      $$ = new SymRef (LOCATION, s);
     }
   else
     {
@@ -372,7 +358,7 @@ funcall : ID '(' expr_list ')'
 {
   if (FunDef *f = prog.funDefs->find ($1))
     {
-      $$ = new FunCall (f, $3);
+      $$ = new FunCall (LOCATION, f, $3);
     }
   else
     {
@@ -384,7 +370,7 @@ funcall : ID '(' expr_list ')'
 {
   if (Template *f = static_cast<Template *>(prog.funDefs->find ($1)))
     {
-      $$ = new TempCall (f, $6, $3);
+      $$ = new TempCall (LOCATION, f, $6, $3);
     }
   else
     {
@@ -404,123 +390,123 @@ array_or_bit_ref : postfix_expression '[' expression ']'
 
 if ($1->isArray ())
     {
-      $$ = new ArrayRef ($1, $3);
+      $$ = new ArrayRef (LOCATION, $1, $3);
     }
   else
     {
-      $$ = new BitRef ($1, $3);
+      $$ = new BitRef (LOCATION, $1, $3);
     }
 };
 
-struct_ref : postfix_expression '.' ID { $$ = new StructRef ($1, $3); }
+struct_ref : postfix_expression '.' ID { $$ = new StructRef (LOCATION, $1, $3); }
 
 subrange : postfix_expression '.' SLC '<' NAT '>' '(' expression ')'
          {
-  unsigned diff = (new Integer ($5))->evalConst () - 1;
+  unsigned diff = (new Integer (LOCATION, $5))->evalConst () - 1;
   if ($8->isConst ())
     {
-      $$ = new Subrange ($1, new Integer ($8->evalConst () + diff), $8,
-                         (new Integer ($5))->evalConst ());
+      $$ = new Subrange (LOCATION, $1, new Integer (LOCATION, $8->evalConst () + diff), $8,
+                         (new Integer (LOCATION, $5))->evalConst ());
     }
   else
     {
-      $$ = new Subrange ($1,
-                         new BinaryExpr ($8, new Integer (diff), strdup ("+")),
-                         $8, (new Integer ($5))->evalConst ());
+      $$ = new Subrange (LOCATION, $1,
+                         new BinaryExpr (LOCATION, $8, new Integer (LOCATION, diff), strdup ("+")),
+                         $8, (new Integer (LOCATION, $5))->evalConst ());
     }
 }
 
 prefix_expression : postfix_expression | unary_op prefix_expression
                   {
-  $$ = new PrefixExpr ($2, $1);
+  $$ = new PrefixExpr (LOCATION, $2, $1);
 }
-| '(' type_spec ')' prefix_expression { $$ = new CastExpr ($4, $2); }
-| type_spec '(' expression ')' { $$ = new CastExpr ($3, $1); };
+| '(' type_spec ')' prefix_expression { $$ = new CastExpr (LOCATION, $4, $2); }
+| type_spec '(' expression ')' { $$ = new CastExpr (LOCATION, $3, $1); };
 
-unary_op : '+' | '-' | '~' | '!';
+unary_op : '+' | '-'  | '~'  | '!';
 
 mult_expression : prefix_expression | mult_expression '*' prefix_expression
                 {
-  $$ = new BinaryExpr ($1, $3, $2);
+  $$ = new BinaryExpr (LOCATION, $1, $3, $2);
 }
-| mult_expression '/' prefix_expression { $$ = new BinaryExpr ($1, $3, $2); }
-| mult_expression '%' prefix_expression { $$ = new BinaryExpr ($1, $3, $2); };
+| mult_expression '/' prefix_expression { $$ = new BinaryExpr (LOCATION, $1, $3, $2); }
+| mult_expression '%' prefix_expression { $$ = new BinaryExpr (LOCATION, $1, $3, $2); };
 
 add_expression : mult_expression | add_expression '+' mult_expression
                {
-  $$ = new BinaryExpr ($1, $3, $2);
+  $$ = new BinaryExpr (LOCATION, $1, $3, $2);
 }
-| add_expression '-' mult_expression { $$ = new BinaryExpr ($1, $3, $2); };
+| add_expression '-' mult_expression { $$ = new BinaryExpr (LOCATION, $1, $3, $2); };
 
 arithmetic_expression : add_expression
                       | arithmetic_expression LSHFT_OP add_expression
 {
-  $$ = new BinaryExpr ($1, $3, $2);
+  $$ = new BinaryExpr (LOCATION, $1, $3, $2);
 }
 | arithmetic_expression RSHFT_OP add_expression
 {
-  $$ = new BinaryExpr ($1, $3, $2);
+  $$ = new BinaryExpr (LOCATION, $1, $3, $2);
 };
 
 rel_expression : arithmetic_expression
                | rel_expression '<' arithmetic_expression
 {
-  $$ = new BinaryExpr ($1, $3, $2);
+  $$ = new BinaryExpr (LOCATION, $1, $3, $2);
 }
 | rel_expression '>' arithmetic_expression
 {
-  $$ = new BinaryExpr ($1, $3, $2);
+  $$ = new BinaryExpr (LOCATION, $1, $3, $2);
 }
 | rel_expression LE_OP arithmetic_expression
 {
-  $$ = new BinaryExpr ($1, $3, $2);
+  $$ = new BinaryExpr (LOCATION, $1, $3, $2);
 }
 | rel_expression GE_OP arithmetic_expression
 {
-  $$ = new BinaryExpr ($1, $3, $2);
+  $$ = new BinaryExpr (LOCATION, $1, $3, $2);
 };
 
 eq_expression : rel_expression | eq_expression EQ_OP rel_expression
               {
-  $$ = new BinaryExpr ($1, $3, $2);
+  $$ = new BinaryExpr (LOCATION, $1, $3, $2);
 }
-| eq_expression NE_OP rel_expression { $$ = new BinaryExpr ($1, $3, $2); };
+| eq_expression NE_OP rel_expression { $$ = new BinaryExpr (LOCATION, $1, $3, $2); };
 
 and_expression : eq_expression | and_expression '&' eq_expression
                {
-  $$ = new BinaryExpr ($1, $3, $2);
+  $$ = new BinaryExpr (LOCATION, $1, $3, $2);
 };
 
 xor_expression : and_expression | xor_expression '^' and_expression
                {
-  $$ = new BinaryExpr ($1, $3, $2);
+  $$ = new BinaryExpr (LOCATION, $1, $3, $2);
 };
 
 ior_expression : xor_expression | ior_expression '|' xor_expression
                {
-  $$ = new BinaryExpr ($1, $3, $2);
+  $$ = new BinaryExpr (LOCATION, $1, $3, $2);
 };
 
 log_and_expression : ior_expression | log_and_expression AND_OP ior_expression
                    {
-  $$ = new BinaryExpr ($1, $3, $2);
+  $$ = new BinaryExpr (LOCATION, $1, $3, $2);
 };
 
 log_or_expression : log_and_expression
                   | log_or_expression OR_OP log_and_expression
 {
-  $$ = new BinaryExpr ($1, $3, $2);
+  $$ = new BinaryExpr (LOCATION, $1, $3, $2);
 };
 
 cond_expression : log_or_expression
                 | log_or_expression '?' expression ':' cond_expression
 {
-  $$ = new CondExpr ($3, $5, $1);
+  $$ = new CondExpr (LOCATION, $3, $5, $1);
 };
 
 mv_expression : mv_type '(' expr_list ')'
               {
-  $$ = new MultipleValue ((MvType *)$1, $3);
+  $$ = new MultipleValue (LOCATION, (MvType *)$1, $3);
 };
 
 expression : cond_expression | mv_expression;
@@ -645,7 +631,7 @@ untyped_var_dec : ID
 
 array_or_struct_init : '{' init_list '}'
                      {
-  $$ = new Initializer ((List<Constant> *)($2->front ()));
+  $$ = new Initializer (LOCATION, (List<Constant> *)($2->front ()));
 };
 
 init_list : expression { $$ = new BigList<Expression> ($1); }
@@ -777,40 +763,23 @@ assignment : expression assign_op expression
 | postfix_expression '.' SET_SLC '(' expression ',' expression ')'
 {
   unsigned w = 0;
-  /*if ($7->isSubrange ())
-    {
-      w = ((Subrange *)$7)->width;
+  Type *type = $7->exprType ();
+  if (type) {
+    type = type->derefType ();
+    if (auto *reg = dynamic_cast<RegType *>(type)) {
+      w = reg->width ()->evalConst ();
     }
-  else*/
-    {
-      Type *type = $7->exprType ();
-      if (type)
-        {
-          type = type->derefType ();
-          if (auto *reg = dynamic_cast<RegType *>(type))
-            {
-              w = reg->width ()->evalConst ();
-            }
-        }
-    }
-  if (w == 0)
-    {
+  } else {
       yyerror ("Second arg of set_slc must have a defined width");
       YYERROR;
-    }
+  }
+
+  Expression *top;
+  if ($5->isConst ())
+    top = new Integer (LOCATION, $5->evalConst () + w - 1);
   else
-    {
-      Expression *top;
-      if ($5->isConst ())
-        {
-          top = new Integer ($5->evalConst () + w - 1);
-        }
-      else
-        {
-          top = new BinaryExpr ($5, new Integer (w - 1), strdup ("+"));
-        }
-      $$ = new Assignment (new Subrange ($1, top, $5), "=", $7);
-    }
+    top = new BinaryExpr (LOCATION, $5, new Integer (LOCATION, w - 1), strdup ("+"));
+  $$ = new Assignment (new Subrange (LOCATION, $1, top, $5), "=", $7);
 };
 
 assign_op : '=' | RSHFT_ASSIGN | LSHFT_ASSIGN | ADD_ASSIGN | SUB_ASSIGN
