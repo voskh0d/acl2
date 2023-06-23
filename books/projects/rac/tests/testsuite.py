@@ -11,6 +11,7 @@ import sys
 
 test_dir_path = 'yaml_test/'
 
+
 def run_parser(bin_path, working_dir, input, timeout):
 
     # Remove potential old generated code.
@@ -36,18 +37,14 @@ def diff(ref, out):
     out = out.splitlines(keepends=True)
     return ''.join(unified_diff(ref, out, fromfile="ref", tofile="out"))
 
-# This will match the unicode whitespace, maybe we should only match
-# ascii's ones ?
-RE_COMBINE_WHITESPACE = re.compile(r"[ \n]+")
 
 def load(path, allow_empty):
     try:
         with open(path, "r") as f:
             content = f.read()
             return content
-            return RE_COMBINE_WHITESPACE.sub(" ", content) + '\n'
 
-    except OSError as err:
+    except OSError:
         if allow_empty:
             return ""
         else:
@@ -68,22 +65,22 @@ def test(bin_path, dir_path, testcase, timeout):
         out = run_parser_raw(bin_path, dir_path, args, timeout)
 
     disabled_checks = testcase.get("disabled-checks", [])
-    if not "has_failed" in disabled_checks:
+    if "has_failed" not in disabled_checks:
         if testcase.get("has_failed", False):
             assert out.returncode != 0, "expected a non zero returncode but got 0"
         else:
             assert out.returncode == 0, f"expected a zero returncode but got {out.returncode}"
 
-    if not "exit_code" in disabled_checks:
+    if "exit_code" not in disabled_checks:
         ref = testcase.get("exit_code", 0)
         assert out.returncode == ref, f"returncode differs:\nexpected: {ref} got: {out.returncode}"
 
-    if not "stdout" in disabled_checks:
+    if "stdout" not in disabled_checks:
         stdout_path = testcase.get("ref_stdout", testcase.get("name") + ".ref.stdout")
         ref = load(dir_path + stdout_path, allow_empty=True)
         assert out.stdout == ref, f"stdout differs:\n{(diff(ref, out.stdout))}"
 
-    if not "stderr" in disabled_checks:
+    if "stderr" not in disabled_checks:
         if testcase.get("stderr_not_empty", False):
             assert out.stderr != "", "expected something written on stderr, but got nothing"
         else:
@@ -92,19 +89,19 @@ def test(bin_path, dir_path, testcase, timeout):
             assert out.stderr == ref, f"stderr differs:\n{(diff(ref, out.stderr))}"
 
     # If the test should fails, don't test the output: there is none.
-    if not "generated_code" in disabled_checks and not testcase.get("has_failed", False):
-        
+    if "generated_code" not in disabled_checks and not testcase.get("has_failed", False):
+
         ref = ""
         try:
             generated_path = testcase.get("ref_generated", testcase.get("name") + ".cpp.ref.ast.lsp")
             ref = load(dir_path + generated_path, allow_empty=False)
-        except OSError as err:
+        except OSError:
             raise OSError(f"Reference `{generated_path}` not found")
 
         try:
             out = load(dir_path + input + ".ast.lsp", allow_empty=False)
             assert out == ref, f"generated code differs:\n{diff(ref, out)}"
-        except OSError as err:
+        except OSError:
             raise AssertionError("Code not generated")
 
 
@@ -120,14 +117,14 @@ def run_tests(bin_path, category, file, timeout, quiet, show_bugs):
         try:
             test(bin_path, dir_path, testcase, timeout)
 
-        except AssertionError as err:
+        except AssertionError:
             print(f"[{colored('KO', 'red')}]", testcase["name"], f"(from {category})")
             if not quiet:
                 print(f"{colored('Test description:', 'yellow')} ", descr)
             print(err)
             print('--------------------------------------------------------------------------------')
 
-        except OSError as err:
+        except OSError:
             print(f"[{colored('KO', 'yellow')}]", testcase["name"], f"(from {category})")
             if not quiet:
                 print(f"{colored('Test description:', 'yellow')} ", descr)
@@ -149,20 +146,21 @@ def print_categories():
     for dirs in os.listdir(test_dir_path):
         print(' - ', dirs)
 
+
 if __name__ == "__main__":
 
     parser = ArgumentParser(description='')
-    parser.add_argument('bin', metavar='BIN', nargs="?", type=str, \
+    parser.add_argument('bin', metavar='BIN', nargs="?", type=str,
             help='The path of the binary path to test')
-    parser.add_argument('--timeout', nargs='?', default=None, type=float,\
+    parser.add_argument('--timeout', nargs='?', default=None, type=float,
             help='Add a timeout (in seconds)')
-    parser.add_argument('--quiet', action='store_true', \
+    parser.add_argument('--quiet', action='store_true',
             help='Only print failed tests without description')
-    parser.add_argument('--list', action='store_true', \
+    parser.add_argument('--list', action='store_true',
             help='Print every categories available')
-    parser.add_argument('--categories', nargs='+', default=None, \
+    parser.add_argument('--categories', nargs='+', default=None,
             help='Select categories to test, by default test every categories')
-    parser.add_argument('--hide-bugs', action='store_true', \
+    parser.add_argument('--hide-bugs', action='store_true',
             help='Don\'t show the tests taggesed as bug when the test suceed')
     args = parser.parse_args()
 
@@ -180,7 +178,7 @@ if __name__ == "__main__":
     bin_path = Path(args.bin).absolute()
 
     categories = args.categories
-    if categories == None:
+    if categories is None:
         categories = os.listdir(test_dir_path)
 
     if args.timeout and args.timeout <= 0:
