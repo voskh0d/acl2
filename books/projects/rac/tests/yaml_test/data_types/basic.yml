@@ -67,7 +67,7 @@
   has_failed: true
   exit_code: 1
 
-- name: enum 
+- name: enum
 
 - name: enum-default-values
 
@@ -90,6 +90,7 @@
 - name: global-constant
 - name: global-constant-enum
 - name: multiple-global-constant
+  description: Parsing fails
   exit_code: 1
   has_failed: 1
   bug: true
@@ -118,3 +119,14 @@
                headers has not been updated, this will produce some error at
                runtime but we can ignore them, they will not influence the
                C++/Lisp translation.
+
+- name: type-of-literal
+  bug: true
+  description: In that case 1 is an int which is shifted by 63, this overflow
+               and the result is 0 but in lisp it is completely unbouded. See
+               rule to decide the type of a literal here
+               https://en.cppreference.com/w/cpp/language/integer_literal.
+
+- name: initializer-list-ac-types
+  bug: true
+  description: The assignement overflow.

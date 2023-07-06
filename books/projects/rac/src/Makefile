@@ -1,22 +1,27 @@
-.PHONY: all clean veryclean
+$(shell echo "#include \"version.h\"\n\nchar const *const git_commit = \"$$(git describe --always --dirty --match 'NOT A TAG')\";" > version.cpp.tmp; if diff -q version.cpp.tmp version.cpp >/dev/null 2>&1; then rm version.cpp.tmp; else mv version.cpp.tmp version.cpp; fi)
 
-all: ../bin/rac ../bin/parse
+all : install
 
-../bin/parse: parser.l parser.y parser.h output.c main.c
-	bison -d -v parser.y
-	flex parser.l
-	g++ -std=c++17 -g -o parse parser.tab.c lex.yy.c output.c main.c
-	install -m 775 parse ${RAC}/bin
-	/bin/rm parse
+parse: parser.ll parser.yy parser.h expressions.cpp functions.cpp types.cpp output.cpp main.cpp
+	bison -d -v -o parser.tab.cpp parser.yy
+	flex -o lex.yy.cpp parser.ll
+	g++ -std=c++17 -g -o parse version.cpp functions.cpp expressions.cpp statements.cpp parser.tab.cpp lex.yy.cpp types.cpp output.cpp main.cpp
 
-../bin/rac: rac-skel
+#We should execute this rule every time, since it depends on some environment
+#variables.
+rac:
 	printf "#!/bin/bash\n\nRAC=${RAC}\nACL2=${ACL2}" | cat - rac-skel > rac
+
+install: parse rac
+	install -m 775 parse ${RAC}/bin
 	install -m 775 rac ${RAC}/bin
-	/bin/rm rac
+	rm rac parse
 
 clean:
-	/bin/rm -f rac parser.tab.c parser.tab.h parser.output lex.yy.c parser.c
-	/bin/rm -f -r parse.dSym
+	rm -f rac parser.tab.c parser.tab.h parser.output lex.yy.c parser.c
+	rm -f -r parse.dSym
 
-veryclean: clean
-	/bin/rm -f ../bin/rac ../bin/parse
+veryclean : clean
+	rm -f rac parse
+
+.PHONY : all clean veryclean install rac
