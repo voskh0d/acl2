@@ -43,19 +43,78 @@ RegType::ACL2Assign (Expression *rval)
   int width_evaluated = width_->evalConst ();
   assert (width_evaluated >= 0);
 
-  if (t == this || (w && w <= (unsigned)width_evaluated))
+  bool diff_sign =
+    (dynamic_cast<IntType *>(t) && dynamic_cast<UintType *>(this)) ||
+    (dynamic_cast<UintType *>(t) && dynamic_cast<IntType *>(this));
+
+//  std::cerr << "diff_sign: " << diff_sign <<
+//    t << ' ' <<
+//    ' '
+//    << dynamic_cast<IntType *>(t)
+//    << ' '
+//    << dynamic_cast<UintType *>(this)
+//    << ' '
+//    << dynamic_cast<UintType *>(t)
+//    << ' '
+//    << dynamic_cast<IntType *>(this)
+//    << '\n';
+
+  if (t == this || (!diff_sign && w && w <= (unsigned)width_evaluated))
     {
+//      std::cerr << "no bits\n";
 //      UNREACHABLE();
       return rval->ACL2Expr (true);
     }
   else
     {
       assert(width_evaluated);
-      Sexpression *s = rval->ACL2Expr ();
+      Sexpression *s = rval->ACL2Expr (true);
       if (rval->isFP ())
         s = new Plist ({ &s_fl, s });
-      return new Plist (
-          { &s_bits, s, new Integer (width_->evalConst () - 1), &i_0 });
+
+//      std::cerr << "1\n";
+      Sexpression *bv_val = 
+                     new Plist ( { &s_bits, s, new Integer (width_->evalConst () - 1), &i_0 });
+
+//      if (diff_sign) {
+//        if (dynamic_cast<UintType *>(rval->exprType())) {
+//          bv_val = new Plist ({
+//              &s_si,
+//              bv_val,
+//              new Integer (width_->evalConst ()) });
+//        }
+//      } else {
+//        if (dynamic_cast<IntType *>(rval->exprType())) {
+//          bv_val = new Plist ({
+//              &s_si,
+//              bv_val,
+//              new Integer (width_->evalConst ()) });
+//        }
+//      }
+//
+////      if (diff_sign) {
+////        return new Plist ({ &s_si, bv_val, new Integer (width_->evalConst ()) });
+////      }
+////      else {
+//        return bv_val;
+////      }
+//    }
+
+
+      // Should be replaced by a Subrange expression.
+      if (dynamic_cast<IntType *>(rval->exprType())) {
+//      std::cerr << "2\n";
+        bv_val = new Plist ({ &s_si, bv_val, new Integer (width_->evalConst ()) });
+      }
+
+      if (diff_sign) {
+//      std::cerr << "3\n\n";
+        return new Plist ({ &s_si, bv_val, new Integer (width_->evalConst ()) });
+      }
+      else {
+//      std::cerr << "4\n\n";
+        return bv_val;
+      }
     }
 }
 
@@ -218,7 +277,7 @@ ArrayType::makeDef (const char *name, ostream &os)
 {
   Type *b = baseType;
   List<Expression> *dims = new List<Expression> (dim);
-  while (b->isArrayType ())
+  while (isArrayType (b))
     {
       dims = dims->push (((ArrayType *)b)->dim);
       b = ((ArrayType *)b)->baseType;

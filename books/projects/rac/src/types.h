@@ -13,6 +13,7 @@ using namespace std;
 class Expression;
 class SymRef;
 class EnumConstDec;
+class DefinedType;
 
 // Derived classes:
 //
@@ -28,22 +29,8 @@ class EnumConstDec;
 //   StructType         (struct type) EnumType (enumeration type)
 //   MvType             (multiple value type)
 class Type {
+
 public:
-  // overridden by PrimType
-  virtual bool isPrimType() const { return false; }
-  // overridden by RegType
-  virtual bool isRegType() const { return false; }
-  // overridden by FPType
-  virtual bool isArrayType() const { return false; }
-  // overridden by ArrayType
-  virtual bool isStructType() const { return false; }
-  // overridden by StructType
-  virtual bool isIntegerType() const { return false; }
-  // overridden by EnumType
-  virtual bool isFPType() const { return false; }
-  // overridden by integer types
-  virtual bool isEnumType() const { return false; }
-  // overridden by DefinedType
   virtual Type *derefType() { return this; }
   virtual void display(ostream &os = cout) const = 0;
 
@@ -96,13 +83,13 @@ public:
   }
 };
 
+bool isRegType(Type *);
+
+
 class PrimType : public Symbol, public Type {
 public:
   PrimType(const char *s, const char *m = nullptr)
       : Symbol(s), RACname_(m ? std::optional(std::string(m)) : nullopt) {}
-
-  bool isPrimType() const override { return true; }
-  bool isIntegerType() const override { return true; }
 
   void display(ostream &os) const override {
     if (RACname_) {
@@ -129,13 +116,12 @@ public:
   void display(ostream &os) const { Symbol::display(os); }
 
   void displayDef(ostream &os = cout) const {
-    if (!(def_->isRegType())) {
+    if (!(isRegType(def_))) {
       def_->makeDef(getname(), os);
     }
   }
 
   Type *getdef() { return def_; }
-  Type *&getdef_mutref() { return def_; }
   Type *derefType() { return def_->derefType(); }
 
 private:
@@ -148,7 +134,6 @@ public:
 
   Expression *width() const { return width_; }
 
-  bool isRegType() const override { return true; }
   Sexpression *ACL2Assign(Expression *rval) override;
 
 private:
@@ -159,7 +144,6 @@ class UintType : public RegType {
 public:
   UintType(Expression *w) : RegType(w) {}
 
-  bool isIntegerType() const override { return true; }
   void display(ostream &os = cout) const override;
   unsigned ACL2ValWidth() override;
 };
@@ -167,7 +151,6 @@ public:
 class IntType : public RegType {
 public:
   IntType(Expression *w) : RegType(w) {}
-  bool isIntegerType() const override { return true; }
   void display(ostream &os = cout) const override;
   Sexpression *ACL2Eval(Sexpression *s) override;
 };
@@ -176,7 +159,6 @@ class FPType : public RegType {
 public:
   Expression *iwidth;
   FPType(Expression *w, Expression *iw);
-  bool isFPType() const override { return true; }
   Sexpression *ACL2Assign(Expression *rval) override;
 };
 
@@ -203,7 +185,6 @@ public:
   ArrayType(Expression *d, Type *t) : baseType(t), dim(d) {}
 
   Type *getBaseType();
-  bool isArrayType() const override { return true; }
   void display(ostream &os) const override;
   void displayVarType(ostream &os = cout) const override;
   void displayVarName(const char *name, ostream &os = cout) const override;
@@ -223,7 +204,6 @@ class StructType : public Type {
 public:
   List<StructField> *fields;
   StructType(List<StructField> *f);
-  bool isStructType() const override { return true; }
   void displayFields(ostream &os) const;
   void display(ostream &os) const override;
   void makeDef(const char *name, ostream &os = cout) override;
@@ -233,8 +213,6 @@ class EnumType : public Type {
 public:
   List<EnumConstDec> *vals;
   EnumType(List<EnumConstDec> *v);
-  bool isEnumType() const override { return true; }
-  bool isIntegerType() const override { return true; }
   void displayConsts(ostream &os) const;
   void display(ostream &os) const override;
   void makeDef(const char *name, ostream &os = cout) override;
@@ -249,5 +227,42 @@ public:
   MvType(std::initializer_list<Type *> &&t) : type(t) {}
   void display(ostream &os) const;
 };
+
+// Apply a predicate to a type. If it is a defined type, we derefence it.
+template <typename Predicate>
+bool applyOnType(Type * t, Predicate p) {
+
+  // If t is a typdef, we derefence it until we get a non-defined type.
+  while (DefinedType *dt = dynamic_cast<DefinedType *>(t)) {
+    t = dt->getdef();
+  }
+
+  return p(t);
+}
+
+inline bool isRegType(Type *t) {
+  return applyOnType(t, [](Type *t) { return dynamic_cast<RegType *>(t); });
+}
+
+inline bool isArrayType(Type *t) {
+  return applyOnType(t, [](Type *t) { return dynamic_cast<ArrayType *>(t); });
+}
+
+inline bool isStructType(Type *t) {
+  return applyOnType(t, [](Type *t) { return dynamic_cast<StructType *>(t); });
+}
+
+inline bool isIntegerType(Type *t) {
+  return applyOnType(t, [](Type *t) {
+      return dynamic_cast<PrimType *>(t)
+      || dynamic_cast<UintType *>(t)
+      || dynamic_cast<IntType *>(t)
+      || dynamic_cast<EnumType *>(t); });
+}
+
+inline bool isEnumType(Type * t) {
+  return applyOnType(t,
+      [](Type *t) { return dynamic_cast<EnumType *>(t); });
+}
 
 #endif // TYPES_H

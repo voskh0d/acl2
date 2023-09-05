@@ -181,7 +181,7 @@ Sexpression *
 VarDec::ACL2Expr ()
 {
   Sexpression *val;
-  if (type->derefType ()->isArrayType ())
+  if (isArrayType (type))
     {
       if (!init)
         {
@@ -196,7 +196,7 @@ VarDec::ACL2Expr ()
           val = init->ACL2ArrayExpr ();
         }
     }
-  else if (type->derefType ()->isStructType ())
+  else if (isStructType (type))
     {
       type = type->derefType ();
       if (!init)
@@ -247,7 +247,7 @@ ConstDec::displaySimple (ostream &os)
 bool
 ConstDec::isConst ()
 {
-  return type->isIntegerType ();
+  return isIntegerType (type);
 }
 
 Statement *
@@ -273,7 +273,7 @@ ConstDec::isGlobal ()
 bool
 ConstDec::isROM ()
 {
-  return isGlobal () && type->isArrayType ();
+  return isGlobal () && isArrayType (type);
 }
 
 Sexpression *

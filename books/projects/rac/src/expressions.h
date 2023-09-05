@@ -214,10 +214,13 @@ public:
   unsigned width;
   Subrange (Expression *b, Expression *h, Expression *l);
   Subrange (Expression *b, Expression *h, Expression *l, unsigned w);
+
   bool isSubrange () override;
   bool isInteger () override;
   void displayNoParens (ostream &os) const override;
   Expression *subst (SymRef *var, Expression *val) override;
+
+  Type *exprType () override;
   Sexpression *ACL2Expr (bool isBV = false) override;
   Sexpression *ACL2Assign (Sexpression *rval) override;
   unsigned ACL2ValWidth () override;

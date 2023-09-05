@@ -179,8 +179,7 @@ typedef_dec : TYPEDEF typedef_type ID { $$ = new DefinedType ($3, $2); }
 {
   if ($3->isConst () && $3->evalConst () > 0)
     {
-      $1->getdef_mutref () = new ArrayType ($3, $1->getdef ());
-      $$ = $1;
+      $$ = new DefinedType($1->getname(), new ArrayType ($3, $1->getdef ()));
     }
   else
     {
@@ -393,7 +392,7 @@ funcall : ID '(' expr_list ')'
         {
   FunDef *f;
   if ((f = prog.funDefs->find ($1)) == nullptr
-      && (f = builtins.find ($1)) == NULL)
+      && (f = builtins.find ($1)) == nullptr)
     {
       yyerror ("Undefined function");
       YYERROR;
@@ -810,8 +809,7 @@ assignment : expression assign_op expression
       Type *type = $7->exprType ();
       if (type)
         {
-          type = type->derefType ();
-          if (type->isRegType ())
+          if (isRegType (type))
             {
               w = ((RegType *)type)->width ()->evalConst ();
             }
@@ -920,7 +918,7 @@ case:
 
 case_label : constant | symbol_ref
            {
-  if ($1->exprType ()->isEnumType ())
+  if (isEnumType($1->exprType ()))
     {
       $$ = $1;
     }

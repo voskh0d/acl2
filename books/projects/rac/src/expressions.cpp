@@ -391,19 +391,19 @@ SymRef::evalConst ()
 bool
 SymRef::isArray ()
 {
-  return exprType ()->isArrayType ();
+  return isArrayType (exprType ());
 }
 
 bool
 SymRef::isStruct ()
 {
-  return exprType ()->isStructType ();
+  return isStructType (exprType ());
 }
 
 bool
 SymRef::isInteger ()
 {
-  return exprType ()->isIntegerType ();
+  return isIntegerType (exprType ());
 }
 
 void
@@ -463,19 +463,19 @@ FunCall::exprType ()
 bool
 FunCall::isArray ()
 {
-  return exprType ()->isArrayType ();
+  return isArrayType (exprType ());
 }
 
 bool
 FunCall::isStruct ()
 {
-  return exprType ()->isStructType ();
+  return isStructType (exprType ());
 }
 
 bool
 FunCall::isInteger ()
 {
-  return exprType ()->isIntegerType ();
+  return isIntegerType (exprType ());
 }
 
 void
@@ -706,13 +706,13 @@ ArrayRef::exprType ()
 bool
 ArrayRef::isArray ()
 {
-  return exprType ()->isArrayType ();
+  return isArrayType (exprType ());
 }
 
 bool
 ArrayRef::isInteger ()
 {
-  return exprType ()->isIntegerType ();
+  return isIntegerType (exprType ());
 }
 
 void
@@ -804,13 +804,13 @@ StructRef::exprType ()
 bool
 StructRef::isArray ()
 {
-  return exprType ()->isArrayType ();
+  return isArrayType (exprType ());
 }
 
 bool
 StructRef::isInteger ()
 {
-  return exprType ()->isIntegerType ();
+  return isIntegerType (exprType ());
 }
 
 void
@@ -954,13 +954,33 @@ Subrange::subst (SymRef *var, Expression *val)
              : new Subrange (newBase, newHigh, newLow);
 }
 
+Type *Subrange::exprType() {
+
+  Integer *width = new Integer(ACL2ValWidth()); 
+
+  if (dynamic_cast<IntType *>(base->exprType())) {
+    return new IntType(width);
+  }
+  else {
+    return new UintType(width);
+  }
+}
+
 Sexpression *
 Subrange::ACL2Expr ([[maybe_unused]] bool isBV)
 {
-  Sexpression *b = base->ACL2Expr (true);
+  Sexpression *b = base->ACL2Expr (true); // here
   Sexpression *hi = high->ACL2Expr ();
   Sexpression *lo = low->ACL2Expr ();
-  return new Plist ({ &s_bits, b, hi, lo });
+
+  Sexpression *bv_val = new Plist ({ &s_bits, b, hi, lo });
+
+  if (dynamic_cast<IntType *>(base->exprType())) {
+    return new Plist ({ &s_si, bv_val, new Integer (ACL2ValWidth()) });
+  }
+  else {
+    return bv_val;
+  }
 }
 
 Sexpression *
@@ -1087,7 +1107,7 @@ PrefixExpr::ACL2Expr (bool isBV)
       if (t)
         {
           Plist *bv = new Plist ({ &s_lognot, expr->ACL2Expr (true) });
-          if (isBV && t->isRegType ())
+          if (isBV && isRegType (t))
             {
               unsigned w = (((RegType *)t)->width ())->evalConst ();
               return new Plist ({ &s_bits, bv, new Integer (w - 1), &i_0 });
@@ -1170,7 +1190,7 @@ CastExpr::subst (SymRef *var, Expression *val)
 Sexpression *
 CastExpr::ACL2Expr ([[maybe_unused]] bool isBV)
 {
-  return expr->ACL2Expr ();
+  return type->derefType()->ACL2Assign(expr);
 }
 
 // class BinaryExpr : public Expression

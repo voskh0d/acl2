@@ -75,7 +75,6 @@ main (int argc, char **argv)
       if (!fout.is_open ())
         std::cerr << "Failed to open file " << buf << ": " << strerror (errno)
                   << '\n';
-      ;
 
       prog.display (fout, type);
     }
