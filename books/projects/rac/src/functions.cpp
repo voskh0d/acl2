@@ -89,14 +89,6 @@ void Template::display(ostream &os, const char *prefix, unsigned indent) {
   FunDef::display(os, prefix, indent);
 }
 
-void Template::addCall(TempCall *c) {
-  if (calls) {
-    calls->add(c);
-  } else {
-    calls = new List<TempCall>(c);
-  }
-}
-
 // This is called by both Template::displayACL2Expr and TempCall::ACL2Expr:
 
 void Template::bindParams(List<Expression> *actuals) {

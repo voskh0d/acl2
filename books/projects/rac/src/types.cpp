@@ -9,7 +9,7 @@
 //***********************************************************************************
 
 Sexpression *
-Type::ACL2Assign (Expression *rval)
+Type::ACL2Assign (Expression *rval) const
 { // virtual (overridden by RegType)
   // Convert rval to an S-expression to be assigned to an object of this type.
   return rval->ACL2Expr ();
@@ -34,35 +34,21 @@ PrimType uint64Type ("uint64", "uint");
 // bool RegType::isSigned() {return false;} // virtual
 
 Sexpression *
-RegType::ACL2Assign (Expression *rval)
+RegType::ACL2Assign (Expression *rval) const
 { // overridden by FPType
 
-  Type *t = rval->exprType ();
+  const Type *t = rval->exprType ();
   unsigned w = rval->ACL2ValWidth ();
 
   int width_evaluated = width_->evalConst ();
   assert (width_evaluated >= 0);
 
   bool diff_sign =
-    (dynamic_cast<IntType *>(t) && dynamic_cast<UintType *>(this)) ||
-    (dynamic_cast<UintType *>(t) && dynamic_cast<IntType *>(this));
-
-//  std::cerr << "diff_sign: " << diff_sign <<
-//    t << ' ' <<
-//    ' '
-//    << dynamic_cast<IntType *>(t)
-//    << ' '
-//    << dynamic_cast<UintType *>(this)
-//    << ' '
-//    << dynamic_cast<UintType *>(t)
-//    << ' '
-//    << dynamic_cast<IntType *>(this)
-//    << '\n';
+    (dynamic_cast<const IntType *>(t) && dynamic_cast<const UintType *>(this)) ||
+    (dynamic_cast<const UintType *>(t) && dynamic_cast<const IntType *>(this));
 
   if (t == this || (!diff_sign && w && w <= (unsigned)width_evaluated))
     {
-//      std::cerr << "no bits\n";
-//      UNREACHABLE();
       return rval->ACL2Expr (true);
     }
   else
@@ -72,7 +58,6 @@ RegType::ACL2Assign (Expression *rval)
       if (rval->isFP ())
         s = new Plist ({ &s_fl, s });
 
-//      std::cerr << "1\n";
       Sexpression *bv_val = 
                      new Plist ( { &s_bits, s, new Integer (width_->evalConst () - 1), &i_0 });
 
@@ -102,17 +87,14 @@ RegType::ACL2Assign (Expression *rval)
 
 
       // Should be replaced by a Subrange expression.
-      if (dynamic_cast<IntType *>(rval->exprType())) {
-//      std::cerr << "2\n";
+      if (dynamic_cast<const IntType *>(rval->exprType())) {
         bv_val = new Plist ({ &s_si, bv_val, new Integer (width_->evalConst ()) });
       }
 
       if (diff_sign) {
-//      std::cerr << "3\n\n";
         return new Plist ({ &s_si, bv_val, new Integer (width_->evalConst ()) });
       }
       else {
-//      std::cerr << "4\n\n";
         return bv_val;
       }
     }
@@ -130,7 +112,7 @@ UintType::display (ostream &os) const
 }
 
 unsigned
-UintType::ACL2ValWidth ()
+UintType::ACL2ValWidth () const
 {
   return width ()->evalConst ();
 }
@@ -147,7 +129,7 @@ IntType::display (ostream &os) const
 }
 
 Sexpression *
-IntType::ACL2Eval (Sexpression *s)
+IntType::ACL2Eval (Sexpression *s) const
 {
   return new Plist ({ &s_si, s, new Integer (width ()->evalConst ()) });
 }
@@ -160,9 +142,9 @@ IntType::ACL2Eval (Sexpression *s)
 FPType::FPType (Expression *w, Expression *iw) : RegType (w) { iwidth = iw; }
 
 Sexpression *
-FPType::ACL2Assign (Expression *rval)
+FPType::ACL2Assign (Expression *rval) const
 {
-  Type *t = rval->exprType ();
+  const Type *t = rval->exprType ();
   // ??? should be *this == *t sauf que vu que c'est des ptr partout ca
   // marchera pas...
   if (t == this)
@@ -198,7 +180,7 @@ UfixedType::display (ostream &os) const
 }
 
 Sexpression *
-UfixedType::ACL2Eval (Sexpression *s)
+UfixedType::ACL2Eval (Sexpression *s) const
 {
   return new Plist ({ &s_divide, s,
                       new Plist ({ &s_expt, &i_2,
@@ -228,7 +210,7 @@ FixedType::display (ostream &os) const
 }
 
 Sexpression *
-FixedType::ACL2Eval (Sexpression *s)
+FixedType::ACL2Eval (Sexpression *s) const
 {
   Sexpression *numerator
       = new Plist ({ &s_si, s, new Integer (width ()->evalConst ()) });
@@ -242,12 +224,6 @@ FixedType::ACL2Eval (Sexpression *s)
 // -----------------------------
 
 // Data members: Type *baseType; Expresion *dim;
-
-Type *
-ArrayType::getBaseType ()
-{
-  return baseType->derefType ();
-}
 
 void
 ArrayType::display (ostream &os) const
@@ -273,14 +249,14 @@ ArrayType::displayVarName (const char *name, ostream &os) const
 }
 
 void
-ArrayType::makeDef (const char *name, ostream &os)
+ArrayType::makeDef (const char *name, ostream &os) const
 {
-  Type *b = baseType;
+  const Type *b = baseType;
   List<Expression> *dims = new List<Expression> (dim);
   while (isArrayType (b))
     {
-      dims = dims->push (((ArrayType *)b)->dim);
-      b = ((ArrayType *)b)->baseType;
+      dims = dims->push (((const ArrayType *)b)->dim);
+      b = ((const ArrayType *)b)->baseType;
     }
   os << "\ntypedef ";
   b->display (os);
@@ -347,7 +323,7 @@ StructType::display (ostream &os) const
 }
 
 void
-StructType::makeDef (const char *name, ostream &os)
+StructType::makeDef (const char *name, ostream &os) const
 {
   os << "\nstruct " << name << " ";
   displayFields (os);
@@ -397,7 +373,7 @@ EnumType::display (ostream &os) const
 }
 
 Sexpression *
-EnumType::getEnumVal (Symbol *s)
+EnumType::getEnumVal (Symbol *s) const
 {
   // TODO zip(iota)
   List<EnumConstDec> *ptr = vals;
@@ -423,7 +399,7 @@ EnumType::getEnumVal (Symbol *s)
 }
 
 void
-EnumType::makeDef (const char *name, ostream &os)
+EnumType::makeDef (const char *name, ostream &os) const
 {
   os << "\nenum " << name << " ";
   displayConsts (os);
@@ -452,6 +428,7 @@ MvType::display (ostream &os) const
           os << ", ";
         }
       t->display (os);
+      first = false;
     }
   os << ">";
 }

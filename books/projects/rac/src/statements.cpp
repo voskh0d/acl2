@@ -143,7 +143,7 @@ EnumConstDec::ACL2Expr ()
 Sexpression *
 EnumConstDec::ACL2SymExpr ()
 {
-  return ((EnumType *)type)->getEnumVal (sym);
+  return tryDownCast<EnumType>(type)->getEnumVal (sym);
 }
 
 
@@ -198,7 +198,6 @@ VarDec::ACL2Expr ()
     }
   else if (isStructType (type))
     {
-      type = type->derefType ();
       if (!init)
         {
           val = new Plist ();
@@ -206,7 +205,7 @@ VarDec::ACL2Expr ()
       else if (init->isInitializer ())
         {
           val = ((Initializer *)init)
-                    ->ACL2StructExpr (((StructType *)type)->fields);
+                    ->ACL2StructExpr (tryDownCast<StructType>(type)->fields);
         }
       else
         {
@@ -215,7 +214,7 @@ VarDec::ACL2Expr ()
     }
   else if (init)
     {
-      val = type->derefType ()->ACL2Assign (init);
+      val = type->ACL2Assign (init);
     }
   else
     {
@@ -428,7 +427,7 @@ TempParamDec::isConst ()
 Sexpression *
 TempParamDec::ACL2SymExpr ()
 {
-  return init ? type->derefType ()->ACL2Assign (init) : &i_0;
+  return init ? type->ACL2Assign (init) : &i_0;
 }
 
 // class BreakStmt : public SimpleStatement
@@ -475,7 +474,7 @@ Sexpression *
 ReturnStmt::ACL2Expr ()
 {
   return new Plist (
-      { &s_return, returnType->derefType ()->ACL2Assign (value) });
+      { &s_return, returnType->ACL2Assign (value) });
 }
 
 void
@@ -611,7 +610,7 @@ Assignment::ACL2Expr ()
     {
       assert (!"Unknown assignment operator");
     }
-  Type *t = lval->exprType ();
+  const Type *t = lval->exprType ();
   Sexpression *sexpr = t ? t->ACL2Assign (expr) : expr->ACL2Expr ();
   return lval->ACL2Assign (sexpr);
 }

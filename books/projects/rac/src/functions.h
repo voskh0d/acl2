@@ -58,7 +58,6 @@ public:
             List<TempParamDec> *tp);
   void display (ostream &os, const char *prefix = "",
                 unsigned indent = 0) override;
-  void addCall (TempCall *c);
   void bindParams (List<Expression> *a);
   void displayACL2Expr (ostream &os) override;
 };

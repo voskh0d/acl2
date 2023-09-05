@@ -99,7 +99,7 @@ public:
     return this;
   }
 
-  void display (ostream &os) const;
+  void display (ostream &os) const override;
 };
 
 class Cons : public Sexpression

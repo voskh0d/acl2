@@ -202,12 +202,6 @@ Program::displayFunDefs (ostream &os, DispMode mode)
 }
 
 void
-Program::displayFunDecs (ostream &os) const
-{
-  for_each (funDefs, [&os] (auto v) { v->displayDec (os); });
-}
-
-void
 Program::display (ostream &os, DispMode mode)
 {
   displayTypeDefs (os, mode);

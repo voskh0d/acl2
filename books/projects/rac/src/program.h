@@ -34,7 +34,6 @@ public:
   //  *prefix="");
 
   void displayFunDefs(std::ostream &os, DispMode mode);
-  void displayFunDecs(std::ostream &os) const;
   void display(std::ostream &os, DispMode mode = DispMode::rac);
   bool isEmpty() const;
 

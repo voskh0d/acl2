@@ -806,7 +806,7 @@ assignment : expression assign_op expression
     }
   else
     {
-      Type *type = $7->exprType ();
+      const Type *type = $7->exprType ();
       if (type)
         {
           if (isRegType (type))

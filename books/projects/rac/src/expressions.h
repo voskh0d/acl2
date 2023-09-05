@@ -28,13 +28,13 @@ public:
   virtual int evalConst ();
   virtual bool isArray ();
   virtual bool isStruct ();
+  virtual bool isSubrange() { return false; }
   bool isNumber ();
-  virtual bool isSubrange ();
   virtual bool isSymRef ();
   virtual bool isInteger ();
   virtual bool isInitializer ();
   bool isFP ();
-  virtual Type *exprType ();
+  virtual const Type *exprType ();
   void display (ostream &os) const;
   virtual void displayNoParens (ostream &os) const = 0;
   virtual Expression *subst (SymRef *var, Expression *val);
@@ -98,7 +98,7 @@ public:
   SymDec *symDec;
   SymRef (SymDec *s);
   bool isSymRef () override;
-  Type *exprType () override;
+  const Type *exprType () override;
   virtual bool isConst () override;
   virtual int evalConst () override;
   bool isArray () override;
@@ -123,7 +123,7 @@ public:
   bool isArray () override;
   bool isStruct () override;
   bool isInteger () override;
-  Type *exprType () override;
+  const Type *exprType () override;
   void displayNoParens (ostream &os) const override;
   Expression *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr (bool isBV = false) override;
@@ -162,7 +162,7 @@ public:
   ArrayRef (Expression *a, Expression *i);
   bool isArray () override;
   bool isInteger () override;
-  Type *exprType () override;
+  const Type *exprType () override;
   void displayNoParens (ostream &os) const override;
   Expression *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr (bool isBV = false) override;
@@ -185,7 +185,7 @@ public:
   StructRef (Expression *s, char *f);
   bool isArray () override;
   bool isInteger () override;
-  Type *exprType () override;
+  const Type *exprType () override;
   void displayNoParens (ostream &os) const override;
   Sexpression *ACL2Expr (bool isBV = false) override;
   Sexpression *ACL2Assign (Sexpression *rval) override;
@@ -215,12 +215,12 @@ public:
   Subrange (Expression *b, Expression *h, Expression *l);
   Subrange (Expression *b, Expression *h, Expression *l, unsigned w);
 
-  bool isSubrange () override;
-  bool isInteger () override;
+  bool isSubrange() override { return true; }
+  bool isInteger () override { return true; }
   void displayNoParens (ostream &os) const override;
   Expression *subst (SymRef *var, Expression *val) override;
 
-  Type *exprType () override;
+  const Type *exprType () override;
   Sexpression *ACL2Expr (bool isBV = false) override;
   Sexpression *ACL2Assign (Sexpression *rval) override;
   unsigned ACL2ValWidth () override;
@@ -237,7 +237,7 @@ public:
   bool isInteger () override;
   void displayNoParens (ostream &os) const override;
   Expression *subst (SymRef *var, Expression *val) override;
-  Type *exprType () override;
+  const Type *exprType () override;
   Sexpression *ACL2Expr (bool isBV = false) override;
   virtual bool isEqual (Expression *e) override;
   virtual bool isEqualPrefix (const char *o, Expression *e) override;
@@ -249,7 +249,7 @@ public:
   Expression *expr;
   Type *type;
   CastExpr (Expression *e, Type *t);
-  Type *exprType () override;
+  const Type *exprType () override;
   bool isConst () override;
   int evalConst () override;
   bool isInteger () override;
@@ -271,7 +271,7 @@ public:
   bool isInteger () override;
   void displayNoParens (ostream &os) const override;
   Expression *subst (SymRef *var, Expression *val) override;
-  Type *exprType () override;
+  const Type *exprType () override;
   Sexpression *ACL2Expr (bool isBV = false) override;
   virtual bool isEqual (Expression *e) override;
   virtual bool isEqualBinary (const char *o, Expression *e1,
