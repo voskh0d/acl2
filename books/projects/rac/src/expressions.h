@@ -34,19 +34,24 @@ public:
   virtual bool isInteger ();
   virtual bool isInitializer ();
   bool isFP ();
+
   virtual const Type *exprType ();
   void display (ostream &os) const;
   virtual void displayNoParens (ostream &os) const = 0;
+
   virtual Expression *subst (SymRef *var, Expression *val);
   virtual Sexpression *ACL2Expr (bool isBV = false);
   virtual Sexpression *ACL2ArrayExpr ();
   virtual Sexpression *ACL2Assign (Sexpression *rval);
   virtual unsigned ACL2ValWidth ();
+
   virtual bool isEqual (Expression *e);
   virtual bool isEqualPrefix (const char *o, Expression *e);
   virtual bool isEqualBinary (const char *o, Expression *e1, Expression *e2);
+
   virtual bool isPlusConst (Expression *e);
   virtual int getPlusConst ();
+
   virtual bool isEqualSymRef (SymDec *s);
   virtual bool isEqualConst (Constant *c);
 };
@@ -70,6 +75,7 @@ public:
 
 class Integer : public Constant
 {
+  // type: primType
 public:
   Integer (const char *n);
   Integer (int n);
@@ -83,6 +89,7 @@ extern Integer i_2;
 
 class Boolean : public Constant
 {
+  // PrimType (boolType)
 public:
   Boolean (const char *n);
   int evalConst () override;
@@ -94,6 +101,7 @@ extern Boolean b_false;
 
 class SymRef : public Expression
 {
+  // type depends de la dec
 public:
   SymDec *symDec;
   SymRef (SymDec *s);
@@ -116,6 +124,7 @@ class FunDef;
 
 class FunCall : public Expression
 {
+  // type: rtype
 public:
   FunDef *func;
   List<Expression> *args;
@@ -144,6 +153,7 @@ public:
 
 class Initializer : public Expression
 {
+  // type: mvType ?
 public:
   List<Constant> *vals;
   Initializer (List<Constant> *v);
@@ -207,6 +217,7 @@ public:
 
 class Subrange : public Expression
 {
+  // RegType
 public:
   Expression *base;
   Expression *high;

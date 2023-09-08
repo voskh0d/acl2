@@ -1074,6 +1074,7 @@ PrefixExpr::exprType ()
 {
   if (!strcmp (op, "~"))
     {
+      // TODO: ac_int<W+!S, true>
       return expr->exprType ();
     }
   else

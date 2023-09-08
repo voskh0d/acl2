@@ -29,25 +29,21 @@ PrimType uint64Type ("uint64", "uint");
 
 // Data member:  Expression *width
 
-// bool RegType::isRegType() {return true;}
-//
-// bool RegType::isSigned() {return false;} // virtual
-
 Sexpression *
 RegType::ACL2Assign (Expression *rval) const
 { // overridden by FPType
 
-  const Type *t = rval->exprType ();
+  // TODO in the future this cast should never fail.
+  const RegType *rval_type = dynamic_cast<const RegType *>(rval->exprType ());
   unsigned w = rval->ACL2ValWidth ();
 
   int width_evaluated = width_->evalConst ();
   assert (width_evaluated >= 0);
 
-  bool diff_sign =
-    (dynamic_cast<const IntType *>(t) && dynamic_cast<const UintType *>(this)) ||
-    (dynamic_cast<const UintType *>(t) && dynamic_cast<const IntType *>(this));
+  // TODO remove rval_type != nullptr.
+  bool diff_sign = rval_type && (rval_type->isSigned() != this->isSigned());
 
-  if (t == this || (!diff_sign && w && w <= (unsigned)width_evaluated))
+  if (rval_type == this || (!diff_sign && w && w <= (unsigned)width_evaluated))
     {
       return rval->ACL2Expr (true);
     }
@@ -55,44 +51,33 @@ RegType::ACL2Assign (Expression *rval) const
     {
       assert(width_evaluated);
       Sexpression *s = rval->ACL2Expr (true);
-      if (rval->isFP ())
-        s = new Plist ({ &s_fl, s });
 
-      Sexpression *bv_val = 
-                     new Plist ( { &s_bits, s, new Integer (width_->evalConst () - 1), &i_0 });
+      Sexpression *bv_val = new Plist ({
+          &s_bits,
+          s,
+          new Integer (width_->evalConst () - 1),
+          &i_0
+      });
 
-//      if (diff_sign) {
-//        if (dynamic_cast<UintType *>(rval->exprType())) {
-//          bv_val = new Plist ({
-//              &s_si,
-//              bv_val,
-//              new Integer (width_->evalConst ()) });
-//        }
-//      } else {
-//        if (dynamic_cast<IntType *>(rval->exprType())) {
-//          bv_val = new Plist ({
-//              &s_si,
-//              bv_val,
-//              new Integer (width_->evalConst ()) });
-//        }
-//      }
-//
-////      if (diff_sign) {
-////        return new Plist ({ &s_si, bv_val, new Integer (width_->evalConst ()) });
-////      }
-////      else {
-//        return bv_val;
-////      }
-//    }
+      // TODO: remove if everything is type this should never be executed.
+      if (!rval_type) {
+        return bv_val;
+      }
 
-
-      // Should be replaced by a Subrange expression.
-      if (dynamic_cast<const IntType *>(rval->exprType())) {
-        bv_val = new Plist ({ &s_si, bv_val, new Integer (width_->evalConst ()) });
+      if (rval_type->isSigned()) {
+        bv_val = new Plist ({
+            &s_si,
+            bv_val,
+            new Integer (width_->evalConst ())
+         });
       }
 
       if (diff_sign) {
-        return new Plist ({ &s_si, bv_val, new Integer (width_->evalConst ()) });
+        return new Plist ({
+            &s_si,
+            bv_val,
+            new Integer (width_->evalConst ())
+         });
       }
       else {
         return bv_val;

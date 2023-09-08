@@ -165,6 +165,8 @@ public:
 
   Sexpression *ACL2Assign(Expression *rval) const override;
 
+  virtual bool isSigned() const = 0;
+
 private:
   Expression *width_;
 };
@@ -175,6 +177,8 @@ public:
 
   void display(ostream &os = cout) const override;
   unsigned ACL2ValWidth() const override;
+
+  bool isSigned() const override { return false; }
 };
 
 class IntType : public RegType {
@@ -182,6 +186,8 @@ public:
   IntType(Expression *w) : RegType(w) {}
   void display(ostream &os = cout) const override;
   Sexpression *ACL2Eval(Sexpression *s) const override;
+
+  bool isSigned() const override { return true; }
 };
 
 class FPType : public RegType {
@@ -196,6 +202,9 @@ public:
   UfixedType(Expression *w, Expression *iw);
   void display(ostream &os = cout) const override;
   Sexpression *ACL2Eval(Sexpression *s) const override;
+
+  // TODO remove
+  bool isSigned() const override { return false; }
 };
 
 class FixedType : public FPType {
@@ -204,6 +213,9 @@ public:
   FixedType(Expression *w, Expression *iw);
   void display(ostream &os = cout) const override;
   Sexpression *ACL2Eval(Sexpression *s) const override;
+
+  // TODO remove
+  bool isSigned() const override { return true; }
 };
 
 class ArrayType : public Type {
