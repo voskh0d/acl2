@@ -10,6 +10,8 @@
 #include <optional>
 #include <vector>
 
+#include "visitor.h"
+
 using namespace std;
 
 class Program;
@@ -183,6 +185,7 @@ public:
   void displayFunDecs (ostream &os) const;
   void display (ostream &os, DispMode mode = DispMode::rac);
   bool isEmpty () const;
+  bool runAction(RecursiveASTVisitor *v);
 };
 
 extern Program prog;

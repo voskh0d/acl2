@@ -217,3 +217,12 @@ Program::isEmpty () const
 {
   return !funDefs->length ();
 }
+
+bool
+Program::runAction(RecursiveASTVisitor *v) {
+
+//      for_each (typeDefs, [&v] (auto e) { e->accept (v); });
+      for_each (constDecs, [&v] (auto e) { v->TraverseStatement(e); });
+      for_each (funDefs, [&v] (auto e) { v->TraverseStatement(e); });
+      return true; // TODO
+  }

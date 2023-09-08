@@ -1,5 +1,6 @@
 #include "statements.h"
 #include "functions.h"
+#include "program.h"
 
 #include <iomanip>
 
@@ -152,7 +153,7 @@ EnumConstDec::ACL2SymExpr ()
 // ---------------------------------------------------------------------------
 
 VarDec::VarDec (const char *n, Type *t, Expression *i)
-    : SimpleStatement (), SymDec (n, t, i)
+    : SymDec (n, t, i)
 {
 }
 
@@ -679,34 +680,34 @@ AssignRange::displaySimple (ostream &os)
 
 MultipleAssignment::MultipleAssignment (FunCall *r,
                                         std::vector<Expression *> e)
-    : SimpleStatement (), lval (e), rval (r)
+    : SimpleStatement (), lval_ (e), rval_ (r)
 {
 }
 
 void
 MultipleAssignment::displaySimple (ostream &os)
 {
-  assert (lval.size () > 0);
+  assert (lval_.size () > 0);
   os << "<";
-  lval[0]->display (os);
-  for (Expression *e : lval)
+  lval_[0]->display (os);
+  for (Expression *e : lval_)
     {
       os << ", ";
       e->display (os);
     }
   os << "> = ";
-  rval->display (os);
+  rval_->display (os);
 }
 
 Statement *
 MultipleAssignment::subst (SymRef *var, Expression *val)
 {
 
-  Expression *newR = rval->subst (var, val);
-  bool changed = (newR != rval);
+  Expression *newR = rval_->subst (var, val);
+  bool changed = (newR != rval_);
   std::vector<Expression *> newL;
 
-  for (Expression *e : lval)
+  for (Expression *e : lval_)
     {
 
       Expression *temp = e->subst (var, val);
@@ -744,13 +745,13 @@ Sexpression *
 MultipleAssignment::ACL2Expr ()
 {
   Plist *vars = new Plist ();
-  Plist *result = new Plist ({ &s_mv_assign, vars, rval->ACL2Expr () });
+  Plist *result = new Plist ({ &s_mv_assign, vars, rval_->ACL2Expr () });
   bool isBlock = false;
-  for (unsigned i = 0; i < lval.size(); i++)
+  for (unsigned i = 0; i < lval_.size(); i++)
     {
-      if (lval[i]->isSymRef ())
+      if (lval_[i]->isSymRef ())
         {
-          vars->add (((SymRef *)lval[i])->symDec->sym);
+          vars->add (((SymRef *)lval_[i])->symDec->sym);
         }
       else
         {
@@ -762,7 +763,7 @@ MultipleAssignment::ACL2Expr ()
 
           Symbol *s_temp = new Symbol ("temp-" + std::to_string (i));
           vars->add (s_temp);
-          result->add (lval[i]->ACL2Assign (s_temp));
+          result->add (lval_[i]->ACL2Assign (s_temp));
           result->push (new Plist ({ &s_declare, s_temp }));
         }
     }
@@ -1130,7 +1131,7 @@ Case::markAssertions (FunDef *f)
 // Data members: Expression *test; List<Case> *cases;
 
 SwitchStmt::SwitchStmt (Expression *t, List<Case> *c)
-    : Statement (), test (t), cases (BetterList<Case>::_from_raw (c))
+    : Statement (), test_ (t), cases_ (BetterList<Case>::_from_raw (c))
 {
 }
 
@@ -1140,9 +1141,9 @@ SwitchStmt::display (ostream &os, unsigned indent)
   os << "\n"
      << setw (indent) << " "
      << "switch (";
-  test->display (os);
+  test_->display (os);
   os << ") {";
-  cases.displayList (os, indent);
+  cases_.displayList (os, indent);
   os << "\n"
      << setw (indent) << " "
      << "}";
@@ -1153,9 +1154,9 @@ SwitchStmt::subst (SymRef *var, Expression *val)
 {
   List<Case> *newCases = nullptr;
   bool changed = false;
-  for (int i = cases.length () - 1; i >= 0; i--)
+  for (int i = cases_.length () - 1; i >= 0; i--)
     {
-      List<Case> *subList = cases.nthl (i);
+      List<Case> *subList = cases_.nthl (i);
       Case *c = subList->value;
       Case *cNew = c->subst (var, val);
       if (cNew != c)
@@ -1171,7 +1172,7 @@ SwitchStmt::subst (SymRef *var, Expression *val)
           newCases = subList;
         }
     }
-  return changed ? new SwitchStmt (test, newCases) : this;
+  return changed ? new SwitchStmt (test_, newCases) : this;
 }
 
 Sexpression *
@@ -1179,9 +1180,9 @@ SwitchStmt::ACL2Expr ()
 {
 
   List<Sexpression> *result
-      = new List<Sexpression> (&s_switch, test->ACL2Expr ());
+      = new List<Sexpression> (&s_switch, test_->ACL2Expr ());
 
-  List<Case> *clist = cases._underlying ();
+  List<Case> *clist = cases_._underlying ();
   List<Sexpression> *labels = nullptr;
   Expression *l;
   List<Statement> *a;
@@ -1228,5 +1229,5 @@ SwitchStmt::ACL2Expr ()
 void
 SwitchStmt::markAssertions (FunDef *f)
 {
-  for_each (cases, [f] (Case *c) { c->markAssertions (f); });
+  for_each (cases_, [f] (Case *c) { c->markAssertions (f); });
 }

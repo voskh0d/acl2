@@ -1,0 +1,86 @@
+#ifndef VISITOR_H
+#define VISITOR_H
+
+class Expression;
+class Statement;
+
+// Forward declaration of all the classes of the AST.
+#define APPLY(CLASS, PARENT) class CLASS;
+#include "ASTNodes.inc"
+#undef APPLY
+
+// This class perform a preorder or postorder depth-first travsersal of the
+// AST. This class should be inherited to add custom actions, see astdumper.h
+// as example.
+//
+// The following explain with details how and the order the traversal, but for
+// basic (and most) usage, only Visit* functions are relevant. See astdumper.h
+// for a practical example.
+//
+// This is done in 3 steps:
+// 1. Traverse the AST, going on every one with their most specific type.
+// 2. WalkUp the type hierarchy from the most specific type to the top-most
+//    class (Expression or Statement).
+// 3. Perform some action over given through a overriden function VisitCLASS.
+//
+// Most of the times, only Visit* functions should be overriden but in some
+// very specific cases, Traverse and WalkUp can be overriden. In those cases,
+// don't forget to either reimplement their behavior (not recommended) or call
+// RecursiveASTVisitor::METHOD.
+//
+// If any method returns false, abort the traversal and return false, otherwise
+// return true.
+//
+// As an example of the order, let's take the following hierarchy:
+//
+// Expression -> Constant -> Integer.
+//
+// If we call TraverseExpression on an Integer node, we will have the following
+// calls: TraverseExpression(), TraverseInteger(), WalkUpInteger(),
+// WalkUpConstant(), WalkUpExpression(), VisitExpression(), VisitConstant(),
+// VisitInteger().
+class RecursiveASTVisitor {
+public:
+  virtual ~RecursiveASTVisitor() = default;
+
+  // Configure the order of the traversal. To do it in a postfix order,
+  // overload this function and return true.
+  virtual bool postfixTraversal() { return false; }
+
+  // If the method is abstract (like Expression, Statement, Constant, ..),
+  // dispatch the expression or statement to their most specific type. Those
+  // function are safe to call with null, they will return true.
+  //
+  // Otherwise, call Traverse on all its child. If we are doing a prefix
+  // traversal call WalkUp on itself before traversing its child, if not call
+  // it after.
+  virtual bool TraverseExpression(Expression *e);
+  virtual bool TraverseStatement(Statement *s);
+#define APPLY(CLASS, PARENT) virtual bool Traverse##CLASS (CLASS *);
+#include "ASTNodes.inc"
+#undef APPLY
+
+  // Takes a pointer to a child class and call WalkUp on its parents. Then
+  // calls VisitCLASS. WalkUpExpression and WalkUpStatement will only call
+  // VisitExpression or VisitStatement since they are at the top of the
+  // hierarchy.
+  virtual bool WalkUpExpression(Expression *e);
+  virtual bool WalkUpStatement(Statement *s);
+#define APPLY(CLASS, PARENT) virtual bool WalkUp##CLASS (CLASS *);
+#include "ASTNodes.inc"
+#undef APPLY
+
+  // Those functions are meant to be overload to add action on nodes on
+  // specific type. For example: if VisitConstant is overload, all Constants
+  // will be processed by the custom action. Be carefull, it a class (for
+  // example, Integer) is derived of an other (like Constant for Integer), both
+  // Visit functions will be called (in our example, for an Integer node,
+  // VisitExpression, VisitConstant, VisitInteger in this order) will be called.
+  virtual bool VisitExpression(Expression *e);
+  virtual bool VisitStatement(Statement *s);
+#define APPLY(CLASS, PARENT) virtual bool Visit##CLASS (CLASS *);
+#include "ASTNodes.inc"
+#undef APPLY
+};
+
+#endif // VISITOR_H

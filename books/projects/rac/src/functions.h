@@ -13,7 +13,7 @@ using namespace std;
 //***********************************************************************************
 
 // Same why not is hierarchy
-class FunDef
+class FunDef : public Statement
 {
 protected:
   Symbol *sym;
@@ -32,24 +32,41 @@ public:
   }
 
   void displayDec (ostream &os, const char *prefix = "", unsigned indent = 0);
+
+  void display (ostream &, unsigned) override {
+    assert(!"TODO");
+  }
+
+  Sexpression *ACL2Expr () {
+    assert(!"TODO");
+  }
+
   virtual void display (ostream &os, const char *prefix = "",
                         unsigned indent = 0);
   virtual void displayACL2Expr (ostream &os);
+
+  bool accept(RecursiveASTVisitor *visitor) {
+    return visitor->TraverseFunDef(this);
+  }
 
 private:
   void displayPrototype (ostream &os, const char *prefix, unsigned indent);
 };
 
-class Builtin : public FunDef
+class Builtin final : public FunDef
 {
 public:
   Builtin (const char *n, Type *t, List<VarDec> *p)
     : FunDef(n, t, p, nullptr)
   {
   }
+
+  bool accept(RecursiveASTVisitor *visitor) {
+    return visitor->TraverseBuiltin(this);
+  }
 };
 
-class Template : public FunDef
+class Template final : public FunDef
 {
 public:
   List<TempParamDec> *tempParams;
@@ -60,6 +77,10 @@ public:
                 unsigned indent = 0) override;
   void bindParams (List<Expression> *a);
   void displayACL2Expr (ostream &os) override;
+
+  bool accept(RecursiveASTVisitor *visitor) {
+    return visitor->TraverseTemplate(this);
+  }
 };
 
 #endif // FUNCTIONS_H

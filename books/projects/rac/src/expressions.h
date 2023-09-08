@@ -4,6 +4,7 @@
 #include "parser.h"
 #include "types.h"
 #include "utils.h"
+#include "visitor.h"
 
 using namespace std;
 
@@ -54,6 +55,8 @@ public:
 
   virtual bool isEqualSymRef (SymDec *s);
   virtual bool isEqualConst (Constant *c);
+
+  virtual bool accept(RecursiveASTVisitor *visitor) = 0;
 };
 
 class Constant : public Expression, public Symbol
@@ -71,9 +74,13 @@ public:
   Sexpression *ACL2Expr (bool isBV = false) override;
   bool isEqual (Expression *e) override;
   bool isEqualConst (Constant *c) override;
+
+  bool accept(RecursiveASTVisitor *visitor) override {
+    return visitor->TraverseConstant(this);
+  }
 };
 
-class Integer : public Constant
+class Integer final : public Constant
 {
   // type: primType
 public:
@@ -81,19 +88,27 @@ public:
   Integer (int n);
   int evalConst ();
   Sexpression *ACL2Expr (bool isBV);
+
+  bool accept(RecursiveASTVisitor *visitor) override {
+    return visitor->TraverseInteger(this);
+  }
 };
 
 extern Integer i_0;
 extern Integer i_1;
 extern Integer i_2;
 
-class Boolean : public Constant
+class Boolean final : public Constant
 {
   // PrimType (boolType)
 public:
   Boolean (const char *n);
   int evalConst () override;
   Sexpression *ACL2Expr (bool isBV = false) override;
+
+  bool accept(RecursiveASTVisitor *visitor) override {
+    return visitor->TraverseBoolean(this);
+  }
 };
 
 extern Boolean b_true;
@@ -104,6 +119,7 @@ class SymRef : public Expression
   // type depends de la dec
 public:
   SymDec *symDec;
+
   SymRef (SymDec *s);
   bool isSymRef () override;
   const Type *exprType () override;
@@ -118,6 +134,10 @@ public:
   Sexpression *ACL2Assign (Sexpression *rval) override;
   bool isEqual (Expression *e) override;
   bool isEqualSymRef (SymDec *s) override;
+
+  bool accept(RecursiveASTVisitor *visitor) override {
+    return visitor->TraverseSymRef(this);
+  }
 };
 
 class FunDef;
@@ -129,6 +149,7 @@ public:
   FunDef *func;
   List<Expression> *args;
   FunCall (FunDef *f, List<Expression> *a);
+
   bool isArray () override;
   bool isStruct () override;
   bool isInteger () override;
@@ -136,11 +157,15 @@ public:
   void displayNoParens (ostream &os) const override;
   Expression *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr (bool isBV = false) override;
+
+  bool accept(RecursiveASTVisitor *visitor) override {
+    return visitor->TraverseFunCall(this);
+  }
 };
 
 class Template;
 
-class TempCall : public FunCall
+class TempCall final : public FunCall
 {
 public:
   Symbol *instanceSym;
@@ -149,11 +174,14 @@ public:
   void displayNoParens (ostream &os) const override;
   Expression *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr (bool isBV = false) override;
+
+  bool accept(RecursiveASTVisitor *visitor) override {
+    return visitor->TraverseTempCall(this);
+  }
 };
 
-class Initializer : public Expression
+class Initializer final : public Expression
 {
-  // type: mvType ?
 public:
   List<Constant> *vals;
   Initializer (List<Constant> *v);
@@ -162,6 +190,10 @@ public:
   Sexpression *ACL2Expr (bool isBV = false) override;
   Sexpression *ACL2ArrayExpr () override;
   Sexpression *ACL2StructExpr (List<StructField> *fields);
+
+  bool accept(RecursiveASTVisitor *visitor) override {
+    return visitor->TraverseInitializer(this);
+  }
 };
 
 class ArrayRef : public Expression
@@ -177,17 +209,26 @@ public:
   Expression *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr (bool isBV = false) override;
   Sexpression *ACL2Assign (Sexpression *rval) override;
+
+  bool accept(RecursiveASTVisitor *visitor) override {
+    return visitor->TraverseArrayRef(this);
+  }
 };
 
+// TODO is this used anywhere ?
 class ArrayParamRef : public ArrayRef
 {
 public:
   ArrayParamRef (Expression *a, Expression *i);
   void displayNoParens (ostream &os) const override;
   Expression *subst (SymRef *var, Expression *val) override;
+
+  bool accept(RecursiveASTVisitor *visitor) override {
+    return visitor->TraverseArrayParamRef(this);
+  }
 };
 
-class StructRef : public Expression
+class StructRef final : public Expression
 {
 public:
   Expression *base;
@@ -199,9 +240,13 @@ public:
   void displayNoParens (ostream &os) const override;
   Sexpression *ACL2Expr (bool isBV = false) override;
   Sexpression *ACL2Assign (Sexpression *rval) override;
+
+  bool accept(RecursiveASTVisitor *visitor) override {
+    return visitor->TraverseStructRef(this);
+  }
 };
 
-class BitRef : public Expression
+class BitRef final : public Expression
 {
 public:
   Expression *base;
@@ -213,9 +258,13 @@ public:
   Sexpression *ACL2Expr (bool isBV = false) override;
   Sexpression *ACL2Assign (Sexpression *rval) override;
   unsigned ACL2ValWidth () override;
+
+  bool accept(RecursiveASTVisitor *visitor) override {
+    return visitor->TraverseBitRef(this);
+  }
 };
 
-class Subrange : public Expression
+class Subrange final : public Expression
 {
   // RegType
 public:
@@ -235,9 +284,13 @@ public:
   Sexpression *ACL2Expr (bool isBV = false) override;
   Sexpression *ACL2Assign (Sexpression *rval) override;
   unsigned ACL2ValWidth () override;
+
+  bool accept(RecursiveASTVisitor *visitor) override {
+    return visitor->TraverseSubrange(this);
+  }
 };
 
-class PrefixExpr : public Expression
+class PrefixExpr final : public Expression
 {
 public:
   Expression *expr;
@@ -252,6 +305,10 @@ public:
   Sexpression *ACL2Expr (bool isBV = false) override;
   virtual bool isEqual (Expression *e) override;
   virtual bool isEqualPrefix (const char *o, Expression *e) override;
+
+  bool accept(RecursiveASTVisitor *visitor) override {
+    return visitor->TraversePrefixExpr(this);
+  }
 };
 
 class CastExpr : public Expression
@@ -267,11 +324,14 @@ public:
   void displayNoParens (ostream &os) const override;
   Expression *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr (bool isBV = false) override;
+
+  bool accept(RecursiveASTVisitor *visitor) override {
+    return visitor->TraverseCastExpr(this);
+  }
 };
 
 class BinaryExpr : public Expression
 {
-protected:
 public:
   Expression *expr1;
   Expression *expr2;
@@ -289,6 +349,10 @@ public:
                               Expression *e2) override;
   virtual bool isPlusConst (Expression *e) override;
   virtual int getPlusConst () override;
+
+  bool accept(RecursiveASTVisitor *visitor) override {
+    return visitor->TraverseBinaryExpr(this);
+  }
 };
 
 class CondExpr : public Expression
@@ -302,6 +366,10 @@ public:
   void displayNoParens (ostream &os) const override;
   Expression *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr (bool isBV = false) override;
+
+  bool accept(RecursiveASTVisitor *visitor) override {
+    return visitor->TraverseCondExpr(this);
+  }
 };
 
 class MultipleValue : public Expression
@@ -318,6 +386,10 @@ public:
   void displayNoParens (ostream &os) const override;
   Expression *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr (bool isBV = false) override;
+
+  bool accept(RecursiveASTVisitor *visitor) override {
+    return visitor->TraverseMultipleValue(this);
+  }
 };
 
 #endif // EXPRESSIONS_H

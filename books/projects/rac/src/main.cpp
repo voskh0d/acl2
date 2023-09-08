@@ -4,6 +4,8 @@
 #include <string>
 
 #include "parser.h"
+#include "program.h"
+#include "astdumper.h"
 
 int
 main (int argc, char **argv)
@@ -50,6 +52,9 @@ main (int argc, char **argv)
           " maybe you forgot the `// RAC begin` guard");
 
   std::fstream fout;
+
+  ASTDumper a{};
+  prog.runAction(&a);
 
   if (argc > 1)
     {
