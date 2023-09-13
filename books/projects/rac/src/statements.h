@@ -232,51 +232,6 @@ public:
   }
 };
 
-class AssignBit final : public SimpleStatement
-{
-public:
-  Expression *base;
-  Expression *index;
-  Expression *val;
-  AssignBit (Expression *b, Expression *i, Expression *v);
-  void displaySimple (ostream &os) override;
-
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseAssignBit(this);
-  }
-};
-
-class AssignRange final : public SimpleStatement
-{
-public:
-  Expression *base;
-  Expression *high;
-  Expression *low;
-  Expression *width;
-  Expression *val;
-  AssignRange (Expression *b, Expression *h, Expression *l, Expression *w,
-               Expression *v);
-  void displaySimple (ostream &os) override;
-
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseAssignRange(this);
-  }
-};
-
-class AssignFull final : public SimpleStatement
-{
-public:
-  Expression *base;
-  unsigned width;
-  Expression *val;
-  AssignFull (Expression *b, unsigned w, Expression *v);
-  void displaySimple (ostream &) override { assert(!"TODO"); }
-
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseAssignFull(this);
-  }
-};
-
 class MultipleAssignment : public SimpleStatement
 {
   std::vector<Expression *> lval_;
@@ -355,7 +310,6 @@ public:
   }
 };
 
-// Why not part of hierarchy ? inherit form statement ?
 class Case final : public Statement
 {
 public:
@@ -370,6 +324,19 @@ public:
 
   bool accept(RecursiveASTVisitor *visitor) override {
     return visitor->TraverseCase(this);
+  }
+
+  // TODO move this to the type pass.
+  void typeCheck() const {
+
+    if (!label) {
+      return;
+    }
+
+    const Type *t = label->exprType();
+    // If it is an enum, t will always be non null.
+    if ((t == nullptr || !isEnumType(t)) && !dynamic_cast<Constant *>(label))
+      assert(!"case label must be an integer or an enum constant");
   }
 };
 

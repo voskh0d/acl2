@@ -201,9 +201,14 @@ Program::displayFunDefs (ostream &os, DispMode mode)
     }
 }
 
+#include "typing.h"
+
 void
 Program::display (ostream &os, DispMode mode)
 {
+  TypeIt typeit;
+  runAction(&typeit);
+
   displayTypeDefs (os, mode);
   os << "\n";
   displayConstDecs (os, mode);

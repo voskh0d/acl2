@@ -1,4 +1,5 @@
 %option yylineno
+%option nounput
 
 %s ACTIVE
 

@@ -48,6 +48,8 @@ public:
 
   Plist () : list (nullptr){};
 
+  virtual ~Plist() = default;
+
   Plist (std::initializer_list<Sexpression *> sexprs)
   {
 

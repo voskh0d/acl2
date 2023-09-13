@@ -425,7 +425,8 @@ postfix_expression : primary_expression | array_or_bit_ref | struct_ref
 array_or_bit_ref : postfix_expression '[' expression ']'
                  {
 
-if ($1->isArray ())
+// should be operator[], then we resolve the overloading after typing.
+if (isArrayType($1->exprType()))
     {
       $$ = new ArrayRef ($1, $3);
     }
@@ -799,10 +800,11 @@ assignment : expression assign_op expression
 | expression inc_op { $$ = new Assignment ($1, $2, nullptr); }
 | postfix_expression '.' SET_SLC '(' expression ',' expression ')'
 {
+  // This can be moved after typing.
   unsigned w = 0;
-  if ($7->isSubrange ())
+  if (Subrange *subrange = dynamic_cast<Subrange *>($7))
     {
-      w = ((Subrange *)$7)->width;
+      w = subrange->width;
     }
   else
     {
@@ -917,17 +919,6 @@ case:
 | DEFAULT ':' statement_list { $$ = new Case (nullptr, $3); };
 
 case_label : constant | symbol_ref
-           {
-  if (isEnumType($1->exprType ()))
-    {
-      $$ = $1;
-    }
-  else
-    {
-      yyerror ("case label must be an integer or an enum constant");
-      YYERROR;
-    }
-}
 
 final_statement : return_statement ';'
                 | IF '(' expression ')' r_statement ELSE r_statement

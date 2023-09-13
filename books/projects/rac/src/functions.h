@@ -45,7 +45,7 @@ public:
                         unsigned indent = 0);
   virtual void displayACL2Expr (ostream &os);
 
-  bool accept(RecursiveASTVisitor *visitor) {
+  bool accept(RecursiveASTVisitor *visitor) override {
     return visitor->TraverseFunDef(this);
   }
 
@@ -61,7 +61,7 @@ public:
   {
   }
 
-  bool accept(RecursiveASTVisitor *visitor) {
+  bool accept(RecursiveASTVisitor *visitor) override {
     return visitor->TraverseBuiltin(this);
   }
 };
@@ -78,7 +78,7 @@ public:
   void bindParams (List<Expression> *a);
   void displayACL2Expr (ostream &os) override;
 
-  bool accept(RecursiveASTVisitor *visitor) {
+  bool accept(RecursiveASTVisitor *visitor) override {
     return visitor->TraverseTemplate(this);
   }
 };

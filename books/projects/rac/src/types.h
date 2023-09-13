@@ -316,6 +316,10 @@ inline bool isEnumType(const Type * t) {
   return dynamic_cast<const EnumType *>(typeDeref__(t));
 }
 
+inline bool isFPType(const Type *t) {
+  return dynamic_cast<const FPType *>(typeDeref__(t));
+}
+
 // TODO: after the type pass, every node should have its type already cast so
 // we won't need this anymore.
 template <typename ChildType>

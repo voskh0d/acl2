@@ -6,6 +6,8 @@
 #include "utils.h"
 #include "visitor.h"
 
+#include "typing.h"
+
 using namespace std;
 
 //***********************************************************************************
@@ -27,21 +29,32 @@ public:
   Expression ();
   virtual bool isConst ();
   virtual int evalConst ();
-  virtual bool isArray ();
-  virtual bool isStruct ();
-  virtual bool isSubrange() { return false; }
-  bool isNumber ();
-  virtual bool isSymRef ();
+
   virtual bool isInteger ();
-  virtual bool isInitializer ();
-  bool isFP ();
 
   virtual const Type *exprType ();
+
+  const Type *get_type() { return t_; }
+
   void display (ostream &os) const;
   virtual void displayNoParens (ostream &os) const = 0;
 
   virtual Expression *subst (SymRef *var, Expression *val);
-  virtual Sexpression *ACL2Expr (bool isBV = false);
+
+// The following method converts an expression to an S-expression.  The
+// argument isBV is relevant only for a typed expression of a register type
+// (see exprType above).  In this case, if isBV is true, then the resulting
+// S-expression should represent the value of the bit vector contents of the
+// register, and otherwise it should represent the value of that bit vector as
+// interpreted according to the type. The argument isBV is set the following
+// cases: (1) The expression is being assigned to a register of the same type;
+// (2) The expression is being assigned to an integer register and the
+// expression is an unsigned
+//     integer register of width not exceeding that of the target;
+// (3) The resulting S-expression is to be the first argument of bitn, bits,
+// setbitn, or setbits. (4) The expression is an argument of a logical
+// expression of a register type.
+  virtual Sexpression *ACL2Expr (bool isBV = false) = 0;
   virtual Sexpression *ACL2ArrayExpr ();
   virtual Sexpression *ACL2Assign (Sexpression *rval);
   virtual unsigned ACL2ValWidth ();
@@ -57,6 +70,15 @@ public:
   virtual bool isEqualConst (Constant *c);
 
   virtual bool accept(RecursiveASTVisitor *visitor) = 0;
+
+private:
+  // Only during the type passs we are allowed to modify the type.
+  friend void TypePass::set_type(Expression*, Type *);
+  void set_type(Type *t) { t_ = t; }
+
+  // The type of the expression. Null means not yet typed, but after the type
+  // pass, it should be always set with a concrete type (not a typedef).
+  Type *t_ = nullptr;
 };
 
 class Constant : public Expression, public Symbol
@@ -121,12 +143,9 @@ public:
   SymDec *symDec;
 
   SymRef (SymDec *s);
-  bool isSymRef () override;
   const Type *exprType () override;
   virtual bool isConst () override;
   virtual int evalConst () override;
-  bool isArray () override;
-  bool isStruct () override;
   bool isInteger () override;
   void displayNoParens (ostream &os) const override;
   Expression *subst (SymRef *var, Expression *val) override;
@@ -150,8 +169,6 @@ public:
   List<Expression> *args;
   FunCall (FunDef *f, List<Expression> *a);
 
-  bool isArray () override;
-  bool isStruct () override;
   bool isInteger () override;
   const Type *exprType () override;
   void displayNoParens (ostream &os) const override;
@@ -185,7 +202,6 @@ class Initializer final : public Expression
 public:
   List<Constant> *vals;
   Initializer (List<Constant> *v);
-  bool isInitializer () override;
   void displayNoParens (ostream &os) const override;
   Sexpression *ACL2Expr (bool isBV = false) override;
   Sexpression *ACL2ArrayExpr () override;
@@ -202,7 +218,6 @@ public:
   Expression *array;
   Expression *index;
   ArrayRef (Expression *a, Expression *i);
-  bool isArray () override;
   bool isInteger () override;
   const Type *exprType () override;
   void displayNoParens (ostream &os) const override;
@@ -215,26 +230,12 @@ public:
   }
 };
 
-// TODO is this used anywhere ?
-class ArrayParamRef : public ArrayRef
-{
-public:
-  ArrayParamRef (Expression *a, Expression *i);
-  void displayNoParens (ostream &os) const override;
-  Expression *subst (SymRef *var, Expression *val) override;
-
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseArrayParamRef(this);
-  }
-};
-
 class StructRef final : public Expression
 {
 public:
   Expression *base;
   char *field;
   StructRef (Expression *s, char *f);
-  bool isArray () override;
   bool isInteger () override;
   const Type *exprType () override;
   void displayNoParens (ostream &os) const override;
@@ -275,7 +276,6 @@ public:
   Subrange (Expression *b, Expression *h, Expression *l);
   Subrange (Expression *b, Expression *h, Expression *l, unsigned w);
 
-  bool isSubrange() override { return true; }
   bool isInteger () override { return true; }
   void displayNoParens (ostream &os) const override;
   Expression *subst (SymRef *var, Expression *val) override;

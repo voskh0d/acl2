@@ -31,7 +31,6 @@ main (int argc, char **argv)
     {
       std::cerr << "Failed to open file " << buf << ": " << strerror (errno)
                 << '\n';
-      ;
       return 1;
     }
 
@@ -53,8 +52,8 @@ main (int argc, char **argv)
 
   std::fstream fout;
 
-  ASTDumper a{};
-  prog.runAction(&a);
+//  ASTDumper a{};
+//  prog.runAction(&a);
 
   if (argc > 1)
     {

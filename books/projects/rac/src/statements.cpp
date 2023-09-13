@@ -203,10 +203,9 @@ VarDec::ACL2Expr ()
         {
           val = new Plist ();
         }
-      else if (init->isInitializer ())
+      else if (Initializer *i = dynamic_cast<Initializer *>(init))
         {
-          val = ((Initializer *)init)
-                    ->ACL2StructExpr (tryDownCast<StructType>(type)->fields);
+          val = i->ACL2StructExpr (tryDownCast<StructType>(type)->fields);
         }
       else
         {
@@ -616,63 +615,6 @@ Assignment::ACL2Expr ()
   return lval->ACL2Assign (sexpr);
 }
 
-// class AssignBit : public SimpleStatement (bit assignment)
-// ---------------------------------------------------------
-
-// Data members: Expression *base; Expression *index; Expression *val;
-
-AssignBit::AssignBit (Expression *b, Expression *i, Expression *v)
-    : SimpleStatement ()
-{
-  base = b, index = i;
-  val = v;
-}
-
-void
-AssignBit::displaySimple (ostream &os)
-{
-  base->display (os);
-  os << ".assign_bit(";
-  index->display (os);
-  os << ", ";
-  val->display (os);
-  os << ")";
-}
-
-// class AssignRange : public SimpleStatement (subrange assignment)
-// -----------------------------------------------------------------
-
-// Data members: Expression *base; Expression *high; Expression *low;
-// Expression *width; Expression *val;
-
-AssignRange::AssignRange (Expression *b, Expression *h, Expression *l,
-                          Expression *w, Expression *v)
-    : SimpleStatement ()
-{
-  base = b, high = h;
-  low = l;
-  width = w;
-  val = v;
-}
-
-void
-AssignRange::displaySimple (ostream &os)
-{
-  base->display (os);
-  os << ".assign_range<";
-  high->display (os);
-  os << ", ";
-  low->display (os);
-  if (width)
-    {
-      os << ", ";
-      width->display (os);
-    }
-  os << ">(";
-  val->displayNoParens (os);
-  os << ")";
-}
-
 // class MultipleAssignment : public SimpleStatement
 // -------------------------------------------------
 
@@ -749,9 +691,9 @@ MultipleAssignment::ACL2Expr ()
   bool isBlock = false;
   for (unsigned i = 0; i < lval_.size(); i++)
     {
-      if (lval_[i]->isSymRef ())
+      if (SymRef *ref = dynamic_cast<SymRef *>(lval_[i]))
         {
-          vars->add (((SymRef *)lval_[i])->symDec->sym);
+          vars->add (ref->symDec->sym);
         }
       else
         {
@@ -1138,6 +1080,8 @@ SwitchStmt::SwitchStmt (Expression *t, List<Case> *c)
 void
 SwitchStmt::display (ostream &os, unsigned indent)
 {
+  for_each(cases_, [](Case *c) { c->typeCheck(); });
+
   os << "\n"
      << setw (indent) << " "
      << "switch (";
@@ -1152,6 +1096,8 @@ SwitchStmt::display (ostream &os, unsigned indent)
 Statement *
 SwitchStmt::subst (SymRef *var, Expression *val)
 {
+  for_each(cases_, [](Case *c) { c->typeCheck(); });
+
   List<Case> *newCases = nullptr;
   bool changed = false;
   for (int i = cases_.length () - 1; i >= 0; i--)
@@ -1178,6 +1124,7 @@ SwitchStmt::subst (SymRef *var, Expression *val)
 Sexpression *
 SwitchStmt::ACL2Expr ()
 {
+  for_each(cases_, [](Case *c) { c->typeCheck(); });
 
   List<Sexpression> *result
       = new List<Sexpression> (&s_switch, test_->ACL2Expr ());
@@ -1193,8 +1140,6 @@ SwitchStmt::ACL2Expr ()
       Case *c = clist->value;
 
       l = c->label;
-      l = c->label;
-      a = c->action;
       a = c->action;
       if (l)
         {
@@ -1229,5 +1174,6 @@ SwitchStmt::ACL2Expr ()
 void
 SwitchStmt::markAssertions (FunDef *f)
 {
+  for_each(cases_, [](Case *c) { c->typeCheck(); });
   for_each (cases_, [f] (Case *c) { c->markAssertions (f); });
 }

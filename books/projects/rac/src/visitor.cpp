@@ -84,10 +84,6 @@ bool RecursiveASTVisitor::TraverseTempCall(TempCall *e) {
     if (!this->WalkUpTempCall(e))
       return false;
 
-  if (!this->TraverseExpression(e)) {
-    return false;
-  }
-
   bool b = true;
   for_each(e->params, [&](Expression *e) {
       if (b && !this->TraverseExpression(e))
@@ -136,23 +132,6 @@ bool RecursiveASTVisitor::TraverseArrayRef(ArrayRef *e) {
 
   if (this->postfixTraversal())
     if (!this->WalkUpArrayRef(e))
-      return false;
-
-  return true;
-}
-
-bool RecursiveASTVisitor::TraverseArrayParamRef(ArrayParamRef *e) {
-
-  if (!this->postfixTraversal())
-    if (!this->WalkUpArrayParamRef(e))
-      return false;
-
-  if (!(this->TraverseExpression(e->array)
-        && this->TraverseExpression(e->index)))
-    return false;
-
-  if (this->postfixTraversal())
-    if (!this->WalkUpArrayParamRef(e))
       return false;
 
   return true;
@@ -475,75 +454,6 @@ bool RecursiveASTVisitor::TraverseAssignment(Assignment *s) {
 
   if (this->postfixTraversal())
     if (!this->WalkUpAssignment(s))
-      return false;
-
-  return true;
-}
-
-bool RecursiveASTVisitor::TraverseAssignBit(AssignBit *s) {
-
-  if (!this->postfixTraversal())
-    if (!this->WalkUpAssignBit(s))
-      return false;
-
-  if (!this->TraverseExpression(s->base))
-    return false;
-
-  if (!this->TraverseExpression(s->index))
-    return false;
-
-  if (!this->TraverseExpression(s->val))
-    return false;
-
-  if (this->postfixTraversal())
-    if (!this->WalkUpAssignBit(s))
-      return false;
-
-  return true;
-}
-
-bool RecursiveASTVisitor::TraverseAssignRange(AssignRange *s) {
-
-  if (!this->postfixTraversal())
-    if (!this->WalkUpAssignRange(s))
-      return false;
-
-  if (!this->TraverseExpression(s->base))
-    return false;
-
-  if (!this->TraverseExpression(s->high))
-    return false;
-
-  if (!this->TraverseExpression(s->low))
-    return false;
-
-  if (!this->TraverseExpression(s->width))
-    return false;
-
-  if (!this->TraverseExpression(s->val))
-    return false;
-
-  if (this->postfixTraversal())
-    if (!this->WalkUpAssignRange(s))
-      return false;
-
-  return true;
-}
-
-bool RecursiveASTVisitor::TraverseAssignFull(AssignFull *s) {
-
-  if (!this->postfixTraversal())
-    if (!this->WalkUpAssignFull(s))
-      return false;
-
-  if (!this->TraverseExpression(s->base))
-    return false;
-
-  if (!TraverseExpression(s->val))
-    return false;
-
-  if (this->postfixTraversal())
-    if (!this->WalkUpAssignFull(s))
       return false;
 
   return true;

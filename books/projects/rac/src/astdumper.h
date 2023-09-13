@@ -8,7 +8,6 @@
 
 #include <iostream>
 #include <vector>
-#include <variant>
 
 
 class ASTDumper : public RecursiveASTVisitor {
@@ -41,18 +40,26 @@ public:
     return b;
   }
 
-// 
 // Edge declaration: ID -> ID;
 // Since we define Visit* for all classes, most of the edges will be doubled:
 // take for example the node Integer: we will run first VisitInteger, then
 // VisitConstant and finaly, VisitInteger.
 #define APPLY(CLASS, PARENT)                                                 \
-bool Visit##CLASS (CLASS *ptr) {                                             \
+bool Visit##CLASS (CLASS *ptr) override {                                    \
   /*  Node declaration: node_ADDRESS [label="KIND\nVALUE", shape=s]; */      \
-  const char *s = dynamic_cast<Expression *>(ptr) ? "diamond" : "oval";      \
-  std::cout << "node_" << ptr                                                \
-    << " [label=\""#CLASS                                                    \
-    << "\", shape=" << s << "];\n";                                          \
+  constexpr bool is_expression = std::is_base_of_v<Expression, CLASS>;       \
+  const char *s = is_expression ? "diamond" : "oval";                        \
+  std::cout << "node_" << ptr << " [label=\""#CLASS;                         \
+                                                                             \
+  if constexpr (is_expression) {                                             \
+    Expression *e = reinterpret_cast<Expression *>(ptr);                     \
+    if (const Type *t = e->exprType()) {                                     \
+      std::cout << '\n';                                                     \
+      t->displayVarType();                                                   \
+    }                                                                        \
+  }                                                                          \
+                                                                             \
+   std::cout << "\", shape=" << s << "];\n";                                 \
                                                                              \
   if (parents_.size() >= 2)                                                  \
       std::cout << "node_" << parents_[parents_.size() - 2] << " -> "        \
@@ -60,7 +67,6 @@ bool Visit##CLASS (CLASS *ptr) {                                             \
                                                                              \
   return true;                                                               \
 }
-
 #include "ASTNodes.inc"
 #undef APPLY
 
