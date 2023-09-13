@@ -5,8 +5,8 @@
 #include "types.h"
 #include "utils.h"
 #include "visitor.h"
+#include "sexpressions.h"
 
-using namespace std;
 
 //***********************************************************************************
 // Statements
@@ -19,9 +19,9 @@ class TempCall;
 class Statement
 {
 public:
-  virtual void display (ostream &os, unsigned indent = 0) = 0;
-  virtual void displayAsRightBranch (ostream &os, unsigned indent = 0);
-  virtual void displayWithinBlock (ostream &os, unsigned indent = 0);
+  virtual void display (std::ostream &os, unsigned indent = 0) = 0;
+  virtual void displayAsRightBranch (std::ostream &os, unsigned indent = 0);
+  virtual void displayWithinBlock (std::ostream &os, unsigned indent = 0);
   virtual Block *blockify ();
   virtual Block *blockify (Statement *s);
   virtual Statement *subst (SymRef *var, Expression *expr);
@@ -36,8 +36,8 @@ class SimpleStatement : public Statement
 {
 public:
   SimpleStatement ();
-  void display (ostream &os, unsigned indent = 0) override;
-  virtual void displaySimple (ostream &os) = 0;
+  void display (std::ostream &os, unsigned indent = 0) override;
+  virtual void displaySimple (std::ostream &os) = 0;
 };
 
 class SymDec : public SimpleStatement
@@ -52,7 +52,7 @@ public:
   {
     return sym->getname ();
   }
-  void displaySymDec (ostream &os) const;
+  void displaySymDec (std::ostream &os) const;
   virtual bool isGlobal ();
   virtual bool isROM ();
   virtual bool isConst ();
@@ -68,8 +68,8 @@ class EnumConstDec final : public SymDec
 {
 public:
   EnumConstDec (const char *n, Expression *v = nullptr);
-  void display (ostream &os) const;
-  void displaySimple(ostream &os) override { display(os); }
+  void display (std::ostream &os) const;
+  void displaySimple(std::ostream &os) override { display(os); }
   bool isConst ();
   // ACL2expr Weird
   Sexpression *ACL2Expr ();
@@ -84,7 +84,7 @@ class VarDec : public SymDec
 {
 public:
   VarDec (const char *n, Type *t, Expression *i = nullptr);
-  void displaySimple (ostream &os) override;
+  void displaySimple (std::ostream &os) override;
   Statement *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr () override;
   Sexpression *ACL2SymExpr () override;
@@ -98,7 +98,7 @@ class ConstDec : public VarDec
 {
 public:
   ConstDec (const char *n, Type *t, Expression *i);
-  void displaySimple (ostream &os) override;
+  void displaySimple (std::ostream &os) override;
   Statement *subst (SymRef *var, Expression *val) override;
   bool isConst () override;
   bool isGlobal () override;
@@ -118,7 +118,7 @@ public:
   MulVarDec (List<VarDec> *decs);
   Statement *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr () override;
-  void displaySimple (ostream &os) override;
+  void displaySimple (std::ostream &os) override;
 
   bool accept(RecursiveASTVisitor *visitor) override {
     return visitor->TraverseMulVarDec(this);
@@ -133,7 +133,7 @@ public:
   MulConstDec (List<ConstDec> *decs);
   Statement *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr () override;
-  void displaySimple (ostream &os) override;
+  void displaySimple (std::ostream &os) override;
 
   bool accept(RecursiveASTVisitor *visitor) override {
     return visitor->TraverseMulConstDec(this);
@@ -148,8 +148,8 @@ public:
   Sexpression *ACL2SymExpr () override;
 
   // TODO
-  void display(ostream &, unsigned) {};
-  void displaySimple(ostream &) override {};
+  void display(std::ostream &, unsigned) {};
+  void displaySimple(std::ostream &) override {};
   Sexpression *ACL2Expr () override {
     assert(false);
     return nullptr;
@@ -164,7 +164,7 @@ class BreakStmt final : public SimpleStatement
 {
 public:
   BreakStmt ();
-  void displaySimple (ostream &os) override;
+  void displaySimple (std::ostream &os) override;
   Sexpression *ACL2Expr () override;
 
   bool accept(RecursiveASTVisitor *visitor) override {
@@ -178,7 +178,7 @@ public:
   Expression *value;
   Type *returnType;
   ReturnStmt (Expression *v);
-  void displaySimple (ostream &os) override;
+  void displaySimple (std::ostream &os) override;
   Statement *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr () override;
   void noteReturnType (Type *t) override;
@@ -192,7 +192,7 @@ class NullStmt final : public SimpleStatement
 {
 public:
   NullStmt ();
-  void displaySimple (ostream &os) override;
+  void displaySimple (std::ostream &os) override;
   Sexpression *ACL2Expr () override;
 
   bool accept(RecursiveASTVisitor *visitor) override {
@@ -206,7 +206,7 @@ public:
   Expression *expr;
   FunDef *funDef;
   Assertion (Expression *e);
-  void displaySimple (ostream &os) override;
+  void displaySimple (std::ostream &os) override;
   Statement *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr () override;
   void markAssertions (FunDef *f) override;
@@ -223,7 +223,7 @@ public:
   const char *op;
   Expression *rval;
   Assignment (Expression *l, const char *o, Expression *r = nullptr);
-  void displaySimple (ostream &os) override;
+  void displaySimple (std::ostream &os) override;
   Statement *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr () override;
 
@@ -239,7 +239,7 @@ class MultipleAssignment : public SimpleStatement
 
 public:
   MultipleAssignment (FunCall *r, std::vector<Expression *> e);
-  void displaySimple (ostream &os) override;
+  void displaySimple (std::ostream &os) override;
   Statement *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr () override;
 
@@ -261,8 +261,8 @@ public:
   Block (Statement *s1, Statement *s2, Statement *s3);
   Block *blockify () override;
   Block *blockify (Statement *s) override;
-  void display (ostream &os, unsigned indent = 0) override;
-  void displayWithinBlock (ostream &os, unsigned indent = 0) override;
+  void display (std::ostream &os, unsigned indent = 0) override;
+  void displayWithinBlock (std::ostream &os, unsigned indent = 0) override;
   Statement *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr () override;
   void noteReturnType (Type *t) override;
@@ -280,8 +280,8 @@ public:
   Statement *left;
   Statement *right;
   IfStmt (Expression *t, Statement *l, Statement *r);
-  void display (ostream &os, unsigned indent = 0) override;
-  void displayAsRightBranch (ostream &os, unsigned indent = 0) override;
+  void display (std::ostream &os, unsigned indent = 0) override;
+  void displayAsRightBranch (std::ostream &os, unsigned indent = 0) override;
   Statement *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr () override;
   void markAssertions (FunDef *f) override;
@@ -300,7 +300,7 @@ public:
   Assignment *update;
   Statement *body;
   ForStmt (SimpleStatement *v, Expression *t, Assignment *u, Statement *b);
-  void display (ostream &os, unsigned indent = 0) override;
+  void display (std::ostream &os, unsigned indent = 0) override;
   Statement *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr () override;
   void markAssertions (FunDef *f) override;
@@ -316,7 +316,7 @@ public:
   Expression *label;
   List<Statement> *action;
   Case (Expression *l, List<Statement> *a);
-  void display (ostream &os, unsigned indent = 0);
+  void display (std::ostream &os, unsigned indent = 0);
   Case *subst (SymRef *var, Expression *val);
   void markAssertions (FunDef *f);
 
@@ -347,7 +347,7 @@ class SwitchStmt : public Statement
 
 public:
   SwitchStmt (Expression *t, List<Case> *c);
-  void display (ostream &os, unsigned indent = 0) override;
+  void display (std::ostream &os, unsigned indent = 0) override;
   Statement *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr () override;
   void markAssertions (FunDef *f) override;

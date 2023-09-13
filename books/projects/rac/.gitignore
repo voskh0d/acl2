@@ -1,6 +1,10 @@
 # Created by https://www.toptal.com/developers/gitignore/api/python,c++,vim,linux
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,c++,vim,linux
 
+## Generated at build ##
+
+src/version.h
+
 ### C++ ###
 # Prerequisites
 *.d

@@ -12,12 +12,12 @@
 FunDef::FunDef(const char *n, Type *t, List<VarDec> *p, Block *b)
     : sym(new Symbol(n)), returnType(t), params(p), body(b) {}
 
-void FunDef::displayPrototype(ostream &os, const char *prefix,
+void FunDef::displayPrototype(std::ostream &os, const char *prefix,
                               unsigned indent) {
   os << "\n";
 
   if (indent)
-    os << setw(indent) << " ";
+    os << std::setw(indent) << " ";
 
   returnType->display(os);
 
@@ -34,12 +34,12 @@ void FunDef::displayPrototype(ostream &os, const char *prefix,
   os << ")";
 }
 
-void FunDef::displayDec(ostream &os, const char *prefix, unsigned indent) {
+void FunDef::displayDec(std::ostream &os, const char *prefix, unsigned indent) {
   displayPrototype(os, prefix, indent);
   os << ';';
 }
 
-void FunDef::display(ostream &os, const char *prefix, unsigned indent) {
+void FunDef::display(std::ostream &os, const char *prefix, unsigned indent) {
 
   displayPrototype(os, prefix, indent);
   body->display(os, indent + 2);
@@ -48,7 +48,7 @@ void FunDef::display(ostream &os, const char *prefix, unsigned indent) {
 
 Symbol s_funcdef("funcdef");
 
-void FunDef::displayACL2Expr(ostream &os) {
+void FunDef::displayACL2Expr(std::ostream &os) {
 
   Plist *sparams = new Plist();
   for_each(params, [&sparams](VarDec *v) { sparams->add(v->sym); });
@@ -71,10 +71,10 @@ Template::Template(const char *n, Type *t, List<VarDec> *p, Block *b,
                    List<TempParamDec> *tp)
     : FunDef(n, t, p, b), tempParams(tp) {}
 
-void Template::display(ostream &os, const char *prefix, unsigned indent) {
+void Template::display(std::ostream &os, const char *prefix, unsigned indent) {
   os << "\n";
   if (indent)
-    os << setw(indent) << " ";
+    os << std::setw(indent) << " ";
 
   os << "template<";
   List<TempParamDec> *ptr = tempParams;
@@ -100,16 +100,14 @@ void Template::bindParams(List<Expression> *actuals) {
   }
 }
 
-void Template::displayACL2Expr(ostream &os) {
+void Template::displayACL2Expr(std::ostream &os) {
   List<TempCall> *c = calls;
   unsigned numCalls = 0;
   Symbol *saveSym = sym;
   while (c) {
-    ostringstream ostr;
+    std::ostringstream ostr;
     ostr << saveSym->getname() << "-" << numCalls++;
-    string st = ostr.str();
-    const char *name = st.c_str();
-    sym = new Symbol(name);
+    sym = new Symbol(ostr.str());
     c->value->instanceSym = sym;
     bindParams(c->value->params);
     FunDef::displayACL2Expr(os);

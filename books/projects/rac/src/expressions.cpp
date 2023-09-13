@@ -48,10 +48,10 @@ Expression::exprType ()
 // displayNoParens is defined for each class of expressions and is called by
 // the non-virtual display method, which inserts parentheses as required:
 
-// virtual void displayNoParens(ostream& os) const = 0;
+// virtual void displayNoParens(std::ostream& os) const = 0;
 
 void
-Expression::display (ostream &os) const
+Expression::display (std::ostream &os) const
 {
   if (needsParens)
     os << "(";
@@ -182,7 +182,7 @@ Constant::isConst ()
 }
 
 void
-Constant::displayNoParens (ostream &os) const
+Constant::displayNoParens (std::ostream &os) const
 {
   os << getname ();
 }
@@ -281,8 +281,8 @@ Boolean::ACL2Expr ([[maybe_unused]] bool isBV)
     return new Plist ({ &s_true });
   else if (!strcmp (getname (), "false"))
     return new Plist ({ &s_false });
-  else
-    cout << getname () << endl;
+  else // error
+    std::cerr << getname () << '\n';
   UNREACHABLE ();
 }
 
@@ -328,7 +328,7 @@ SymRef::isInteger ()
 }
 
 void
-SymRef::displayNoParens (ostream &os) const
+SymRef::displayNoParens (std::ostream &os) const
 {
   symDec->sym->display (os);
 }
@@ -388,7 +388,7 @@ FunCall::isInteger ()
 }
 
 void
-FunCall::displayNoParens (ostream &os) const
+FunCall::displayNoParens (std::ostream &os) const
 {
 
   os << func->getname () << "(";
@@ -459,7 +459,7 @@ TempCall::TempCall (Template *f, List<Expression> *a, List<Expression> *p)
 }
 
 void
-TempCall::displayNoParens (ostream &os) const
+TempCall::displayNoParens (std::ostream &os) const
 {
   os << func->getname () << "<";
   List<Expression> *ptr = params;
@@ -522,7 +522,7 @@ TempCall::ACL2Expr (bool isBV)
 Initializer::Initializer (List<Constant> *v) : Expression () { vals = v; }
 
 void
-Initializer::displayNoParens (ostream &os) const
+Initializer::displayNoParens (std::ostream &os) const
 {
   os << "{";
   List<Constant> *ptr = vals;
@@ -616,7 +616,7 @@ ArrayRef::isInteger ()
 }
 
 void
-ArrayRef::displayNoParens (ostream &os) const
+ArrayRef::displayNoParens (std::ostream &os) const
 {
   array->display (os);
   os << "[";
@@ -691,7 +691,7 @@ StructRef::isInteger ()
 }
 
 void
-StructRef::displayNoParens (ostream &os) const
+StructRef::displayNoParens (std::ostream &os) const
 {
   base->display (os);
   os << "." << field;
@@ -737,7 +737,7 @@ BitRef::isInteger ()
 }
 
 void
-BitRef::displayNoParens (ostream &os) const
+BitRef::displayNoParens (std::ostream &os) const
 {
   base->display (os);
   os << "[";
@@ -805,7 +805,7 @@ Subrange::Subrange (Expression *b, Expression *h, Expression *l, unsigned w)
 }
 
 void
-Subrange::displayNoParens (ostream &os) const
+Subrange::displayNoParens (std::ostream &os) const
 {
   base->display (os);
   os << "[";
@@ -944,7 +944,7 @@ PrefixExpr::isInteger ()
 }
 
 void
-PrefixExpr::displayNoParens (ostream &os) const
+PrefixExpr::displayNoParens (std::ostream &os) const
 {
   os << op;
   expr->display (os);
@@ -1063,7 +1063,7 @@ CastExpr::isInteger ()
 }
 
 void
-CastExpr::displayNoParens (ostream &os) const
+CastExpr::displayNoParens (std::ostream &os) const
 {
   expr->display (os);
 }
@@ -1151,7 +1151,7 @@ BinaryExpr::isInteger ()
 }
 
 void
-BinaryExpr::displayNoParens (ostream &os) const
+BinaryExpr::displayNoParens (std::ostream &os) const
 {
   expr1->display (os);
   os << " " << op << " ";
@@ -1298,7 +1298,7 @@ CondExpr::isInteger ()
 }
 
 void
-CondExpr::displayNoParens (ostream &os) const
+CondExpr::displayNoParens (std::ostream &os) const
 {
   test->display (os);
   os << " ? ";
@@ -1348,7 +1348,7 @@ MultipleValue::MultipleValue (MvType *t, List<Expression> *e)
 }
 
 void
-MultipleValue::displayNoParens (ostream &os) const
+MultipleValue::displayNoParens (std::ostream &os) const
 {
 
   os << "<";

@@ -1,10 +1,10 @@
 #ifndef ASTDUMPER_H
 #define ASTDUMPER_H
 
-#include "visitor.h"
 #include "expressions.h"
-#include "statements.h"
 #include "functions.h"
+#include "statements.h"
+#include "visitor.h"
 
 #include <iostream>
 #include <vector>

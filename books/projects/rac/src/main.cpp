@@ -1,85 +1,50 @@
 #include <fstream>
 #include <iostream>
-#include <stdio.h>
 #include <string>
 
 #include "parser.h"
 #include "program.h"
 #include "astdumper.h"
 
+
+#include "argparse.h"
+
+
+
 int
 main (int argc, char **argv)
 {
-  ++argv, --argc; /* skip over program name */
+  CommandLine cl;
+  auto args = cl.parse(argc, argv);
+  if (!args) {
+    return 1;
+  }
 
-  if (argc == 0)
-    {
-      std::cout
-          << "Usage:\n"
-             "  parse file           check that file.cpp is well formed\n"
-             "  parse file -rac      convert to RAC pseudocode and write to "
-             "file.pc\n\n"
-             "  parse file -acl2     write ACL2 translation to "
-             "output.lisp\n\n";
-      return 0;
+  if (!args->file) {
+    return 0;
+  }
+
+  if (!prog.parse(*args->file + ".i")) {
+    return true;
+  }
+
+  if (args->dump_ast) {
+    ASTDumper a{};
+    prog.runAction(&a);
+  }
+
+  if (args->mode) {
+    const std::string ext = *args->mode == DispMode::acl2 ? ".ast.lsp" : ".pc";
+    const std::string out = *args->file + ext;
+
+    std::fstream fout;
+    fout.open (out, std::fstream::out);
+    if (!fout.is_open ()) {
+      std::cerr << "Failed to open file " << out << ": " << strerror (errno) << '\n';
     }
 
-  std::string buf (argv[0]);
-  buf += ".i";
-  yyin = fopen (buf.c_str (), "r");
-  if (yyin == nullptr)
-    {
-      std::cerr << "Failed to open file " << buf << ": " << strerror (errno)
-                << '\n';
-      return 1;
-    }
+    prog.display (fout, *args->mode);
+  }
 
-  yylineno = 1;
-  if (yyparse ())
-    {
-      return 1;
-    }
-
-  fclose (yyin);
-
-  // Restore basename
-  buf.pop_back ();
-  buf.pop_back ();
-
-  if (prog.isEmpty ())
-    puts ("Warning: no function definitions found,"
-          " maybe you forgot the `// RAC begin` guard");
-
-  std::fstream fout;
-
-//  ASTDumper a{};
-//  prog.runAction(&a);
-
-  if (argc > 1)
-    {
-      DispMode type;
-      if (!strcmp (argv[1], "-acl2"))
-        {
-          buf += ".ast.lsp";
-          type = DispMode::acl2;
-        }
-      else if (!strcmp (argv[1], "-rac"))
-        {
-          buf += ".pc";
-          type = DispMode::rac;
-        }
-      else
-        {
-          std::cerr << "Unknown option `" << argv[1]
-                    << "`, for a list of available options, type `parse`";
-          return 1;
-        }
-
-      fout.open (buf, fstream::out);
-      if (!fout.is_open ())
-        std::cerr << "Failed to open file " << buf << ": " << strerror (errno)
-                  << '\n';
-
-      prog.display (fout, type);
-    }
+  return 0;
 }

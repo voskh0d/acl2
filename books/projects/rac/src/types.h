@@ -2,9 +2,12 @@
 #define TYPES_H
 
 #include "parser.h"
+#include "sexpressions.h"
 #include "utils.h"
 
-using namespace std;
+#include <iostream>
+#include <optional>
+
 
 //***********************************************************************************
 // Types
@@ -31,22 +34,22 @@ class DefinedType;
 class Type {
 
 public:
-  virtual void display(ostream &os = cout) const = 0;
+  virtual void display(std::ostream &os = std::cout) const = 0;
 
-  virtual void displayVarType(ostream &os = cout) const {
+  virtual void displayVarType(std::ostream &os = std::cout) const {
     // How this type is displayed in a variable declaration
     display(os);
   }
 
   // overridden by ArrayType
   virtual void displayVarName([[maybe_unused]] const char *name,
-                              ostream &os = cout) const {
+                              std::ostream &os = std::cout) const {
     // How a variable of this type is displayed in a variable declaration
     display(os);
   }
 
   // overridden by ArrayType, StructType, and EnumType
-  virtual void makeDef([[maybe_unused]] const char *name, ostream &os = cout) const {
+  virtual void makeDef([[maybe_unused]] const char *name, std::ostream &os = std::cout) const {
     // How this type is displayed in a type definition.
     os << "\ntypedef ";
     display(os);
@@ -83,9 +86,9 @@ public:
 class PrimType : public Symbol, public Type {
 public:
   PrimType(const char *s, const char *m = nullptr)
-      : Symbol(s), RACname_(m ? std::optional(std::string(m)) : nullopt) {}
+      : Symbol(s), RACname_(m ? std::optional(std::string(m)) : std::nullopt) {}
 
-  void display(ostream &os) const override {
+  void display(std::ostream &os) const override {
     if (RACname_) {
       os << *RACname_;
     } else {
@@ -109,18 +112,18 @@ class DefinedType : public Symbol, public Type {
 public:
   DefinedType(const char *s, Type *t) : Symbol(s), def_(t) {}
 
-  void display(ostream &os) const { Symbol::display(os); }
+  void display(std::ostream &os) const { Symbol::display(os); }
   
 
-  void displayVarType(ostream &os = cout) const override {
+  void displayVarType(std::ostream &os = std::cout) const override {
     derefType()->displayVarType(os);
   }
 
-  void displayVarName(const char *name, ostream &os = cout) const override {
+  void displayVarName(const char *name, std::ostream &os = std::cout) const override {
     derefType()->displayVarName(name, os);
   }
 
-  void makeDef(const char *name, ostream &os = cout) const override {
+  void makeDef(const char *name, std::ostream &os = std::cout) const override {
     derefType()->makeDef(name, os);
   }
 
@@ -136,7 +139,7 @@ public:
     return derefType()->ACL2Eval(s);
   }
 
-  void displayDef(ostream &os = cout) const {
+  void displayDef(std::ostream &os = std::cout) const {
     if (!(isRegType( def_))) {
       def_->makeDef(getname(), os);
     }
@@ -175,7 +178,7 @@ class UintType : public RegType {
 public:
   UintType(Expression *w) : RegType(w) {}
 
-  void display(ostream &os = cout) const override;
+  void display(std::ostream &os = std::cout) const override;
   unsigned ACL2ValWidth() const override;
 
   bool isSigned() const override { return false; }
@@ -184,7 +187,7 @@ public:
 class IntType : public RegType {
 public:
   IntType(Expression *w) : RegType(w) {}
-  void display(ostream &os = cout) const override;
+  void display(std::ostream &os = std::cout) const override;
   Sexpression *ACL2Eval(Sexpression *s) const override;
 
   bool isSigned() const override { return true; }
@@ -200,7 +203,7 @@ public:
 class UfixedType : public FPType {
 public:
   UfixedType(Expression *w, Expression *iw);
-  void display(ostream &os = cout) const override;
+  void display(std::ostream &os = std::cout) const override;
   Sexpression *ACL2Eval(Sexpression *s) const override;
 
   // TODO remove
@@ -211,7 +214,7 @@ class FixedType : public FPType {
 public:
   bool isSigned();
   FixedType(Expression *w, Expression *iw);
-  void display(ostream &os = cout) const override;
+  void display(std::ostream &os = std::cout) const override;
   Sexpression *ACL2Eval(Sexpression *s) const override;
 
   // TODO remove
@@ -229,10 +232,10 @@ public:
     return baseType;
   }
 
-  void display(ostream &os) const override;
-  void displayVarType(ostream &os = cout) const override;
-  void displayVarName(const char *name, ostream &os = cout) const override;
-  void makeDef(const char *name, ostream &os) const override;
+  void display(std::ostream &os) const override;
+  void displayVarType(std::ostream &os = std::cout) const override;
+  void displayVarName(const char *name, std::ostream &os = std::cout) const override;
+  void makeDef(const char *name, std::ostream &os) const override;
 };
 
 class StructField {
@@ -241,25 +244,25 @@ public:
   Type *type;
   StructField(Type *t, char *n);
   const char *getname() const { return sym->getname(); }
-  void display(ostream &os, unsigned indent = 0) const;
+  void display(std::ostream &os, unsigned indent = 0) const;
 };
 
 class StructType : public Type {
 public:
   List<StructField> *fields;
   StructType(List<StructField> *f);
-  void displayFields(ostream &os) const;
-  void display(ostream &os) const override;
-  void makeDef(const char *name, ostream &os = cout) const override;
+  void displayFields(std::ostream &os) const;
+  void display(std::ostream &os) const override;
+  void makeDef(const char *name, std::ostream &os = std::cout) const override;
 };
 
 class EnumType : public Type {
 public:
   List<EnumConstDec> *vals;
   EnumType(List<EnumConstDec> *v);
-  void displayConsts(ostream &os) const;
-  void display(ostream &os) const override;
-  void makeDef(const char *name, ostream &os = cout) const override;
+  void displayConsts(std::ostream &os) const;
+  void display(std::ostream &os) const override;
+  void makeDef(const char *name, std::ostream &os = std::cout) const override;
   // ACL2expr Weird
   Sexpression *ACL2Expr();
   Sexpression *getEnumVal(Symbol *s) const;
@@ -269,7 +272,7 @@ class MvType : public Type {
 public:
   std::vector<Type *> type;
   MvType(std::initializer_list<Type *> &&t) : type(t) {}
-  void display(ostream &os) const;
+  void display(std::ostream &os) const;
 };
 
 

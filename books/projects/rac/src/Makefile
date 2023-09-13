@@ -1,9 +1,12 @@
 all : install
 
-parse: parser.ll parser.yy parser.h expressions.cpp functions.cpp types.cpp output.cpp main.cpp expressions.h  functions.h  parser.h  program.h  statements.h  types.h  utils.h  version.h visitor.cpp visitor.h astdumper.h ASTNodes.inc typing.cpp typing.h
+parse: parser.ll parser.yy parser.h expressions.cpp functions.cpp types.cpp main.cpp expressions.h  functions.h  parser.h  program.h  statements.h  types.h  utils.h version.h visitor.cpp visitor.h astdumper.h ASTNodes.inc typing.cpp typing.h sexpressions.h sexpressions.cpp program.h program.cpp
 	bison -d -v -o parser.tab.cpp parser.yy
 	flex -o lex.yy.cpp parser.ll
-	g++ -Wall -Wextra -std=c++17 -o0 -g -o parse functions.cpp expressions.cpp statements.cpp parser.tab.cpp lex.yy.cpp types.cpp output.cpp visitor.cpp typing.cpp main.cpp
+	g++ -Wall -Wextra -std=c++17 -o0 -g -o parse functions.cpp expressions.cpp statements.cpp parser.tab.cpp lex.yy.cpp types.cpp visitor.cpp typing.cpp main.cpp sexpressions.cpp program.cpp
+
+version.h:
+	sh -e generate_version.sh
 
 #We should execute this rule every time, since it depends on some environment
 #variables.
@@ -22,4 +25,4 @@ clean:
 veryclean : clean
 	rm -f rac parse
 
-.PHONY : all clean veryclean install rac
+.PHONY : all clean veryclean install rac version.h

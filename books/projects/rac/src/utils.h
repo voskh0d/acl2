@@ -2,6 +2,7 @@
 #define UTILS_H
 
 #include <cassert>
+#include <cstring>
 #include <deque>
 #include <ostream>
 #include <vector>

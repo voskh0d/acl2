@@ -4,11 +4,13 @@
 #include "parser.h"
 #include "types.h"
 #include "utils.h"
-#include "visitor.h"
+#include "sexpressions.h"
 
+#include "visitor.h"
+// Used to declare TypePass::set_type as friend to get access to
+// Expressions::set_type.
 #include "typing.h"
 
-using namespace std;
 
 //***********************************************************************************
 // Expressions
@@ -36,8 +38,8 @@ public:
 
   const Type *get_type() { return t_; }
 
-  void display (ostream &os) const;
-  virtual void displayNoParens (ostream &os) const = 0;
+  void display (std::ostream &os) const;
+  virtual void displayNoParens (std::ostream &os) const = 0;
 
   virtual Expression *subst (SymRef *var, Expression *val);
 
@@ -92,7 +94,7 @@ public:
   {
     return true;
   }
-  void displayNoParens (ostream &os) const override;
+  void displayNoParens (std::ostream &os) const override;
   Sexpression *ACL2Expr (bool isBV = false) override;
   bool isEqual (Expression *e) override;
   bool isEqualConst (Constant *c) override;
@@ -147,7 +149,7 @@ public:
   virtual bool isConst () override;
   virtual int evalConst () override;
   bool isInteger () override;
-  void displayNoParens (ostream &os) const override;
+  void displayNoParens (std::ostream &os) const override;
   Expression *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr (bool isBV = false) override;
   Sexpression *ACL2Assign (Sexpression *rval) override;
@@ -171,7 +173,7 @@ public:
 
   bool isInteger () override;
   const Type *exprType () override;
-  void displayNoParens (ostream &os) const override;
+  void displayNoParens (std::ostream &os) const override;
   Expression *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr (bool isBV = false) override;
 
@@ -188,7 +190,7 @@ public:
   Symbol *instanceSym;
   List<Expression> *params;
   TempCall (Template *f, List<Expression> *a, List<Expression> *p);
-  void displayNoParens (ostream &os) const override;
+  void displayNoParens (std::ostream &os) const override;
   Expression *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr (bool isBV = false) override;
 
@@ -202,7 +204,7 @@ class Initializer final : public Expression
 public:
   List<Constant> *vals;
   Initializer (List<Constant> *v);
-  void displayNoParens (ostream &os) const override;
+  void displayNoParens (std::ostream &os) const override;
   Sexpression *ACL2Expr (bool isBV = false) override;
   Sexpression *ACL2ArrayExpr () override;
   Sexpression *ACL2StructExpr (List<StructField> *fields);
@@ -220,7 +222,7 @@ public:
   ArrayRef (Expression *a, Expression *i);
   bool isInteger () override;
   const Type *exprType () override;
-  void displayNoParens (ostream &os) const override;
+  void displayNoParens (std::ostream &os) const override;
   Expression *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr (bool isBV = false) override;
   Sexpression *ACL2Assign (Sexpression *rval) override;
@@ -238,7 +240,7 @@ public:
   StructRef (Expression *s, char *f);
   bool isInteger () override;
   const Type *exprType () override;
-  void displayNoParens (ostream &os) const override;
+  void displayNoParens (std::ostream &os) const override;
   Sexpression *ACL2Expr (bool isBV = false) override;
   Sexpression *ACL2Assign (Sexpression *rval) override;
 
@@ -254,7 +256,7 @@ public:
   Expression *index;
   BitRef (Expression *b, Expression *i);
   bool isInteger () override;
-  void displayNoParens (ostream &os) const override;
+  void displayNoParens (std::ostream &os) const override;
   Expression *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr (bool isBV = false) override;
   Sexpression *ACL2Assign (Sexpression *rval) override;
@@ -277,7 +279,7 @@ public:
   Subrange (Expression *b, Expression *h, Expression *l, unsigned w);
 
   bool isInteger () override { return true; }
-  void displayNoParens (ostream &os) const override;
+  void displayNoParens (std::ostream &os) const override;
   Expression *subst (SymRef *var, Expression *val) override;
 
   const Type *exprType () override;
@@ -299,7 +301,7 @@ public:
   bool isConst () override;
   int evalConst () override;
   bool isInteger () override;
-  void displayNoParens (ostream &os) const override;
+  void displayNoParens (std::ostream &os) const override;
   Expression *subst (SymRef *var, Expression *val) override;
   const Type *exprType () override;
   Sexpression *ACL2Expr (bool isBV = false) override;
@@ -321,7 +323,7 @@ public:
   bool isConst () override;
   int evalConst () override;
   bool isInteger () override;
-  void displayNoParens (ostream &os) const override;
+  void displayNoParens (std::ostream &os) const override;
   Expression *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr (bool isBV = false) override;
 
@@ -340,7 +342,7 @@ public:
   bool isConst () override;
   int evalConst () override;
   bool isInteger () override;
-  void displayNoParens (ostream &os) const override;
+  void displayNoParens (std::ostream &os) const override;
   Expression *subst (SymRef *var, Expression *val) override;
   const Type *exprType () override;
   Sexpression *ACL2Expr (bool isBV = false) override;
@@ -363,7 +365,7 @@ public:
   Expression *test;
   CondExpr (Expression *e1, Expression *e2, Expression *t);
   bool isInteger () override;
-  void displayNoParens (ostream &os) const override;
+  void displayNoParens (std::ostream &os) const override;
   Expression *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr (bool isBV = false) override;
 
@@ -383,7 +385,7 @@ public:
   }
   MultipleValue (MvType *t, List<Expression> *e);
 
-  void displayNoParens (ostream &os) const override;
+  void displayNoParens (std::ostream &os) const override;
   Expression *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr (bool isBV = false) override;
 

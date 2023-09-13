@@ -29,7 +29,7 @@
 // This method is designed to handle if ... else if ... :
 
 void
-Statement::displayAsRightBranch (ostream &os, unsigned indent)
+Statement::displayAsRightBranch (std::ostream &os, unsigned indent)
 { // virtual (overridden by IfStmt)
   display (os, indent + 2);
 }
@@ -37,7 +37,7 @@ Statement::displayAsRightBranch (ostream &os, unsigned indent)
 // This method is designed to handle nested blocks:
 
 void
-Statement::displayWithinBlock (ostream &os, unsigned indent)
+Statement::displayWithinBlock (std::ostream &os, unsigned indent)
 { // virtual (overridden by Block)
   display (os, indent);
 }
@@ -68,14 +68,6 @@ Statement::subst ([[maybe_unused]] SymRef *var,
   return this;
 }
 
-// Translate to an S-expression for ACL2 translation:
-
-// Sexpression *Statement::ACL2Expr() { // virtual
-//  display(cout); cout << endl;
-//  assert(!"Statement is not intended to be converted to an S-expression");
-//  return nullptr;
-//}
-
 void
 Statement::noteReturnType ([[maybe_unused]] Type *t)
 { // virtual (overridden by Block, ReturnStmt, and IfStmt)
@@ -92,16 +84,75 @@ Statement::markAssertions ([[maybe_unused]] FunDef *f)
 SimpleStatement::SimpleStatement () : Statement () {}
 
 void
-SimpleStatement::display (ostream &os, unsigned indent)
+SimpleStatement::display (std::ostream &os, unsigned indent)
 {
   os << "\n";
   if (indent)
     {
-      os << setw (indent) << " ";
+      os << std::setw (indent) << " ";
     }
   displaySimple (os);
   os << ";";
 }
+
+// class SymDec (symbol declaration)
+// ------------
+
+// Derived classes: EnumConstDec, VarDec, and TempParamDec.
+
+// Data members: Symbol* sym; Type *type; Expression *init; (init is optional)
+
+SymDec::SymDec (const char *n, Type *t, Expression *i)
+    : sym (new Symbol (n)), type (t), init (i)
+{
+}
+
+void
+SymDec::displaySymDec (std::ostream &os) const
+{
+  type->displayVarType (os);
+  os << " ";
+  type->displayVarName (getname (), os);
+  if (init)
+    {
+      os << " = ";
+      init->display (os);
+    }
+}
+
+bool
+SymDec::isConst ()
+{
+  return false;
+} // overridden by EnumConstDec and ConstDec
+
+int
+SymDec::evalConst ()
+{
+  assert (init);
+  return init->evalConst ();
+}
+
+bool
+SymDec::isGlobal ()
+{
+  return false;
+}
+
+bool
+SymDec::isROM ()
+{
+  return false;
+}
+
+Sexpression *
+SymDec::ACL2SymExpr ()
+{ // Sexpression for a reference to this symbol.
+  assert (!"Undefined method: ACL2SymExpr");
+  return nullptr;
+}
+
+
 
 // class EnumConstDec : public SymDec
 // ----------------------------------
@@ -112,7 +163,7 @@ EnumConstDec::EnumConstDec (const char *n, Expression *v)
 }
 
 void
-EnumConstDec::display (ostream &os) const
+EnumConstDec::display (std::ostream &os) const
 {
   os << getname ();
   if (init)
@@ -158,7 +209,7 @@ VarDec::VarDec (const char *n, Type *t, Expression *i)
 }
 
 void
-VarDec::displaySimple (ostream &os)
+VarDec::displaySimple (std::ostream &os)
 {
   displaySymDec (os);
 }
@@ -237,7 +288,7 @@ ConstDec::ConstDec (const char *n, Type *t, Expression *i) : VarDec (n, t, i)
 }
 
 void
-ConstDec::displaySimple (ostream &os)
+ConstDec::displaySimple (std::ostream &os)
 {
   os << "const ";
   VarDec::displaySimple (os);
@@ -326,7 +377,7 @@ MulVarDec::ACL2Expr ()
 }
 
 void
-MulVarDec::displaySimple (ostream &os)
+MulVarDec::displaySimple (std::ostream &os)
 {
   List<VarDec> *dlist = decs;
   VarDec *d = decs->value;
@@ -387,7 +438,7 @@ MulConstDec::ACL2Expr ()
 }
 
 void
-MulConstDec::displaySimple (ostream &os)
+MulConstDec::displaySimple (std::ostream &os)
 {
   List<ConstDec> *dlist = decs;
   ConstDec *d = decs->value;
@@ -436,7 +487,7 @@ TempParamDec::ACL2SymExpr ()
 BreakStmt::BreakStmt () : SimpleStatement () {}
 
 void
-BreakStmt::displaySimple (ostream &os)
+BreakStmt::displaySimple (std::ostream &os)
 {
   os << "break";
 }
@@ -457,7 +508,7 @@ BreakStmt breakStmt;
 ReturnStmt::ReturnStmt (Expression *v) : SimpleStatement () { value = v; }
 
 void
-ReturnStmt::displaySimple (ostream &os)
+ReturnStmt::displaySimple (std::ostream &os)
 {
   os << "return ";
   value->display (os);
@@ -491,7 +542,7 @@ ReturnStmt::noteReturnType (Type *t)
 Assertion::Assertion (Expression *e) : SimpleStatement () { expr = e; }
 
 void
-Assertion::displaySimple (ostream &os)
+Assertion::displaySimple (std::ostream &os)
 {
   os << "assert(";
   expr->display (os);
@@ -531,7 +582,7 @@ Assignment::Assignment (Expression *l, const char *o, Expression *r)
 }
 
 void
-Assignment::displaySimple (ostream &os)
+Assignment::displaySimple (std::ostream &os)
 {
   lval->display (os);
   if (rval)
@@ -627,7 +678,7 @@ MultipleAssignment::MultipleAssignment (FunCall *r,
 }
 
 void
-MultipleAssignment::displaySimple (ostream &os)
+MultipleAssignment::displaySimple (std::ostream &os)
 {
   assert (lval_.size () > 0);
   os << "<";
@@ -722,7 +773,7 @@ MultipleAssignment::ACL2Expr ()
 NullStmt::NullStmt () : SimpleStatement () {}
 
 void
-NullStmt::displaySimple ([[maybe_unused]] ostream &os)
+NullStmt::displaySimple ([[maybe_unused]] std::ostream &os)
 {
 }
 
@@ -771,7 +822,7 @@ Block::blockify (Statement *s)
 }
 
 void
-Block::display (ostream &os, unsigned indent)
+Block::display (std::ostream &os, unsigned indent)
 {
   os << " {";
   if (stmtList)
@@ -785,16 +836,16 @@ Block::display (ostream &os, unsigned indent)
       os << "\n";
       if (indent > 2)
         {
-          os << setw (indent - 2) << " ";
+          os << std::setw (indent - 2) << " ";
         }
     }
   os << "}";
 }
 
 void
-Block::displayWithinBlock (ostream &os, unsigned indent)
+Block::displayWithinBlock (std::ostream &os, unsigned indent)
 {
-  os << "\n" << setw (indent) << (indent ? " " : "") << "{";
+  os << "\n" << std::setw (indent) << (indent ? " " : "") << "{";
   List<Statement> *ptr = stmtList;
   while (ptr)
     {
@@ -804,7 +855,7 @@ Block::displayWithinBlock (ostream &os, unsigned indent)
   os << "\n";
   if (indent)
     {
-      os << setw (indent) << " ";
+      os << std::setw (indent) << " ";
     }
   os << "}";
 }
@@ -883,14 +934,14 @@ IfStmt::IfStmt (Expression *t, Statement *l, Statement *r) : Statement ()
 }
 
 void
-IfStmt::display (ostream &os, unsigned indent)
+IfStmt::display (std::ostream &os, unsigned indent)
 {
-  os << "\n" << setw (indent) << " ";
+  os << "\n" << std::setw (indent) << " ";
   displayAsRightBranch (os, indent);
 }
 
 void
-IfStmt::displayAsRightBranch (ostream &os, unsigned indent)
+IfStmt::displayAsRightBranch (std::ostream &os, unsigned indent)
 {
   os << "if (";
   test->display (os);
@@ -899,7 +950,7 @@ IfStmt::displayAsRightBranch (ostream &os, unsigned indent)
   if (right)
     {
       os << "\n"
-         << setw (indent) << " "
+         << std::setw (indent) << " "
          << "else ";
       right->displayAsRightBranch (os, indent);
     }
@@ -955,10 +1006,10 @@ ForStmt::ForStmt (SimpleStatement *v, Expression *t, Assignment *u,
 }
 
 void
-ForStmt::display (ostream &os, unsigned indent)
+ForStmt::display (std::ostream &os, unsigned indent)
 {
   os << "\n"
-     << setw (indent) << " "
+     << std::setw (indent) << " "
      << "for (";
   init->displaySimple (os);
   os << "; ";
@@ -1009,9 +1060,9 @@ Case::Case (Expression *l, List<Statement> *a)
 }
 
 void
-Case::display (ostream &os, unsigned indent)
+Case::display (std::ostream &os, unsigned indent)
 {
-  os << "\n" << setw (indent) << " ";
+  os << "\n" << std::setw (indent) << " ";
   if (label)
     {
       os << "case ";
@@ -1078,18 +1129,18 @@ SwitchStmt::SwitchStmt (Expression *t, List<Case> *c)
 }
 
 void
-SwitchStmt::display (ostream &os, unsigned indent)
+SwitchStmt::display (std::ostream &os, unsigned indent)
 {
   for_each(cases_, [](Case *c) { c->typeCheck(); });
 
   os << "\n"
-     << setw (indent) << " "
+     << std::setw (indent) << " "
      << "switch (";
   test_->display (os);
   os << ") {";
   cases_.displayList (os, indent);
   os << "\n"
-     << setw (indent) << " "
+     << std::setw (indent) << " "
      << "}";
 }
 

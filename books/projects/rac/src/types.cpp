@@ -62,7 +62,7 @@ RegType::ACL2Assign (Expression *rval) const
 // -------------------------------
 
 void
-UintType::display (ostream &os) const
+UintType::display (std::ostream &os) const
 {
   os << "sc_uint<";
   width ()->displayNoParens (os);
@@ -79,7 +79,7 @@ UintType::ACL2ValWidth () const
 // ------------------------------
 
 void
-IntType::display (ostream &os) const
+IntType::display (std::ostream &os) const
 {
   os << "sc_int<";
   width ()->displayNoParens (os);
@@ -128,7 +128,7 @@ FPType::ACL2Assign (Expression *rval) const
 UfixedType::UfixedType (Expression *w, Expression *iw) : FPType (w, iw) {}
 
 void
-UfixedType::display (ostream &os) const
+UfixedType::display (std::ostream &os) const
 {
   os << "sc_ufixed<";
   width ()->displayNoParens (os);
@@ -158,7 +158,7 @@ FixedType::isSigned ()
 }
 
 void
-FixedType::display (ostream &os) const
+FixedType::display (std::ostream &os) const
 {
   os << "sc_fixed<";
   width ()->displayNoParens (os);
@@ -184,7 +184,7 @@ FixedType::ACL2Eval (Sexpression *s) const
 // Data members: Type *baseType; Expresion *dim;
 
 void
-ArrayType::display (ostream &os) const
+ArrayType::display (std::ostream &os) const
 {
   baseType->display (os);
   os << "[";
@@ -193,13 +193,13 @@ ArrayType::display (ostream &os) const
 }
 
 void
-ArrayType::displayVarType (ostream &os) const
+ArrayType::displayVarType (std::ostream &os) const
 {
   baseType->display (os);
 }
 
 void
-ArrayType::displayVarName (const char *name, ostream &os) const
+ArrayType::displayVarName (const char *name, std::ostream &os) const
 {
   os << name << '[';
   dim->displayNoParens (os);
@@ -207,7 +207,7 @@ ArrayType::displayVarName (const char *name, ostream &os) const
 }
 
 void
-ArrayType::makeDef (const char *name, ostream &os) const
+ArrayType::makeDef (const char *name, std::ostream &os) const
 {
   const Type *b = baseType;
   List<Expression> *dims = new List<Expression> (dim);
@@ -241,11 +241,11 @@ StructField::StructField (Type *t, char *n)
 }
 
 void
-StructField::display (ostream &os, unsigned indent) const
+StructField::display (std::ostream &os, unsigned indent) const
 {
   if (indent)
     {
-      os << setw (indent) << " ";
+      os << std::setw (indent) << " ";
     }
   type->display (os);
   os << " " << getname () << ";";
@@ -259,7 +259,7 @@ StructField::display (ostream &os, unsigned indent) const
 StructType::StructType (List<StructField> *f) { fields = f; }
 
 void
-StructType::displayFields (ostream &os) const
+StructType::displayFields (std::ostream &os) const
 {
   os << "{";
   List<StructField> *ptr = fields;
@@ -274,14 +274,14 @@ StructType::displayFields (ostream &os) const
 }
 
 void
-StructType::display (ostream &os) const
+StructType::display (std::ostream &os) const
 {
   os << "struct ";
   this->displayFields (os);
 }
 
 void
-StructType::makeDef (const char *name, ostream &os) const
+StructType::makeDef (const char *name, std::ostream &os) const
 {
   os << "\nstruct " << name << " ";
   displayFields (os);
@@ -310,7 +310,7 @@ EnumType::ACL2Expr ()
 }
 
 void
-EnumType::displayConsts (ostream &os) const
+EnumType::displayConsts (std::ostream &os) const
 {
   os << "{";
   bool is_first = true;
@@ -324,7 +324,7 @@ EnumType::displayConsts (ostream &os) const
 }
 
 void
-EnumType::display (ostream &os) const
+EnumType::display (std::ostream &os) const
 {
   os << "enum ";
   displayConsts (os);
@@ -357,7 +357,7 @@ EnumType::getEnumVal (Symbol *s) const
 }
 
 void
-EnumType::makeDef (const char *name, ostream &os) const
+EnumType::makeDef (const char *name, std::ostream &os) const
 {
   os << "\nenum " << name << " ";
   displayConsts (os);
@@ -371,7 +371,7 @@ EnumType::makeDef (const char *name, ostream &os) const
 // 2 <= numVals <= 8; determines number of valid entries of type[].
 
 void
-MvType::display (ostream &os) const
+MvType::display (std::ostream &os) const
 {
 
   assert (type.size () >= 2

@@ -1,5 +1,7 @@
 %{
+#include "program.h"
 #include "parser.h"
+
 #include <stdio.h>
 
 #include "expressions.h"

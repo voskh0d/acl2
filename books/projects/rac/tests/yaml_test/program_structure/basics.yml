@@ -39,7 +39,7 @@
 - name: basic
 
 - name: help
-  args: []
+  args: ['-help']
   disabled-checks:
     - generated_code
 
