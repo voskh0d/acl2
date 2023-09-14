@@ -1,1 +1,1 @@
-parse: statements.h:340: void Case::typeCheck() const: Assertion `!"case label must be an integer or an enum constant"' failed.
+parse: statements.h:320: void Case::typeCheck() const: Assertion `!"case label must be an integer or an enum constant"' failed.

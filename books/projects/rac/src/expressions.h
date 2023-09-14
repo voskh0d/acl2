@@ -1,10 +1,10 @@
 #ifndef EXPRESSIONS_H
 #define EXPRESSIONS_H
 
-#include "parser.h"
+#include "program.h"
+#include "sexpressions.h"
 #include "types.h"
 #include "utils.h"
-#include "sexpressions.h"
 
 #include "visitor.h"
 // Used to declare TypePass::set_type as friend to get access to
@@ -40,8 +40,6 @@ public:
 
   void display (std::ostream &os) const;
   virtual void displayNoParens (std::ostream &os) const = 0;
-
-  virtual Expression *subst (SymRef *var, Expression *val);
 
 // The following method converts an expression to an S-expression.  The
 // argument isBV is relevant only for a typed expression of a register type
@@ -150,7 +148,6 @@ public:
   virtual int evalConst () override;
   bool isInteger () override;
   void displayNoParens (std::ostream &os) const override;
-  Expression *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr (bool isBV = false) override;
   Sexpression *ACL2Assign (Sexpression *rval) override;
   bool isEqual (Expression *e) override;
@@ -174,7 +171,6 @@ public:
   bool isInteger () override;
   const Type *exprType () override;
   void displayNoParens (std::ostream &os) const override;
-  Expression *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr (bool isBV = false) override;
 
   bool accept(RecursiveASTVisitor *visitor) override {
@@ -191,7 +187,6 @@ public:
   List<Expression> *params;
   TempCall (Template *f, List<Expression> *a, List<Expression> *p);
   void displayNoParens (std::ostream &os) const override;
-  Expression *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr (bool isBV = false) override;
 
   bool accept(RecursiveASTVisitor *visitor) override {
@@ -223,7 +218,6 @@ public:
   bool isInteger () override;
   const Type *exprType () override;
   void displayNoParens (std::ostream &os) const override;
-  Expression *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr (bool isBV = false) override;
   Sexpression *ACL2Assign (Sexpression *rval) override;
 
@@ -257,7 +251,6 @@ public:
   BitRef (Expression *b, Expression *i);
   bool isInteger () override;
   void displayNoParens (std::ostream &os) const override;
-  Expression *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr (bool isBV = false) override;
   Sexpression *ACL2Assign (Sexpression *rval) override;
   unsigned ACL2ValWidth () override;
@@ -280,7 +273,6 @@ public:
 
   bool isInteger () override { return true; }
   void displayNoParens (std::ostream &os) const override;
-  Expression *subst (SymRef *var, Expression *val) override;
 
   const Type *exprType () override;
   Sexpression *ACL2Expr (bool isBV = false) override;
@@ -302,7 +294,6 @@ public:
   int evalConst () override;
   bool isInteger () override;
   void displayNoParens (std::ostream &os) const override;
-  Expression *subst (SymRef *var, Expression *val) override;
   const Type *exprType () override;
   Sexpression *ACL2Expr (bool isBV = false) override;
   virtual bool isEqual (Expression *e) override;
@@ -324,7 +315,6 @@ public:
   int evalConst () override;
   bool isInteger () override;
   void displayNoParens (std::ostream &os) const override;
-  Expression *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr (bool isBV = false) override;
 
   bool accept(RecursiveASTVisitor *visitor) override {
@@ -343,7 +333,6 @@ public:
   int evalConst () override;
   bool isInteger () override;
   void displayNoParens (std::ostream &os) const override;
-  Expression *subst (SymRef *var, Expression *val) override;
   const Type *exprType () override;
   Sexpression *ACL2Expr (bool isBV = false) override;
   virtual bool isEqual (Expression *e) override;
@@ -366,7 +355,6 @@ public:
   CondExpr (Expression *e1, Expression *e2, Expression *t);
   bool isInteger () override;
   void displayNoParens (std::ostream &os) const override;
-  Expression *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr (bool isBV = false) override;
 
   bool accept(RecursiveASTVisitor *visitor) override {
@@ -386,7 +374,6 @@ public:
   MultipleValue (MvType *t, List<Expression> *e);
 
   void displayNoParens (std::ostream &os) const override;
-  Expression *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr (bool isBV = false) override;
 
   bool accept(RecursiveASTVisitor *visitor) override {

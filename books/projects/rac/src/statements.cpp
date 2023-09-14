@@ -58,24 +58,9 @@ Statement::blockify (Statement *s)
   return new Block (this, s);
 }
 
-// Substitute expr for each ocurrence of var in statement; var is assumed not
-// to occur in the left side of any declaration or assignment:
-
-Statement *
-Statement::subst ([[maybe_unused]] SymRef *var,
-                  [[maybe_unused]] Expression *expr)
-{ // virtual
-  return this;
-}
-
 void
 Statement::noteReturnType ([[maybe_unused]] Type *t)
 { // virtual (overridden by Block, ReturnStmt, and IfStmt)
-}
-
-void
-Statement::markAssertions ([[maybe_unused]] FunDef *f)
-{ // virtual (overridden by Assertion)
 }
 
 // class SimpleStatement : public Statement
@@ -214,21 +199,6 @@ VarDec::displaySimple (std::ostream &os)
   displaySymDec (os);
 }
 
-Statement *
-VarDec::subst (SymRef *var, Expression *val)
-{
-  assert (var->symDec != this);
-  if (init)
-    {
-      Expression *newInit = init->subst (var, val);
-      return (init == newInit) ? this : new VarDec (getname (), type, newInit);
-    }
-  else
-    {
-      return this;
-    }
-}
-
 Sexpression *
 VarDec::ACL2Expr ()
 {
@@ -300,13 +270,6 @@ ConstDec::isConst ()
   return isIntegerType (type);
 }
 
-Statement *
-ConstDec::subst ([[maybe_unused]] SymRef *var,
-                 [[maybe_unused]] Expression *val)
-{
-  return this;
-}
-
 bool
 ConstDec::isGlobal ()
 {
@@ -348,20 +311,6 @@ MulVarDec::MulVarDec (VarDec *dec1, VarDec *dec2) : SimpleStatement ()
 }
 
 MulVarDec::MulVarDec (List<VarDec> *d) : SimpleStatement () { decs = d; }
-
-Statement *
-MulVarDec::subst (SymRef *var, Expression *val)
-{
-  List<VarDec> *newDecs
-      = new List<VarDec> ((VarDec *)(decs->value->subst (var, val)));
-  List<VarDec> *d = decs->next;
-  while (d)
-    {
-      newDecs->add ((VarDec *)(d->value->subst (var, val)));
-      d = d->next;
-    }
-  return new MulVarDec (newDecs);
-}
 
 Sexpression *
 MulVarDec::ACL2Expr ()
@@ -409,20 +358,6 @@ MulConstDec::MulConstDec (ConstDec *dec1, ConstDec *dec2) : SimpleStatement ()
 }
 
 MulConstDec::MulConstDec (List<ConstDec> *d) : SimpleStatement () { decs = d; }
-
-Statement *
-MulConstDec::subst (SymRef *var, Expression *val)
-{
-  List<ConstDec> *newDecs
-      = new List<ConstDec> ((ConstDec *)(decs->value->subst (var, val)));
-  List<ConstDec> *d = decs->next;
-  while (d)
-    {
-      newDecs->add ((ConstDec *)(d->value->subst (var, val)));
-      d = d->next;
-    }
-  return new MulConstDec (newDecs);
-}
 
 Sexpression *
 MulConstDec::ACL2Expr ()
@@ -514,13 +449,6 @@ ReturnStmt::displaySimple (std::ostream &os)
   value->display (os);
 }
 
-Statement *
-ReturnStmt::subst (SymRef *var, Expression *val)
-{
-  Expression *newValue = value->subst (var, val);
-  return (value == newValue) ? this : new ReturnStmt (newValue);
-}
-
 Sexpression *
 ReturnStmt::ACL2Expr ()
 {
@@ -549,25 +477,14 @@ Assertion::displaySimple (std::ostream &os)
   os << ")";
 }
 
-Statement *
-Assertion::subst (SymRef *var, Expression *val)
-{
-  Expression *newExpr = expr->subst (var, val);
-  return (expr == newExpr) ? this : new Assertion (newExpr);
-}
-
 Sexpression *
 Assertion::ACL2Expr ()
 {
+  assert(funDef && "MarkAssertion should be run first");
   return new Plist (
       { &s_assert, expr->ACL2Expr (), new Symbol (funDef->getname ()) });
 }
 
-void
-Assertion::markAssertions (FunDef *f)
-{
-  funDef = f;
-}
 // class Assignment : public SimpleStatement
 // -----------------------------------------
 
@@ -594,15 +511,6 @@ Assignment::displaySimple (std::ostream &os)
     {
       os << op;
     }
-}
-
-Statement *
-Assignment::subst (SymRef *var, Expression *val)
-{
-  Expression *newL = lval->subst (var, val);
-  Expression *newR = rval ? rval->subst (var, val) : nullptr;
-  return (lval == newL) && (rval == newR) ? this
-                                          : new Assignment (newL, op, newR);
 }
 
 Sexpression *
@@ -690,26 +598,6 @@ MultipleAssignment::displaySimple (std::ostream &os)
     }
   os << "> = ";
   rval_->display (os);
-}
-
-Statement *
-MultipleAssignment::subst (SymRef *var, Expression *val)
-{
-
-  Expression *newR = rval_->subst (var, val);
-  bool changed = (newR != rval_);
-  std::vector<Expression *> newL;
-
-  for (Expression *e : lval_)
-    {
-
-      Expression *temp = e->subst (var, val);
-      if (temp != e)
-        changed = true;
-
-      newL.push_back (temp);
-    }
-  return changed ? new MultipleAssignment ((FunCall *)newR, newL) : this;
 }
 
 // In the event that each target of a multiple assignment is a simple variable,
@@ -860,32 +748,6 @@ Block::displayWithinBlock (std::ostream &os, unsigned indent)
   os << "}";
 }
 
-Statement *
-Block::subst (SymRef *var, Expression *val)
-{
-  List<Statement> *newList = nullptr;
-  bool changed = false;
-  for (int i = stmtList->length () - 1; i >= 0; i--)
-    {
-      List<Statement> *subList = stmtList->nthl (i);
-      Statement *s = subList->value;
-      Statement *sNew = s->subst (var, val);
-      if (sNew != s)
-        {
-          changed = true;
-        }
-      if (changed)
-        {
-          newList = new List<Statement> (sNew, newList);
-        }
-      else
-        {
-          newList = subList;
-        }
-    }
-  return changed ? new Block (newList) : this;
-}
-
 Sexpression *
 Block::ACL2Expr ()
 {
@@ -906,17 +768,6 @@ Block::noteReturnType (Type *t)
   while (ptr)
     {
       ptr->value->noteReturnType (t);
-      ptr = ptr->next;
-    }
-}
-
-void
-Block::markAssertions (FunDef *f)
-{
-  List<Statement> *ptr = stmtList;
-  while (ptr)
-    {
-      ptr->value->markAssertions (f);
       ptr = ptr->next;
     }
 }
@@ -956,15 +807,6 @@ IfStmt::displayAsRightBranch (std::ostream &os, unsigned indent)
     }
 }
 
-Statement *
-IfStmt::subst (SymRef *var, Expression *val)
-{
-  Expression *t = test->subst (var, val);
-  Statement *l = left->subst (var, val);
-  Statement *r = right ? right->subst (var, val) : nullptr;
-  return (t == test && l == left && r == right) ? this : new IfStmt (t, l, r);
-}
-
 Sexpression *
 IfStmt::ACL2Expr ()
 {
@@ -979,14 +821,6 @@ IfStmt::noteReturnType (Type *t)
   left->noteReturnType (t);
   if (right)
     right->noteReturnType (t);
-}
-
-void
-IfStmt::markAssertions (FunDef *f)
-{
-  left->markAssertions (f);
-  if (right)
-    right->markAssertions (f);
 }
 
 // class ForStmt : public Statement
@@ -1020,18 +854,6 @@ ForStmt::display (std::ostream &os, unsigned indent)
   body->display (os, indent + 2);
 }
 
-Statement *
-ForStmt::subst (SymRef *var, Expression *val)
-{
-  SimpleStatement *v = (SimpleStatement *)init->subst (var, val);
-  Expression *t = test->subst (var, val);
-  Assignment *u = (Assignment *)update->subst (var, val);
-  Statement *b = body->subst (var, val);
-  return (v == init && t == test && u == update && b == body)
-             ? this
-             : new ForStmt (v, t, u, b);
-}
-
 Sexpression *
 ForStmt::ACL2Expr ()
 {
@@ -1040,12 +862,6 @@ ForStmt::ACL2Expr ()
   Sexpression *supdate = ((Plist *)(update->ACL2Expr ()))->list->nth (2);
   return new Plist ({ &s_for, new Plist ({ sinit, stest, supdate }),
                       body->blockify ()->ACL2Expr () });
-}
-
-void
-ForStmt::markAssertions (FunDef *f)
-{
-  body->markAssertions (f);
 }
 
 // class Case : public Statement (component of switch statement)
@@ -1081,43 +897,6 @@ Case::display (std::ostream &os, unsigned indent)
     }
 }
 
-Case *
-Case::subst (SymRef *var, Expression *val)
-{
-  List<Statement> *newAction = nullptr;
-  bool changed = false;
-  for (int i = action->length () - 1; i >= 0; i--)
-    {
-      List<Statement> *subList = action->nthl (i);
-      Statement *s = subList->value;
-      Statement *sNew = s->subst (var, val);
-      if (sNew != s)
-        {
-          changed = true;
-        }
-      if (changed)
-        {
-          newAction = new List<Statement> (sNew, newAction);
-        }
-      else
-        {
-          newAction = subList;
-        }
-    }
-  return changed ? new Case (label, newAction) : this;
-}
-
-void
-Case::markAssertions (FunDef *f)
-{
-  List<Statement> *a = action;
-  while (a)
-    {
-      a->value->markAssertions (f);
-      a = a->next;
-    }
-}
-
 // class SwitchStmt : public Statement
 // -----------------------------------
 
@@ -1142,34 +921,6 @@ SwitchStmt::display (std::ostream &os, unsigned indent)
   os << "\n"
      << std::setw (indent) << " "
      << "}";
-}
-
-Statement *
-SwitchStmt::subst (SymRef *var, Expression *val)
-{
-  for_each(cases_, [](Case *c) { c->typeCheck(); });
-
-  List<Case> *newCases = nullptr;
-  bool changed = false;
-  for (int i = cases_.length () - 1; i >= 0; i--)
-    {
-      List<Case> *subList = cases_.nthl (i);
-      Case *c = subList->value;
-      Case *cNew = c->subst (var, val);
-      if (cNew != c)
-        {
-          changed = true;
-        }
-      if (changed)
-        {
-          newCases = new List<Case> (cNew, newCases);
-        }
-      else
-        {
-          newCases = subList;
-        }
-    }
-  return changed ? new SwitchStmt (test_, newCases) : this;
 }
 
 Sexpression *
@@ -1220,11 +971,4 @@ SwitchStmt::ACL2Expr ()
     result->add (new Plist ({ &s_t }));
 
   return Plist::FromList (result);
-}
-
-void
-SwitchStmt::markAssertions (FunDef *f)
-{
-  for_each(cases_, [](Case *c) { c->typeCheck(); });
-  for_each (cases_, [f] (Case *c) { c->markAssertions (f); });
 }

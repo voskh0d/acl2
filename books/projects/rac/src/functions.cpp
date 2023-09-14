@@ -50,16 +50,13 @@ Symbol s_funcdef("funcdef");
 
 void FunDef::displayACL2Expr(std::ostream &os) {
 
-  Plist *sparams = new Plist();
-  for_each(params, [&sparams](VarDec *v) { sparams->add(v->sym); });
+  Plist sparams;
+  for_each(params, [&sparams](VarDec *v) { sparams.add(v->sym); });
 
   body->noteReturnType(returnType);
-  body->markAssertions(this);
 
-  Plist({ &s_funcdef, sym, sparams, body->blockify()->ACL2Expr() })
-      .display(os);
-
-  delete sparams;
+  Plist({ &s_funcdef, sym, &sparams, body->blockify()->ACL2Expr() })
+    .display(os);
 }
 
 // class Template : public FunDef

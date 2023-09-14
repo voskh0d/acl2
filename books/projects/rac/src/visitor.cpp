@@ -419,8 +419,6 @@ bool RecursiveASTVisitor::TraverseNullStmt(NullStmt *s) {
   return this->WalkUpNullStmt(s);
 }
 
-// here
-
 bool RecursiveASTVisitor::TraverseAssertion(Assertion *s) {
 
   if (!this->postfixTraversal())
@@ -429,9 +427,6 @@ bool RecursiveASTVisitor::TraverseAssertion(Assertion *s) {
 
   if (!this->TraverseExpression(s->expr))
    return false;
- 
-  if (!this->TraverseStatement(s->funDef))
-    return false;
 
   if (this->postfixTraversal())
     if (!this->WalkUpAssertion(s))
@@ -609,11 +604,11 @@ bool RecursiveASTVisitor::TraverseFunDef(FunDef *s) {
   });
   if (!b)
    return false;
- 
+
   if (!this->TraverseStatement(s->body))
     return false;
 
-  if (!this->postfixTraversal())
+  if (this->postfixTraversal())
     if (!this->WalkUpFunDef(s))
       return false;
 

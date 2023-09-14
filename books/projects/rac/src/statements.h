@@ -24,10 +24,8 @@ public:
   virtual void displayWithinBlock (std::ostream &os, unsigned indent = 0);
   virtual Block *blockify ();
   virtual Block *blockify (Statement *s);
-  virtual Statement *subst (SymRef *var, Expression *expr);
   virtual Sexpression *ACL2Expr () = 0;
   virtual void noteReturnType (Type *t);
-  virtual void markAssertions (FunDef *f);
 
   virtual bool accept(RecursiveASTVisitor *visitor) = 0;
 };
@@ -85,7 +83,6 @@ class VarDec : public SymDec
 public:
   VarDec (const char *n, Type *t, Expression *i = nullptr);
   void displaySimple (std::ostream &os) override;
-  Statement *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr () override;
   Sexpression *ACL2SymExpr () override;
 
@@ -99,7 +96,6 @@ class ConstDec : public VarDec
 public:
   ConstDec (const char *n, Type *t, Expression *i);
   void displaySimple (std::ostream &os) override;
-  Statement *subst (SymRef *var, Expression *val) override;
   bool isConst () override;
   bool isGlobal () override;
   bool isROM () override;
@@ -116,7 +112,6 @@ public:
   List<VarDec> *decs;
   MulVarDec (VarDec *dec1, VarDec *dec2);
   MulVarDec (List<VarDec> *decs);
-  Statement *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr () override;
   void displaySimple (std::ostream &os) override;
 
@@ -131,7 +126,6 @@ public:
   List<ConstDec> *decs;
   MulConstDec (ConstDec *dec1, ConstDec *dec2);
   MulConstDec (List<ConstDec> *decs);
-  Statement *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr () override;
   void displaySimple (std::ostream &os) override;
 
@@ -179,7 +173,6 @@ public:
   Type *returnType;
   ReturnStmt (Expression *v);
   void displaySimple (std::ostream &os) override;
-  Statement *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr () override;
   void noteReturnType (Type *t) override;
 
@@ -207,9 +200,7 @@ public:
   FunDef *funDef;
   Assertion (Expression *e);
   void displaySimple (std::ostream &os) override;
-  Statement *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr () override;
-  void markAssertions (FunDef *f) override;
 
   bool accept(RecursiveASTVisitor *visitor) override {
     return visitor->TraverseAssertion(this);
@@ -224,7 +215,6 @@ public:
   Expression *rval;
   Assignment (Expression *l, const char *o, Expression *r = nullptr);
   void displaySimple (std::ostream &os) override;
-  Statement *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr () override;
 
   bool accept(RecursiveASTVisitor *visitor) override {
@@ -240,7 +230,6 @@ class MultipleAssignment : public SimpleStatement
 public:
   MultipleAssignment (FunCall *r, std::vector<Expression *> e);
   void displaySimple (std::ostream &os) override;
-  Statement *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr () override;
 
   const std::vector<Expression *>& lvals() const { return lval_; }
@@ -263,10 +252,8 @@ public:
   Block *blockify (Statement *s) override;
   void display (std::ostream &os, unsigned indent = 0) override;
   void displayWithinBlock (std::ostream &os, unsigned indent = 0) override;
-  Statement *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr () override;
   void noteReturnType (Type *t) override;
-  void markAssertions (FunDef *f) override;
 
   bool accept(RecursiveASTVisitor *visitor) override {
     return visitor->TraverseBlock(this);
@@ -282,9 +269,7 @@ public:
   IfStmt (Expression *t, Statement *l, Statement *r);
   void display (std::ostream &os, unsigned indent = 0) override;
   void displayAsRightBranch (std::ostream &os, unsigned indent = 0) override;
-  Statement *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr () override;
-  void markAssertions (FunDef *f) override;
   void noteReturnType (Type *t) override;
 
   bool accept(RecursiveASTVisitor *visitor) override {
@@ -301,9 +286,7 @@ public:
   Statement *body;
   ForStmt (SimpleStatement *v, Expression *t, Assignment *u, Statement *b);
   void display (std::ostream &os, unsigned indent = 0) override;
-  Statement *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr () override;
-  void markAssertions (FunDef *f) override;
 
   bool accept(RecursiveASTVisitor *visitor) override {
     return visitor->TraverseForStmt(this);
@@ -317,8 +300,6 @@ public:
   List<Statement> *action;
   Case (Expression *l, List<Statement> *a);
   void display (std::ostream &os, unsigned indent = 0);
-  Case *subst (SymRef *var, Expression *val);
-  void markAssertions (FunDef *f);
 
   Sexpression *ACL2Expr () override { assert(!"TODO"); }
 
@@ -348,9 +329,7 @@ class SwitchStmt : public Statement
 public:
   SwitchStmt (Expression *t, List<Case> *c);
   void display (std::ostream &os, unsigned indent = 0) override;
-  Statement *subst (SymRef *var, Expression *val) override;
   Sexpression *ACL2Expr () override;
-  void markAssertions (FunDef *f) override;
 
   Expression *test() { return test_; }
   BetterList<Case> cases() { return cases_; }

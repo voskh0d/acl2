@@ -32,6 +32,7 @@ public:
   Program ();
 
   bool parse(const std::string& file);
+  bool process();
 
   // TODO constify ACL2Exp, then this can become const
   void displayConstDecs (std::ostream &os, DispMode mode);

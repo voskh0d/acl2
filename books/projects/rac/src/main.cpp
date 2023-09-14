@@ -2,14 +2,9 @@
 #include <iostream>
 #include <string>
 
-#include "parser.h"
-#include "program.h"
-#include "astdumper.h"
-
-
 #include "argparse.h"
-
-
+#include "astdumper.h"
+#include "program.h"
 
 int
 main (int argc, char **argv)
@@ -25,8 +20,10 @@ main (int argc, char **argv)
   }
 
   if (!prog.parse(*args->file + ".i")) {
-    return true;
+    return 1;
   }
+
+  prog.process();
 
   if (args->dump_ast) {
     ASTDumper a{};
@@ -40,7 +37,8 @@ main (int argc, char **argv)
     std::fstream fout;
     fout.open (out, std::fstream::out);
     if (!fout.is_open ()) {
-      std::cerr << "Failed to open file " << out << ": " << strerror (errno) << '\n';
+      std::cerr << "Failed to open file " << out << ": " << strerror (errno)
+                << '\n';
     }
 
     prog.display (fout, *args->mode);

@@ -60,18 +60,6 @@ Expression::display (std::ostream &os) const
     os << ")";
 }
 
-// The following method substitutes each occurrence of a given variable with a
-// given value:
-
-Expression *
-Expression::subst ([[maybe_unused]] SymRef *var,
-                   [[maybe_unused]] Expression *val)
-{ // virtual
-  return this;
-}
-
-
-
 // The following method converts an expression to an Sexpression to be used as
 // an array initialization. It returns the same value as ACL2Expr, except for
 // an Initializer:
@@ -333,12 +321,6 @@ SymRef::displayNoParens (std::ostream &os) const
   symDec->sym->display (os);
 }
 
-Expression *
-SymRef::subst (SymRef *var, Expression *val)
-{
-  return (symDec == var->symDec) ? val : (Expression *)this;
-}
-
 Sexpression *
 SymRef::ACL2Expr (bool isBV)
 {
@@ -403,27 +385,6 @@ FunCall::displayNoParens (std::ostream &os) const
   os << ")";
 }
 
-Expression *
-FunCall::subst (SymRef *var, Expression *val)
-{
-  List<Expression> *ptr = args;
-  List<Expression> *newArgs = nullptr;
-  while (ptr)
-    {
-      Expression *expr = ptr->value->subst (var, val);
-      if (newArgs)
-        {
-          newArgs->add (expr);
-        }
-      else
-        {
-          newArgs = new List<Expression> (expr);
-        }
-      ptr = ptr->next;
-    }
-  return new FunCall (func, newArgs);
-}
-
 Sexpression *
 FunCall::ACL2Expr (bool isBV)
 {
@@ -480,29 +441,6 @@ TempCall::displayNoParens (std::ostream &os) const
       ptr = ptr->next;
     }
   os << ")";
-}
-
-Expression *
-TempCall::subst (SymRef *var, Expression *val)
-{
-  TempCall *result = (TempCall *)FunCall::subst (var, val);
-  List<Expression> *ptr = params;
-  List<Expression> *newParams = nullptr;
-  while (ptr)
-    {
-      Expression *expr = ptr->value->subst (var, val);
-      if (newParams)
-        {
-          newParams->add (expr);
-        }
-      else
-        {
-          newParams = new List<Expression> (expr);
-        }
-      ptr = ptr->next;
-    }
-  result->params = newParams;
-  return result;
 }
 
 Sexpression *
@@ -624,13 +562,6 @@ ArrayRef::displayNoParens (std::ostream &os) const
   os << "]";
 }
 
-Expression *
-ArrayRef::subst (SymRef *var, Expression *val)
-{
-  Expression *newIndex = index->subst (var, val);
-  return (newIndex == index) ? this : new ArrayRef (array, newIndex);
-}
-
 Sexpression *
 ArrayRef::ACL2Expr (bool isBV)
 {
@@ -745,16 +676,6 @@ BitRef::displayNoParens (std::ostream &os) const
   os << "]";
 }
 
-Expression *
-BitRef::subst (SymRef *var, Expression *val)
-{
-  Expression *newBase = base->subst (var, val);
-  Expression *newIndex = index->subst (var, val);
-  return (newBase == base && newIndex == index)
-             ? this
-             : new BitRef (newBase, newIndex);
-}
-
 Sexpression *
 BitRef::ACL2Expr ([[maybe_unused]] bool isBV)
 {
@@ -815,21 +736,10 @@ Subrange::displayNoParens (std::ostream &os) const
   os << "]";
 }
 
-Expression *
-Subrange::subst (SymRef *var, Expression *val)
-{
-  Expression *newBase = base->subst (var, val);
-  Expression *newHigh = high->subst (var, val);
-  Expression *newLow = low->subst (var, val);
-  return (newBase == base && newHigh == high && newLow == low)
-             ? this
-             : new Subrange (newBase, newHigh, newLow);
-}
-
 const Type *
 Subrange::exprType() {
 
-  Integer *width = new Integer(ACL2ValWidth()); 
+  Integer *width = new Integer(ACL2ValWidth());
 
   if (const RegType *t = tryDownCast<RegType>(base->get_type())) {
 
@@ -950,13 +860,6 @@ PrefixExpr::displayNoParens (std::ostream &os) const
   expr->display (os);
 }
 
-Expression *
-PrefixExpr::subst (SymRef *var, Expression *val)
-{
-  Expression *newExpr = expr->subst (var, val);
-  return (newExpr == expr) ? this : new PrefixExpr (newExpr, op);
-}
-
 const Type *
 PrefixExpr::exprType ()
 {
@@ -1068,13 +971,6 @@ CastExpr::displayNoParens (std::ostream &os) const
   expr->display (os);
 }
 
-Expression *
-CastExpr::subst (SymRef *var, Expression *val)
-{
-  Expression *newExpr = expr->subst (var, val);
-  return (newExpr == expr) ? this : new CastExpr (newExpr, type);
-}
-
 Sexpression *
 CastExpr::ACL2Expr ([[maybe_unused]] bool isBV)
 {
@@ -1156,16 +1052,6 @@ BinaryExpr::displayNoParens (std::ostream &os) const
   expr1->display (os);
   os << " " << op << " ";
   expr2->display (os);
-}
-
-Expression *
-BinaryExpr::subst (SymRef *var, Expression *val)
-{
-  Expression *newExpr1 = expr1->subst (var, val);
-  Expression *newExpr2 = expr2->subst (var, val);
-  return (newExpr1 == expr1 && newExpr2 == expr2)
-             ? this
-             : new BinaryExpr (newExpr1, newExpr2, op);
 }
 
 const Type *
@@ -1307,17 +1193,6 @@ CondExpr::displayNoParens (std::ostream &os) const
   expr2->display (os);
 }
 
-Expression *
-CondExpr::subst (SymRef *var, Expression *val)
-{
-  Expression *newExpr1 = expr1->subst (var, val);
-  Expression *newExpr2 = expr2->subst (var, val);
-  Expression *newTest = test->subst (var, val);
-  return (newExpr1 == expr1 && newExpr2 == expr2 && newTest == test)
-             ? this
-             : new CondExpr (newExpr1, newExpr2, newTest);
-}
-
 Sexpression *
 CondExpr::ACL2Expr ([[maybe_unused]] bool isBV)
 {
@@ -1362,25 +1237,6 @@ MultipleValue::displayNoParens (std::ostream &os) const
       e->display (os);
     }
   os << ">";
-}
-
-Expression *
-MultipleValue::subst (SymRef *var, Expression *val)
-{
-
-  std::vector<Expression *> newExpr;
-  newExpr.reserve (8);
-  bool isNew = false;
-
-  for (unsigned i = 0; i < expr.size (); ++i)
-    {
-      newExpr.push_back (expr[i]->subst (var, val));
-      if (newExpr[i] != expr[i])
-        {
-          isNew = true;
-        }
-    }
-  return isNew ? new MultipleValue (type, std::move (newExpr)) : this;
 }
 
 Sexpression *
