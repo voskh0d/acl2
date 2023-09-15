@@ -226,7 +226,7 @@ VarDec::ACL2Expr ()
         }
       else if (Initializer *i = dynamic_cast<Initializer *>(init))
         {
-          val = i->ACL2StructExpr (tryDownCast<StructType>(type)->fields);
+          val = i->ACL2StructExpr (tryDownCast<StructType>(type)->fields());
         }
       else
         {
@@ -273,14 +273,8 @@ ConstDec::isConst ()
 bool
 ConstDec::isGlobal ()
 {
-  List<ConstDec> *decs = prog.constDecs;
-  while (decs)
-    {
-      if (decs->value == this)
-        return true;
-      decs = decs->next;
-    }
-  return false;
+  // TODO is the == this is really necessary ?
+  return prog.getConstDec(getname()) == this;
 }
 
 bool

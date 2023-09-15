@@ -25,10 +25,10 @@ bool RecursiveASTVisitor::TraverseSimpleStatement(SimpleStatement *s) {
   return s->accept(this);
 }
 
-bool RecursiveASTVisitor::TraverseConstant(Constant *s) {
-  if (!s)
+bool RecursiveASTVisitor::TraverseConstant(Constant *e) {
+  if (!e)
     return true;
-  return s->accept(this);
+  return e->accept(this);
 }
 
 bool RecursiveASTVisitor::TraverseInteger(Integer * e) {
@@ -37,6 +37,21 @@ bool RecursiveASTVisitor::TraverseInteger(Integer * e) {
 
 bool RecursiveASTVisitor::TraverseBoolean(Boolean *e) {
   return this->WalkUpBoolean(e);
+}
+
+bool RecursiveASTVisitor::TraverseParenthesis(Parenthesis *e) {
+  if (!this->postfixTraversal())
+    if (!this->WalkUpParenthesis(e))
+      return false;
+
+  if (!this->TraverseExpression(e->expr_))
+    return false;
+
+  if (this->postfixTraversal())
+    if (!this->WalkUpParenthesis(e))
+      return false;
+
+  return true;
 }
 
 bool RecursiveASTVisitor::TraverseSymRef(SymRef *e) {
@@ -691,7 +706,7 @@ bool RecursiveASTVisitor::WalkUp##CLASS (CLASS *c) { \
     return false;                                     \
   return this->Visit##CLASS(c);                       \
 }
-#include "ASTNodes.inc"
+#include "astnodes.def"
 #undef APPLY
 
 bool RecursiveASTVisitor::VisitExpression(Expression *) {
@@ -706,6 +721,6 @@ bool RecursiveASTVisitor::VisitStatement(Statement *) {
 bool RecursiveASTVisitor::Visit##CLASS (CLASS *) { \
   return true;                                     \
 }
-#include "ASTNodes.inc"
+#include "astnodes.def"
 #undef APPLY
 

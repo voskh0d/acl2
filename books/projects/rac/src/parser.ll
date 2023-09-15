@@ -72,7 +72,8 @@ char yyfilenm[1024];
 "true"                      {yylval.s = tokstr(); return TRUE;}
 "false"                     {yylval.s = tokstr(); return FALSE;}
 
-[a-zA-Z_][a-zA-Z_0-9]*      {yylval.s = tokstr(); return (prog.typeDefs->find(yytext)) ? TYPEID : (prog.templates->find(yytext)) ? TEMPLATEID : ID;}
+[a-zA-Z_][a-zA-Z_0-9]*      {yylval.s = tokstr(); return (prog.getType(yytext))
+  ? TYPEID : (prog.getTemplate(yytext)) ? TEMPLATEID : ID;}
 
 [0-9]+ |
 "0x"[a-fA-F_0-9]+           {yylval.s = tokstr(); return NAT;}
@@ -152,9 +153,7 @@ comment ()
 char *
 tokstr ()
 {
-  char *str = new char[yyleng + 1];
-  strcpy (str, yytext);
-  return str;
+  return strndup(yytext, yyleng);
 }
 
 int

@@ -67,7 +67,7 @@ bool Visit##CLASS (CLASS *ptr) override {                                    \
                                                                              \
   return true;                                                               \
 }
-#include "ASTNodes.inc"
+#include "astnodes.def"
 #undef APPLY
 
 };

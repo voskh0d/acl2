@@ -1,14 +1,13 @@
-#include <iomanip>
-
 #include "expressions.h"
 #include "functions.h"
 #include "statements.h"
 
+#include <iomanip>
+
+
 //***********************************************************************************
 // class Expression
 //***********************************************************************************
-
-Expression::Expression () { needsParens = false; }
 
 bool
 Expression::isConst ()
@@ -45,21 +44,6 @@ Expression::exprType ()
   return nullptr;
 }
 
-// displayNoParens is defined for each class of expressions and is called by
-// the non-virtual display method, which inserts parentheses as required:
-
-// virtual void displayNoParens(std::ostream& os) const = 0;
-
-void
-Expression::display (std::ostream &os) const
-{
-  if (needsParens)
-    os << "(";
-  displayNoParens (os);
-  if (needsParens)
-    os << ")";
-}
-
 // The following method converts an expression to an Sexpression to be used as
 // an array initialization. It returns the same value as ACL2Expr, except for
 // an Initializer:
@@ -91,71 +75,6 @@ Expression::ACL2ValWidth ()
   return t ? t->ACL2ValWidth () : 0;
 }
 
-// The remaining Expression methods are defined solely for the purpose of
-// making ACL2ValWidth a little smarter by computing the width of a Subrange
-// expression when the limits differ by a computable constant:
-
-bool
-Expression::isPlusConst ([[maybe_unused]] Expression *e)
-{ // virtual (overridden by BinaryExpr)
-  // Used only by Subrange::ACL2ValWidth
-  // Applied to the upper limit of a Subrange expression to determine whether
-  // it is it is a binary expression representing the sum of the lower limit
-  // and a constant.
-  return false;
-}
-
-bool
-Expression::isEqual (Expression *e)
-{ // virtual (overridden by PrefixExpr and BinaryExpr)
-  // Is this expression known to be equal in value to e?
-  // Used only by isPlusConst.
-  return this == e;
-}
-
-bool
-Expression::isEqualPrefix ([[maybe_unused]] const char *o,
-                           [[maybe_unused]] Expression *e)
-{ // virtual (overridden by PrefixExpr)
-  // Is this a prefix expression with the given operator and argument?
-  // Used only by isEqual.
-  return false;
-}
-
-bool
-Expression::isEqualBinary ([[maybe_unused]] const char *o,
-                           [[maybe_unused]] Expression *e1,
-                           [[maybe_unused]] Expression *e2)
-{ // virtual (overridden by BinaryExpr)
-  // Is this a binary expression with the given operator and arguments?
-  // Used only by isEqual.
-  return false;
-}
-
-bool
-Expression::isEqualConst ([[maybe_unused]] Constant *c)
-{ // virtual (overridden by Constant)
-  // Is this a constant equal to a given constant?
-  // Used only by isEqual.
-  return false;
-}
-
-bool
-Expression::isEqualSymRef ([[maybe_unused]] SymDec *s)
-{ // virtual (overridden by SymRef)
-  // Is this a reference to a given symbol?
-  // Used only by isEqual.
-  return false;
-}
-
-int
-Expression::getPlusConst ()
-{ // virtual (overridden by BinaryExpr)
-  // Called on a binary expression for which isPlusConst is true; returns the
-  // value of the constant.
-  return 0;
-}
-
 // class Constant : public Expression, public Symbol
 // -------------------------------------------------
 
@@ -170,7 +89,7 @@ Constant::isConst ()
 }
 
 void
-Constant::displayNoParens (std::ostream &os) const
+Constant::display (std::ostream &os) const
 {
   os << getname ();
 }
@@ -179,18 +98,6 @@ Sexpression *
 Constant::ACL2Expr ([[maybe_unused]] bool isBV)
 {
   return this;
-}
-
-bool
-Constant::isEqual (Expression *e)
-{
-  return e->isEqualConst (this);
-}
-
-bool
-Constant::isEqualConst (Constant *c)
-{
-  return !strcmp (getname (), c->getname ());
 }
 
 // class Integer : public Constant
@@ -316,7 +223,7 @@ SymRef::isInteger ()
 }
 
 void
-SymRef::displayNoParens (std::ostream &os) const
+SymRef::display (std::ostream &os) const
 {
   symDec->sym->display (os);
 }
@@ -332,18 +239,6 @@ Sexpression *
 SymRef::ACL2Assign (Sexpression *rval)
 {
   return new Plist ({ &s_assign, symDec->sym, rval });
-}
-
-bool
-SymRef::isEqual (Expression *e)
-{
-  return e->isEqualSymRef (symDec);
-}
-
-bool
-SymRef::isEqualSymRef (SymDec *s)
-{
-  return s == symDec;
 }
 
 // class FunCall : public Expression (function call)
@@ -370,7 +265,7 @@ FunCall::isInteger ()
 }
 
 void
-FunCall::displayNoParens (std::ostream &os) const
+FunCall::display (std::ostream &os) const
 {
 
   os << func->getname () << "(";
@@ -420,7 +315,7 @@ TempCall::TempCall (Template *f, List<Expression> *a, List<Expression> *p)
 }
 
 void
-TempCall::displayNoParens (std::ostream &os) const
+TempCall::display (std::ostream &os) const
 {
   os << func->getname () << "<";
   List<Expression> *ptr = params;
@@ -446,7 +341,7 @@ TempCall::displayNoParens (std::ostream &os) const
 Sexpression *
 TempCall::ACL2Expr (bool isBV)
 {
-  dynamic_cast<Template *> (func)->bindParams (params);
+  dynamic_cast<Template *>(func)->bindParams (params);
   Plist *result = dynamic_cast<Plist *> (FunCall::ACL2Expr (isBV));
   result->list->value = instanceSym;
   return result;
@@ -460,7 +355,7 @@ TempCall::ACL2Expr (bool isBV)
 Initializer::Initializer (List<Constant> *v) : Expression () { vals = v; }
 
 void
-Initializer::displayNoParens (std::ostream &os) const
+Initializer::display (std::ostream &os) const
 {
   os << "{";
   List<Constant> *ptr = vals;
@@ -511,21 +406,20 @@ Initializer::ACL2ArrayExpr ()
 }
 
 Sexpression *
-Initializer::ACL2StructExpr (List<StructField> *fields)
+Initializer::ACL2StructExpr (const std::vector<StructField *>& fields)
 {
   Sexpression *result = new Plist ();
   List<Constant> *ptr = vals;
-  assert (vals->length () == fields->length ());
-  while (fields)
-    {
+  assert (vals->length () == fields.size());
+
+  for (auto f : fields) {
       result = new Plist ({
           &s_as,
-          new Plist ({ &s_quote, fields->value->sym }),
+          new Plist ({ &s_quote, f->sym }),
           ptr->value->ACL2Expr (),
           result
           });
       ptr = ptr->next;
-      fields = fields->next;
     }
   return result;
 }
@@ -554,7 +448,7 @@ ArrayRef::isInteger ()
 }
 
 void
-ArrayRef::displayNoParens (std::ostream &os) const
+ArrayRef::display (std::ostream &os) const
 {
   array->display (os);
   os << "[";
@@ -610,9 +504,8 @@ StructRef::StructRef (Expression *s, char *f) : Expression ()
 const Type *
 StructRef::exprType ()
 {
-  return tryDownCast<StructType>(base->exprType ())
-    ->fields->find (field)
-    ->type;
+  const StructType *t = tryDownCast<StructType>(base->exprType ());
+  return t->getField(field)->type;
 }
 
 bool
@@ -622,7 +515,7 @@ StructRef::isInteger ()
 }
 
 void
-StructRef::displayNoParens (std::ostream &os) const
+StructRef::display (std::ostream &os) const
 {
   base->display (os);
   os << "." << field;
@@ -631,8 +524,7 @@ StructRef::displayNoParens (std::ostream &os) const
 Sexpression *
 StructRef::ACL2Expr (bool isBV)
 {
-  Symbol *sym = tryDownCast<StructType>(base->get_type())
-    ->fields->find (field)->sym;
+  Symbol *sym = tryDownCast<StructType>(base->get_type())->getField(field)->sym;
 
   Sexpression *s = new Plist (
       { &s_ag, new Plist ({ &s_quote, sym }), base->ACL2Expr () });
@@ -643,8 +535,7 @@ StructRef::ACL2Expr (bool isBV)
 Sexpression *
 StructRef::ACL2Assign (Sexpression *rval)
 {
-  Symbol *sym = tryDownCast<StructType>(base->get_type())
-    ->fields->find (field)->sym;
+  Symbol *sym = tryDownCast<StructType>(base->get_type())->getField(field)->sym;
 
   return base->ACL2Assign (new Plist (
       { &s_as, new Plist ({ &s_quote, sym }), rval, base->ACL2Expr () }));
@@ -667,8 +558,15 @@ BitRef::isInteger ()
   return true;
 }
 
+const Type *
+BitRef::exprType() {
+  // here should return a bool (according to ac_types ref).
+//  return new UintType(new Integer(1));
+  return nullptr;
+}
+
 void
-BitRef::displayNoParens (std::ostream &os) const
+BitRef::display (std::ostream &os) const
 {
   base->display (os);
   os << "[";
@@ -696,37 +594,32 @@ BitRef::ACL2Assign (Sexpression *rval)
   return base->ACL2Assign (new Plist ({ &s_setbitn, b, s, i, rval }));
 }
 
-unsigned
-BitRef::ACL2ValWidth ()
-{
-  return 1;
-}
+
+//unsigned
+//BitRef::ACL2ValWidth ()
+//{
+//  return 1;
+//}
 
 // class Subrange : public Expression
 // ----------------------------------
 
 // Data members: Expression *base; Expression *high; Expression *low;
 
-Subrange::Subrange (Expression *b, Expression *h, Expression *l)
+Subrange::Subrange (Expression *b, Expression *l, unsigned w)
     : Expression ()
+    , base(b)
+    , low(l)
+    , width_(w)
 {
-  base = b;
-  high = h;
-  low = l;
-  width = 0;
-}
-
-Subrange::Subrange (Expression *b, Expression *h, Expression *l, unsigned w)
-    : Expression ()
-{
-  base = b;
-  high = h;
-  low = l;
-  width = w;
+  if (l->isConst ())
+    high = new Integer (l->evalConst () + w - 1);
+  else
+    high = new BinaryExpr (l, new Integer (w - 1), strdup ("+"));
 }
 
 void
-Subrange::displayNoParens (std::ostream &os) const
+Subrange::display (std::ostream &os) const
 {
   base->display (os);
   os << "[";
@@ -739,7 +632,7 @@ Subrange::displayNoParens (std::ostream &os) const
 const Type *
 Subrange::exprType() {
 
-  Integer *width = new Integer(ACL2ValWidth());
+  Integer *width = new Integer(this->width_);
 
   if (const RegType *t = tryDownCast<RegType>(base->get_type())) {
 
@@ -765,7 +658,7 @@ Subrange::ACL2Expr ([[maybe_unused]] bool isBV)
   if (const RegType *t = tryDownCast<RegType>(base->get_type())) {
 
     if (t->isSigned()) {
-      return new Plist ({ &s_si, bv_val, new Integer (ACL2ValWidth()) });
+      return new Plist ({ &s_si, bv_val, new Integer (width_) });
     } else {
       return bv_val;
     }
@@ -787,23 +680,6 @@ Subrange::ACL2Assign (Sexpression *rval)
 
   Integer *s = new Integer (n);
   return base->ACL2Assign (new Plist ({ &s_setbits, b, s, hi, lo, rval }));
-}
-
-unsigned
-Subrange::ACL2ValWidth ()
-{
-  if (high->isConst () && low->isConst ())
-    {
-      return high->evalConst () - low->evalConst () + 1;
-    }
-  else if (high->isPlusConst (low))
-    {
-      return high->getPlusConst () + 1;
-    }
-  else
-    {
-      return width;
-    }
 }
 
 // class PrefixExpr : public Expression
@@ -854,7 +730,7 @@ PrefixExpr::isInteger ()
 }
 
 void
-PrefixExpr::displayNoParens (std::ostream &os) const
+PrefixExpr::display (std::ostream &os) const
 {
   os << op;
   expr->display (os);
@@ -918,18 +794,6 @@ PrefixExpr::ACL2Expr (bool isBV)
     UNREACHABLE ();
 }
 
-bool
-PrefixExpr::isEqual (Expression *e)
-{
-  return this == e || e->isEqualPrefix (op, expr);
-}
-
-bool
-PrefixExpr::isEqualPrefix (const char *o, Expression *e)
-{
-  return !strcmp (o, op) && e->isEqual (expr);
-}
-
 // class CastExpr : public Expression
 // ----------------------------------
 
@@ -966,7 +830,7 @@ CastExpr::isInteger ()
 }
 
 void
-CastExpr::displayNoParens (std::ostream &os) const
+CastExpr::display (std::ostream &os) const
 {
   expr->display (os);
 }
@@ -1047,7 +911,7 @@ BinaryExpr::isInteger ()
 }
 
 void
-BinaryExpr::displayNoParens (std::ostream &os) const
+BinaryExpr::display (std::ostream &os) const
 {
   expr1->display (os);
   os << " " << op << " ";
@@ -1140,30 +1004,6 @@ BinaryExpr::ACL2Expr (bool isBV)
     }
 }
 
-bool
-BinaryExpr::isEqual (Expression *e)
-{
-  return this == e || e->isEqualBinary (op, expr1, expr2);
-}
-
-bool
-BinaryExpr::isEqualBinary (const char *o, Expression *e1, Expression *e2)
-{
-  return !strcmp (o, op) && e1->isEqual (expr1) && e2->isEqual (expr2);
-}
-
-bool
-BinaryExpr::isPlusConst (Expression *e)
-{
-  return !strcmp (op, "+") && expr1->isEqual (e) && expr2->isConst ();
-}
-
-int
-BinaryExpr::getPlusConst ()
-{
-  return expr2->evalConst ();
-}
-
 // class CondExpr : public Expression (conditional expression)
 // -----------------------------------------------------------
 
@@ -1184,7 +1024,7 @@ CondExpr::isInteger ()
 }
 
 void
-CondExpr::displayNoParens (std::ostream &os) const
+CondExpr::display (std::ostream &os) const
 {
   test->display (os);
   os << " ? ";
@@ -1218,12 +1058,12 @@ MultipleValue::MultipleValue (MvType *t, List<Expression> *e)
 
   assert (expr.size () >= 2
           && "It does not make sense to have a mv with 1 or 0 elem");
-  assert (type->type.size () == expr.size ()
+  assert (type->size () == expr.size ()
           && "We should have as many types as values");
 }
 
 void
-MultipleValue::displayNoParens (std::ostream &os) const
+MultipleValue::display (std::ostream &os) const
 {
 
   os << "<";
@@ -1246,8 +1086,6 @@ MultipleValue::ACL2Expr ([[maybe_unused]] bool isBV)
   Plist *result = new Plist ({ &s_mv });
 
   for (unsigned i = 0; i < expr.size (); ++i)
-    {
-      result->add (type->type[i]->ACL2Assign (expr[i]));
-    }
+      result->add (type->get(i)->ACL2Assign (expr[i]));
   return result;
 }

@@ -1,8 +1,10 @@
 #ifndef PROGRAM_H
 #define PROGRAM_H
 
-#include "utils.h"
 #include "visitor.h"
+
+#include <vector>
+#include <string>
 
 //***********************************************************************************
 // Programs
@@ -23,27 +25,51 @@ class FunDef;
 // function definitions.
 class Program
 {
+  std::vector<DefinedType *> typeDefs;
+  std::vector<ConstDec *> constDecs;
+  std::vector<Template *> templates;
+  std::vector<FunDef *> funDefs;
 public:
-  List<DefinedType> *typeDefs;
-  List<ConstDec> *constDecs;
-  List<Template> *templates;
-  List<FunDef> *funDefs;
-
   Program ();
 
+  // Parse the file given and store the result into this class. The program
+  // should be empty before calling it.
   bool parse(const std::string& file);
+
+  // Apply all required passes (type check, desugarization, ...) to the
+  // program.
   bool process();
 
-  // TODO constify ACL2Exp, then this can become const
-  void displayConstDecs (std::ostream &os, DispMode mode);
+  // Add a new type/constant/function to the program. Those should only be
+  // called in the parser. Return false if the registration failed (they is
+  // already something with the same name).
+  bool registerType(DefinedType *t);
+  bool registerConstDec(ConstDec *d);
+  bool registerTemplate(Template *t);
+  bool registerFunDef(FunDef *t);
+
+  // Get an type/dec/function called `name`. Return nullptr if nothing was
+  // registered with this name.
+  DefinedType *getType(const std::string& name);
+  ConstDec *getConstDec(const std::string& name);
+  Template *getTemplate(const std::string& name);
+  FunDef *getFunDef(const std::string& name);
+
+  // Display functions.
+  void displayConstDecs (std::ostream &os, DispMode mode) const;
   // Why this one is not defined
-  //  void displayTemplates(ostream& os, DispMode mode, const char *prefix="");
+  //  void displayTemplates(ostream& os, DispMode mode, const std::string& prefix="");
   void displayTypeDefs (std::ostream &os, DispMode mode) const;
-  void displayFunDefs (std::ostream &os, DispMode mode);
+  void displayFunDefs (std::ostream &os, DispMode mode) const;
   void displayFunDecs (std::ostream &os) const;
-  void display (std::ostream &os, DispMode mode = DispMode::rac);
-  bool isEmpty () const;
+  void display (std::ostream &os, DispMode mode = DispMode::rac) const;
+
+  // Run an action (implemented by v) on the full program in the following
+  // order: constant declarations, template fuctions and functions.
   bool runAction(RecursiveASTVisitor *v);
+
+private:
+  bool isEmpty () const;
 };
 
 extern Program prog;

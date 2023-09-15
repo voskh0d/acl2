@@ -3,7 +3,6 @@
 
 #include "program.h"
 #include "sexpressions.h"
-#include "utils.h"
 
 #include <iostream>
 #include <optional>
@@ -113,7 +112,6 @@ public:
   DefinedType(const char *s, Type *t) : Symbol(s), def_(t) {}
 
   void display(std::ostream &os) const { Symbol::display(os); }
-  
 
   void displayVarType(std::ostream &os = std::cout) const override {
     derefType()->displayVarType(os);
@@ -249,30 +247,42 @@ public:
 
 class StructType : public Type {
 public:
-  List<StructField> *fields;
-  StructType(List<StructField> *f);
+  StructType(std::vector<StructField *> f);
   void displayFields(std::ostream &os) const;
   void display(std::ostream &os) const override;
   void makeDef(const char *name, std::ostream &os = std::cout) const override;
+
+  const std::vector<StructField *>& fields() const { return fields_; }
+
+  const StructField *getField(const std::string& name) const;
+
+private:
+  std::vector<StructField *> fields_;
 };
 
 class EnumType : public Type {
 public:
-  List<EnumConstDec> *vals;
-  EnumType(List<EnumConstDec> *v);
+  EnumType(std::vector<EnumConstDec *> v);
   void displayConsts(std::ostream &os) const;
   void display(std::ostream &os) const override;
   void makeDef(const char *name, std::ostream &os = std::cout) const override;
-  // ACL2expr Weird
   Sexpression *ACL2Expr();
   Sexpression *getEnumVal(Symbol *s) const;
+
+private:
+  std::vector<EnumConstDec *> vals_;
 };
 
 class MvType : public Type {
 public:
-  std::vector<Type *> type;
-  MvType(std::initializer_list<Type *> &&t) : type(t) {}
+  MvType(std::initializer_list<Type *> &&t) : types_(t) {}
   void display(std::ostream &os) const;
+
+  unsigned size() const { return types_.size(); }
+  const Type *get(unsigned n) { return types_[n]; }
+
+private:
+  std::vector<Type *> types_;
 };
 
 

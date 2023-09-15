@@ -43,9 +43,9 @@ Program prog;
   List<Expression> *expl;
   BigList<Expression> *initl;
   StructField *sf;
-  List<StructField> *sfl;
+  std::vector<StructField *> *sfl;
   EnumConstDec *ecd;
-  List<EnumConstDec> *ecdl;
+  std::vector<EnumConstDec *> *ecdl;
   VarDec *vd;
   List<VarDec> *vdl;
   TempParamDec *tpd;
@@ -118,51 +118,27 @@ program : program program_element{}
         | program_element;
 
 program_element : type_dec ';'
-                {
-  if (!prog.typeDefs)
-    {
-      prog.typeDefs = new List<DefinedType> ($1);
-    }
-  else if (prog.typeDefs->find ($1->getname ()))
-    {
+{
+  if (!prog.registerType($1))
+  {
       yyerror ("Duplicate type definition");
       YYERROR;
-    }
-  else
-    {
-      prog.typeDefs->add ($1);
-    }
+  }
 }
 | const_dec ';'
 {
-  if (!prog.constDecs)
-    {
-      prog.constDecs = new List<ConstDec> ((ConstDec *)$1);
-    }
-  else if (prog.constDecs->find (((ConstDec *)$1)->sym->getname ()))
+  if(!prog.registerConstDec(static_cast<ConstDec *>($1)))
     {
       yyerror ("Duplicate global constant declaration");
       YYERROR;
     }
-  else
-    {
-      prog.constDecs->add ((ConstDec *)$1);
-    }
 }
 | func_def
 {
-  if (!prog.funDefs)
-    {
-      prog.funDefs = new List<FunDef> ($1);
-    }
-  else if (prog.funDefs->find ($1->getname ()))
+  if (!prog.registerFunDef($1))
     {
       yyerror ("Duplicate function definition");
       YYERROR;
-    }
-  else
-    {
-      prog.funDefs->add ($1);
     }
 };
 
@@ -196,7 +172,7 @@ typedef_type : primitive_type     // name of a primitive C numerical type
                | mv_type          // instantiation of mv class template
                | TYPEID
 {
-  $$ = prog.typeDefs->find ($1);
+  $$ = prog.getType($1);
 } // name of a previously declared type
 ;
 
@@ -284,17 +260,18 @@ array_param_type : ARRAY '<' type_spec ',' arithmetic_expression '>'
     }
 };
 
-struct_type : '{' struct_field_list '}' { $$ = new StructType ($2); };
+struct_type : '{' struct_field_list '}' { $$ = new StructType (*$2); };
 
-struct_field_list : struct_field { $$ = new List<StructField> ($1); }
-                  | struct_field_list struct_field { $$ = $1->add ($2); };
+struct_field_list : struct_field { $$ = new std::vector<StructField *> ({$1}); }
+                  | struct_field_list struct_field { $1->push_back($2); $$ = $1; };
 
 struct_field : type_spec ID ';' { $$ = new StructField ($1, $2); };
 
-enum_type : '{' enum_const_dec_list '}' { $$ = new EnumType ($2); };
+enum_type : '{' enum_const_dec_list '}' { $$ = new EnumType (*$2); };
 
-enum_const_dec_list : enum_const_dec { $$ = new List<EnumConstDec> ($1); }
-                    | enum_const_dec_list ',' enum_const_dec { $$ = $1->add ($3); };
+enum_const_dec_list : enum_const_dec { $$ = new std::vector<EnumConstDec *> ({$1}); }
+                    | enum_const_dec_list ',' enum_const_dec
+{ $1->push_back($3); $$ = $1; };
 
 enum_const_dec : ID
                {
@@ -356,8 +333,7 @@ mv_type : TUPLE '<' type_spec ',' type_spec '>'
 
 primary_expression : constant | symbol_ref | funcall | '(' expression ')'
                    {
-  $$ = $2;
-  $$->needsParens = true;
+  $$ = new Parenthesis($2);
 };
 
 constant : integer | boolean;
@@ -393,7 +369,7 @@ symbol_ref : ID
 funcall : ID '(' expr_list ')'
         {
   FunDef *f;
-  if ((f = prog.funDefs->find ($1)) == nullptr
+  if ((f = prog.getFunDef ($1)) == nullptr
       && (f = builtins.find ($1)) == nullptr)
     {
       yyerror ("Undefined function");
@@ -407,7 +383,8 @@ funcall : ID '(' expr_list ')'
 | TEMPLATEID '<' arith_expr_list '>' '(' arith_expr_list ')'
 {
   Template *f;
-  if ((f = (Template *)prog.funDefs->find ($1)) == nullptr)
+// TODO: Why are we looking into funDefs and not in templates ???
+  if ((f = (Template *)prog.getFunDef ($1)) == nullptr)
     {
       yyerror ("Undefined function template");
       YYERROR;
@@ -441,19 +418,8 @@ if (isArrayType($1->exprType()))
 struct_ref : postfix_expression '.' ID { $$ = new StructRef ($1, $3); }
 
 subrange : postfix_expression '.' SLC '<' NAT '>' '(' expression ')'
-         {
-  unsigned diff = (new Integer ($5))->evalConst () - 1;
-  if ($8->isConst ())
-    {
-      $$ = new Subrange ($1, new Integer ($8->evalConst () + diff), $8,
-                         (new Integer ($5))->evalConst ());
-    }
-  else
-    {
-      $$ = new Subrange ($1,
-                         new BinaryExpr ($8, new Integer (diff), strdup ("+")),
-                         $8, (new Integer ($5))->evalConst ());
-    }
+{
+  $$ = new Subrange ($1, $8, Integer ($5).evalConst ());
 }
 
 prefix_expression : postfix_expression | unary_op prefix_expression
@@ -806,18 +772,13 @@ assignment : expression assign_op expression
   unsigned w = 0;
   if (Subrange *subrange = dynamic_cast<Subrange *>($7))
     {
-      w = subrange->width;
+      w = subrange->width();
     }
   else
     {
       const Type *type = $7->exprType ();
-      if (type)
-        {
-          if (isRegType (type))
-            {
-              w = ((RegType *)type)->width ()->evalConst ();
-            }
-        }
+      if (type && isRegType (type))
+        w = tryDownCast<RegType>(type)->width ()->evalConst ();
     }
   if (w == 0)
     {
@@ -826,16 +787,7 @@ assignment : expression assign_op expression
     }
   else
     {
-      Expression *top;
-      if ($5->isConst ())
-        {
-          top = new Integer ($5->evalConst () + w - 1);
-        }
-      else
-        {
-          top = new BinaryExpr ($5, new Integer (w - 1), strdup ("+"));
-        }
-      $$ = new Assignment (new Subrange ($1, top, $5), "=", $7);
+      $$ = new Assignment (new Subrange ($1, $5, w), "=", $7);
     }
 };
 
@@ -951,14 +903,10 @@ func_template : TEMPLATE { symTab.pushFrame (); }
 {
   $$ = new Template ($7, $6, $9, (Block *)$11, $4);
   symTab.popFrame ();
-  if (!prog.templates)
-    {
-      prog.templates = new List<Template> ((Template *)$$);
-    }
-  else
-    {
-      prog.templates->add ((Template *)$$);
-    }
+  if (!prog.registerTemplate(static_cast<Template *>($$))) {
+      yyerror ("Duplicate function definition");
+      YYERROR;
+  }
 };
 
 template_param_dec_list: { $$ = nullptr; }

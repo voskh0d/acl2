@@ -6,7 +6,7 @@ class Statement;
 
 // Forward declaration of all the classes of the AST.
 #define APPLY(CLASS, PARENT) class CLASS;
-#include "ASTNodes.inc"
+#include "astnodes.def"
 #undef APPLY
 
 // This class perform a preorder or postorder depth-first travsersal of the
@@ -57,7 +57,7 @@ public:
   virtual bool TraverseExpression(Expression *e);
   virtual bool TraverseStatement(Statement *s);
 #define APPLY(CLASS, PARENT) virtual bool Traverse##CLASS (CLASS *);
-#include "ASTNodes.inc"
+#include "astnodes.def"
 #undef APPLY
 
   // Takes a pointer to a child class and call WalkUp on its parents. Then
@@ -67,7 +67,7 @@ public:
   virtual bool WalkUpExpression(Expression *e);
   virtual bool WalkUpStatement(Statement *s);
 #define APPLY(CLASS, PARENT) virtual bool WalkUp##CLASS (CLASS *);
-#include "ASTNodes.inc"
+#include "astnodes.def"
 #undef APPLY
 
   // Those functions are meant to be overload to add action on nodes on
@@ -79,7 +79,7 @@ public:
   virtual bool VisitExpression(Expression *e);
   virtual bool VisitStatement(Statement *s);
 #define APPLY(CLASS, PARENT) virtual bool Visit##CLASS (CLASS *);
-#include "ASTNodes.inc"
+#include "astnodes.def"
 #undef APPLY
 };
 

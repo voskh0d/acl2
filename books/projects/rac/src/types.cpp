@@ -3,6 +3,7 @@
 #include "statements.h"
 
 #include <iomanip>
+#include <algorithm>
 
 //***********************************************************************************
 // class Type
@@ -65,7 +66,7 @@ void
 UintType::display (std::ostream &os) const
 {
   os << "sc_uint<";
-  width ()->displayNoParens (os);
+  width ()->display (os);
   os << ">";
 }
 
@@ -82,7 +83,7 @@ void
 IntType::display (std::ostream &os) const
 {
   os << "sc_int<";
-  width ()->displayNoParens (os);
+  width ()->display (os);
   os << ">";
 }
 
@@ -131,9 +132,9 @@ void
 UfixedType::display (std::ostream &os) const
 {
   os << "sc_ufixed<";
-  width ()->displayNoParens (os);
+  width ()->display (os);
   os << ", ";
-  iwidth->displayNoParens (os);
+  iwidth->display (os);
   os << ">";
 }
 
@@ -161,9 +162,9 @@ void
 FixedType::display (std::ostream &os) const
 {
   os << "sc_fixed<";
-  width ()->displayNoParens (os);
+  width ()->display (os);
   os << ", ";
-  iwidth->displayNoParens (os);
+  iwidth->display (os);
   os << '>';
 }
 
@@ -188,7 +189,7 @@ ArrayType::display (std::ostream &os) const
 {
   baseType->display (os);
   os << "[";
-  dim->displayNoParens (os);
+  dim->display (os);
   os << "]";
 }
 
@@ -202,7 +203,7 @@ void
 ArrayType::displayVarName (const char *name, std::ostream &os) const
 {
   os << name << '[';
-  dim->displayNoParens (os);
+  dim->display (os);
   os << ']';
 }
 
@@ -222,7 +223,7 @@ ArrayType::makeDef (const char *name, std::ostream &os) const
   while (dims)
     {
       os << "[";
-      (dims->value)->displayNoParens (os);
+      (dims->value)->display (os);
       os << "]";
       dims = dims->next;
     }
@@ -235,20 +236,18 @@ ArrayType::makeDef (const char *name, std::ostream &os) const
 // Data members:  Symbol *sym; Type *type;
 
 StructField::StructField (Type *t, char *n)
+  : sym(new Symbol(n))
+  , type(t)
 {
-  sym = new Symbol (n);
-  type = t;
 }
 
 void
 StructField::display (std::ostream &os, unsigned indent) const
 {
   if (indent)
-    {
       os << std::setw (indent) << " ";
-    }
   type->display (os);
-  os << " " << getname () << ";";
+  os << " " << getname() << ";";
 }
 
 // class StructType : public Type
@@ -256,19 +255,22 @@ StructField::display (std::ostream &os, unsigned indent) const
 
 // Data member:  List<StructField> *fields;
 
-StructType::StructType (List<StructField> *f) { fields = f; }
+StructType::StructType (std::vector<StructField *> f)
+  : Type()
+  , fields_(f)
+{
+}
 
 void
 StructType::displayFields (std::ostream &os) const
 {
   os << "{";
-  List<StructField> *ptr = fields;
-  while (ptr)
-    {
-      ptr->value->display (os);
-      if (ptr->next)
+  bool first = true;
+  for (const auto& f : fields_) {
+      if (!first)
         os << " ";
-      ptr = ptr->next;
+      f->display (os);
+      first = false;
     }
   os << "}";
 }
@@ -288,22 +290,33 @@ StructType::makeDef (const char *name, std::ostream &os) const
   os << ";";
 }
 
+const StructField *
+StructType::getField(const std::string& name) const {
+  auto it = std::find_if(fields_.begin(), fields_.end(),
+                        [&](auto f) { return f->getname() == name; });
+  assert(it != fields_.end());
+  return *it;
+}
+
 // class EnumType : public Type
 // ----------------------------
 
 // Data member:  List<EnumConstDec> *vals;
 
-EnumType::EnumType (List<EnumConstDec> *v)
+EnumType::EnumType (std::vector<EnumConstDec *> v)
+  : Type()
+  , vals_(v)
 {
-  vals = v;
-  for_each (vals, [this] (EnumConstDec *e) { e->type = this; });
+  std::for_each (vals_.begin(), vals_.end(),
+                  [this] (EnumConstDec *e) { e->type = this; });
 }
 
 Sexpression *
 EnumType::ACL2Expr ()
 {
   Plist *result = new Plist ();
-  for_each (vals, [this, result] (EnumConstDec *e) {
+  std::for_each(vals_.begin(), vals_.end(),
+                [this, result] (EnumConstDec *e) {
     result->add (e->ACL2Expr ());
   });
   return result;
@@ -314,12 +327,13 @@ EnumType::displayConsts (std::ostream &os) const
 {
   os << "{";
   bool is_first = true;
-  for_each (vals, [&] (EnumConstDec *e) {
-    if (!is_first)
-      os << ", ";
-    e->display (os);
-    is_first = false;
-  });
+  std::for_each (vals_.begin(), vals_.end(),
+      [&] (EnumConstDec *e) {
+        if (!is_first)
+          os << ", ";
+        e->display (os);
+        is_first = false;
+        });
   os << "}";
 }
 
@@ -333,25 +347,15 @@ EnumType::display (std::ostream &os) const
 Sexpression *
 EnumType::getEnumVal (Symbol *s) const
 {
-  // TODO zip(iota)
-  List<EnumConstDec> *ptr = vals;
   unsigned count = 0;
-  while (ptr)
-    {
-      if (ptr->value->init)
-        {
-          count = ptr->value->init->evalConst ();
-        }
-      if (ptr->value->sym == s)
-        {
-          return new Integer (count);
-        }
-      else
-        {
-          count++;
-          ptr = ptr->next;
-        }
-    }
+  for (auto d : vals_) {
+    if (d->init)
+      count = d->init->evalConst ();
+    if (d->sym == s)
+      return new Integer (count);
+    else
+      count++;
+  }
   assert (!"enum constant not found");
   return 0;
 }
@@ -374,12 +378,12 @@ void
 MvType::display (std::ostream &os) const
 {
 
-  assert (type.size () >= 2
+  assert (types_.size () >= 2
           && "It does not make sense to have a mv with 1 or 0 elem");
 
   os << "<";
   bool first = true;
-  for (const auto t : type)
+  for (const auto t : types_)
     {
       if (!first)
         {
