@@ -4,7 +4,6 @@
 #include "expressions.h"
 #include "types.h"
 #include "utils.h"
-#include "visitor.h"
 #include "sexpressions.h"
 
 
@@ -27,7 +26,7 @@ public:
   virtual Sexpression *ACL2Expr () = 0;
   virtual void noteReturnType (Type *t);
 
-  virtual bool accept(RecursiveASTVisitor *visitor) = 0;
+  virtual NodesId id() const = 0;
 };
 
 class SimpleStatement : public Statement
@@ -36,6 +35,8 @@ public:
   SimpleStatement ();
   void display (std::ostream &os, unsigned indent = 0) override;
   virtual void displaySimple (std::ostream &os) = 0;
+
+  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class SymDec : public SimpleStatement
@@ -57,9 +58,7 @@ public:
   virtual int evalConst ();
   virtual Sexpression *ACL2SymExpr ();
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseSymDec(this);
-  }
+  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class EnumConstDec final : public SymDec
@@ -73,9 +72,7 @@ public:
   Sexpression *ACL2Expr ();
   Sexpression *ACL2SymExpr ();
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseEnumConstDec(this);
-  }
+  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class VarDec : public SymDec
@@ -86,9 +83,7 @@ public:
   Sexpression *ACL2Expr () override;
   Sexpression *ACL2SymExpr () override;
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseVarDec(this);
-  }
+  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class ConstDec : public VarDec
@@ -101,9 +96,7 @@ public:
   bool isROM () override;
   Sexpression *ACL2SymExpr () override;
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseConstDec(this);
-  }
+  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class MulVarDec : public SimpleStatement
@@ -115,9 +108,7 @@ public:
   Sexpression *ACL2Expr () override;
   void displaySimple (std::ostream &os) override;
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseMulVarDec(this);
-  }
+  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class MulConstDec : public SimpleStatement
@@ -129,9 +120,7 @@ public:
   Sexpression *ACL2Expr () override;
   void displaySimple (std::ostream &os) override;
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseMulConstDec(this);
-  }
+  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class TempParamDec final : public SymDec
@@ -149,9 +138,7 @@ public:
     return nullptr;
   }
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseTempParamDec(this);
-  }
+  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class BreakStmt final : public SimpleStatement
@@ -161,9 +148,7 @@ public:
   void displaySimple (std::ostream &os) override;
   Sexpression *ACL2Expr () override;
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseBreakStmt(this);
-  }
+  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class ReturnStmt final : public SimpleStatement
@@ -176,9 +161,7 @@ public:
   Sexpression *ACL2Expr () override;
   void noteReturnType (Type *t) override;
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseReturnStmt(this);
-  }
+  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class NullStmt final : public SimpleStatement
@@ -188,9 +171,7 @@ public:
   void displaySimple (std::ostream &os) override;
   Sexpression *ACL2Expr () override;
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseNullStmt(this);
-  }
+  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class Assertion final : public SimpleStatement
@@ -202,9 +183,7 @@ public:
   void displaySimple (std::ostream &os) override;
   Sexpression *ACL2Expr () override;
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseAssertion(this);
-  }
+  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class Assignment final : public SimpleStatement
@@ -217,9 +196,7 @@ public:
   void displaySimple (std::ostream &os) override;
   Sexpression *ACL2Expr () override;
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseAssignment(this);
-  }
+  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class MultipleAssignment : public SimpleStatement
@@ -235,9 +212,7 @@ public:
   const std::vector<Expression *>& lvals() const { return lval_; }
   FunCall *rval() { return rval_; }
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseMultipleAssignment(this);
-  }
+  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class Block final : public Statement
@@ -255,9 +230,7 @@ public:
   Sexpression *ACL2Expr () override;
   void noteReturnType (Type *t) override;
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseBlock(this);
-  }
+  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class IfStmt final : public Statement
@@ -272,9 +245,7 @@ public:
   Sexpression *ACL2Expr () override;
   void noteReturnType (Type *t) override;
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseIfStmt(this);
-  }
+  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class ForStmt final : public Statement
@@ -288,9 +259,7 @@ public:
   void display (std::ostream &os, unsigned indent = 0) override;
   Sexpression *ACL2Expr () override;
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseForStmt(this);
-  }
+  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class Case final : public Statement
@@ -302,10 +271,6 @@ public:
   void display (std::ostream &os, unsigned indent = 0);
 
   Sexpression *ACL2Expr () override { assert(!"TODO"); }
-
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseCase(this);
-  }
 
   // TODO move this to the type pass.
   void typeCheck() const {
@@ -319,6 +284,8 @@ public:
     if ((t == nullptr || !isEnumType(t)) && !dynamic_cast<Constant *>(label))
       assert(!"case label must be an integer or an enum constant");
   }
+
+  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class SwitchStmt : public Statement
@@ -334,9 +301,7 @@ public:
   Expression *test() { return test_; }
   BetterList<Case> cases() { return cases_; }
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseSwitchStmt(this);
-  }
+  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 #endif // STATEMENTS_H

@@ -10,7 +10,8 @@
 // *body;
 
 FunDef::FunDef(const char *n, Type *t, List<VarDec> *p, Block *b)
-    : sym(new Symbol(n)), returnType(t), params(p), body(b) {}
+    : sym(new Symbol(n)), returnType(t), params(p), body(b) {
+    }
 
 void FunDef::displayPrototype(std::ostream &os, const char *prefix,
                               unsigned indent) {
@@ -66,7 +67,8 @@ void FunDef::displayACL2Expr(std::ostream &os) {
 
 Template::Template(const char *n, Type *t, List<VarDec> *p, Block *b,
                    List<TempParamDec> *tp)
-    : FunDef(n, t, p, b), tempParams(tp) {}
+    : FunDef(n, t, p, b), tempParams(tp) {
+    }
 
 void Template::display(std::ostream &os, const char *prefix, unsigned indent) {
   os << "\n";

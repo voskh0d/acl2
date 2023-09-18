@@ -78,9 +78,9 @@ Expression::ACL2ValWidth ()
 // class Constant : public Expression, public Symbol
 // -------------------------------------------------
 
-Constant::Constant (const char *n) : Expression (), Symbol (n) {}
+Constant::Constant (NodesId id, const char *n) : Expression (id), Symbol (n) {}
 
-Constant::Constant (int n) : Expression (), Symbol (n) {}
+Constant::Constant (NodesId id, int n) : Expression (id), Symbol (n) {}
 
 bool
 Constant::isConst ()
@@ -103,9 +103,9 @@ Constant::ACL2Expr ([[maybe_unused]] bool isBV)
 // class Integer : public Constant
 // -------------------------------
 
-Integer::Integer (const char *n) : Constant (n) {}
+Integer::Integer (const char *n) : Constant (idOf(this), n) {}
 
-Integer::Integer (int n) : Constant (n) {}
+Integer::Integer (int n) : Constant (idOf(this), n) {}
 
 int
 Integer::evalConst ()
@@ -153,7 +153,7 @@ Integer i_2 ("2");
 
 // class Boolean : public Constant
 // -------------------------------
-Boolean::Boolean (const char *n) : Constant (n) {}
+Boolean::Boolean (const char *n) : Constant (idOf(this), n) {}
 
 int
 Boolean::evalConst ()
@@ -189,7 +189,7 @@ Boolean::ACL2Expr ([[maybe_unused]] bool isBV)
 
 // Data member: SymDec *symDec;
 
-SymRef::SymRef (SymDec *s) : Expression () { symDec = s; }
+SymRef::SymRef (SymDec *s) : Expression (idOf(this)) { symDec = s; }
 
 const Type *
 SymRef::exprType ()
@@ -246,7 +246,13 @@ SymRef::ACL2Assign (Sexpression *rval)
 
 // Data members:  FunDef *func; List<Expression> *args;
 
-FunCall::FunCall (FunDef *f, List<Expression> *a) : Expression ()
+FunCall::FunCall (FunDef *f, List<Expression> *a) : Expression (idOf(this))
+{
+  func = f;
+  args = a;
+}
+
+FunCall::FunCall (NodesId id, FunDef *f, List<Expression> *a) : Expression (id)
 {
   func = f;
   args = a;
@@ -301,7 +307,7 @@ FunCall::ACL2Expr (bool isBV)
 // call members:  Symbol *instanceSym; List<Expression> *params;
 
 TempCall::TempCall (Template *f, List<Expression> *a, List<Expression> *p)
-    : FunCall (f, a)
+    : FunCall (idOf(this), f, a)
 {
   params = p;
   if (f->calls == nullptr)
@@ -352,7 +358,7 @@ TempCall::ACL2Expr (bool isBV)
 
 // Data member:  List<Constant> *vals;
 
-Initializer::Initializer (List<Constant> *v) : Expression () { vals = v; }
+Initializer::Initializer (List<Constant> *v) : Expression (idOf(this)) { vals = v; }
 
 void
 Initializer::display (std::ostream &os) const
@@ -429,7 +435,7 @@ Initializer::ACL2StructExpr (const std::vector<StructField *>& fields)
 
 // Data members:  Expression *array; Expression *index;
 
-ArrayRef::ArrayRef (Expression *a, Expression *i) : Expression ()
+ArrayRef::ArrayRef (Expression *a, Expression *i) : Expression (idOf(this))
 {
   array = a;
   index = i;
@@ -495,7 +501,7 @@ ArrayRef::ACL2Assign (Sexpression *rval)
 
 // Data members:  Expression *base; char *field;
 
-StructRef::StructRef (Expression *s, char *f) : Expression ()
+StructRef::StructRef (Expression *s, char *f) : Expression (idOf(this))
 {
   base = s;
   field = f;
@@ -546,7 +552,7 @@ StructRef::ACL2Assign (Sexpression *rval)
 
 // Data members: Expression *base; Expression *index;
 
-BitRef::BitRef (Expression *b, Expression *i) : Expression ()
+BitRef::BitRef (Expression *b, Expression *i) : Expression (idOf(this))
 {
   base = b;
   index = i;
@@ -607,7 +613,7 @@ BitRef::ACL2Assign (Sexpression *rval)
 // Data members: Expression *base; Expression *high; Expression *low;
 
 Subrange::Subrange (Expression *b, Expression *l, unsigned w)
-    : Expression ()
+    : Expression (idOf(this))
     , base(b)
     , low(l)
     , width_(w)
@@ -687,7 +693,7 @@ Subrange::ACL2Assign (Sexpression *rval)
 
 // Data members: Expression *expr; const char *op;
 
-PrefixExpr::PrefixExpr (Expression *e, const char *o) : Expression ()
+PrefixExpr::PrefixExpr (Expression *e, const char *o) : Expression (idOf(this))
 {
   expr = e;
   op = o;
@@ -799,7 +805,7 @@ PrefixExpr::ACL2Expr (bool isBV)
 
 // Data members: Expression *expr; Type *type;
 
-CastExpr::CastExpr (Expression *e, Type *t) : Expression ()
+CastExpr::CastExpr (Expression *e, Type *t) : Expression (idOf(this))
 {
   expr = e;
   type = t;
@@ -847,7 +853,7 @@ CastExpr::ACL2Expr ([[maybe_unused]] bool isBV)
 // Data members: Expression *expr1; Expression *expr2; const char *op;
 
 BinaryExpr::BinaryExpr (Expression *e1, Expression *e2, const char *o)
-    : Expression ()
+    : Expression (idOf(this))
 {
   expr1 = e1;
   expr2 = e2;
@@ -1010,7 +1016,7 @@ BinaryExpr::ACL2Expr (bool isBV)
 // Data members:  Expression *expr1; Expression *expr2; Expression *test;
 
 CondExpr::CondExpr (Expression *e1, Expression *e2, Expression *t)
-    : Expression ()
+    : Expression (idOf(this))
 {
   expr1 = e1;
   expr2 = e2;
@@ -1046,7 +1052,7 @@ CondExpr::ACL2Expr ([[maybe_unused]] bool isBV)
 // Data members: MvType *type; Expression *expr[8];
 
 MultipleValue::MultipleValue (MvType *t, List<Expression> *e)
-    : Expression (), type (t)
+    : Expression (idOf(this)), type (t)
 {
 
   expr.reserve (8);

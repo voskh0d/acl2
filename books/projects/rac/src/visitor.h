@@ -1,13 +1,12 @@
 #ifndef VISITOR_H
 #define VISITOR_H
 
-class Expression;
-class Statement;
+#include <algorithm>
 
-// Forward declaration of all the classes of the AST.
-#define APPLY(CLASS, PARENT) class CLASS;
-#include "astnodes.def"
-#undef APPLY
+#include "expressions.h"
+#include "statements.h"
+#include "functions.h"
+
 
 // This class perform a preorder or postorder depth-first travsersal of the
 // AST. This class should be inherited to add custom actions, see astdumper.h
@@ -39,13 +38,13 @@ class Statement;
 // calls: TraverseExpression(), TraverseInteger(), WalkUpInteger(),
 // WalkUpConstant(), WalkUpExpression(), VisitExpression(), VisitConstant(),
 // VisitInteger().
+template <typename Derived>
 class RecursiveASTVisitor {
 public:
-  virtual ~RecursiveASTVisitor() = default;
 
   // Configure the order of the traversal. To do it in a postfix order,
   // overload this function and return true.
-  virtual bool postfixTraversal() { return false; }
+  bool postfixTraversal() { return false; }
 
   // If the method is abstract (like Expression, Statement, Constant, ..),
   // dispatch the expression or statement to their most specific type. Those
@@ -54,9 +53,9 @@ public:
   // Otherwise, call Traverse on all its child. If we are doing a prefix
   // traversal call WalkUp on itself before traversing its child, if not call
   // it after.
-  virtual bool TraverseExpression(Expression *e);
-  virtual bool TraverseStatement(Statement *s);
-#define APPLY(CLASS, PARENT) virtual bool Traverse##CLASS (CLASS *);
+  bool TraverseExpression(Expression *e);
+  bool TraverseStatement(Statement *s);
+#define APPLY(CLASS, PARENT) bool Traverse##CLASS (CLASS *);
 #include "astnodes.def"
 #undef APPLY
 
@@ -64,9 +63,9 @@ public:
   // calls VisitCLASS. WalkUpExpression and WalkUpStatement will only call
   // VisitExpression or VisitStatement since they are at the top of the
   // hierarchy.
-  virtual bool WalkUpExpression(Expression *e);
-  virtual bool WalkUpStatement(Statement *s);
-#define APPLY(CLASS, PARENT) virtual bool WalkUp##CLASS (CLASS *);
+  bool WalkUpExpression(Expression *e);
+  bool WalkUpStatement(Statement *s);
+#define APPLY(CLASS, PARENT) bool WalkUp##CLASS (CLASS *);
 #include "astnodes.def"
 #undef APPLY
 
@@ -76,11 +75,16 @@ public:
   // example, Integer) is derived of an other (like Constant for Integer), both
   // Visit functions will be called (in our example, for an Integer node,
   // VisitExpression, VisitConstant, VisitInteger in this order) will be called.
-  virtual bool VisitExpression(Expression *e);
-  virtual bool VisitStatement(Statement *s);
-#define APPLY(CLASS, PARENT) virtual bool Visit##CLASS (CLASS *);
+  bool VisitExpression(Expression *e);
+  bool VisitStatement(Statement *s);
+#define APPLY(CLASS, PARENT) bool Visit##CLASS (CLASS *);
 #include "astnodes.def"
 #undef APPLY
+
+private:
+   inline Derived& derived() { return *static_cast<Derived *>(this); }
 };
+
+#include "visitor.cpp"
 
 #endif // VISITOR_H

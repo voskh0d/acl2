@@ -1,15 +1,10 @@
 #ifndef EXPRESSIONS_H
 #define EXPRESSIONS_H
 
-#include "program.h"
 #include "sexpressions.h"
 #include "types.h"
 #include "utils.h"
-
-#include "visitor.h"
-// Used to declare TypePass::set_type as friend to get access to
-// Expressions::set_type.
-#include "typing.h"
+#include "nodesid.h"
 
 
 //***********************************************************************************
@@ -27,7 +22,8 @@ class MvType;
 class Expression
 {
 public:
-  Expression () = default;
+  Expression (NodesId id) : id_(id) {};
+
   virtual bool isConst ();
   virtual int evalConst ();
 
@@ -58,31 +54,33 @@ public:
 
   unsigned ACL2ValWidth ();
 
-  virtual bool accept(RecursiveASTVisitor *visitor) = 0;
+  virtual NodesId id() const = 0;
 
-private:
+  inline NodesId id2() const { return id_; }
+
   // Only during the type passs we are allowed to modify the type.
-  friend void TypePass::set_type(Expression*, Type *);
-  void set_type(Type *t) { t_ = t; }
+  void set_type(const Type *t) { t_ = t; }
+private:
 
   // The type of the expression. Null means not yet typed, but after the type
   // pass, it should be always set with a concrete type (not a typedef).
-  Type *t_ = nullptr;
+  const Type *t_ = nullptr;
+
+protected:
+  const NodesId id_;
 };
 
 class Constant : public Expression, public Symbol
 {
 public:
-  Constant (const char *n);
-  Constant (int n);
+  Constant (NodesId id, const char *n);
+  Constant (NodesId id, int n);
   bool isConst () override;
   bool isInteger () override { return true; }
   void display (std::ostream &os) const override;
   Sexpression *ACL2Expr (bool isBV = false) override;
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseConstant(this);
-  }
+  NodesId id() const override { return idOf_impl(this); }
 };
 
 class Integer final : public Constant
@@ -94,9 +92,7 @@ public:
   int evalConst ();
   Sexpression *ACL2Expr (bool isBV);
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseInteger(this);
-  }
+  NodesId id() const override { return idOf_impl(this); }
 };
 
 extern Integer i_0;
@@ -111,15 +107,19 @@ public:
   int evalConst () override;
   Sexpression *ACL2Expr (bool isBV = false) override;
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseBoolean(this);
-  }
+  NodesId id() const override { return idOf_impl(this); }
 };
 
-class Parenthesis : public Expression {
+class Parenthesis final : public Expression {
 public:
   Expression *expr_;
-  Parenthesis (Expression *e) : expr_(e) { assert(e); }
+
+  Parenthesis (Expression *e)
+    : Expression(idOf(this)),
+    expr_(e) {
+      assert(e);
+  }
+
   bool isConst () override { return expr_->isConst(); }
   int evalConst () override { return expr_->evalConst(); }
   bool isInteger () override { return expr_->isInteger(); }
@@ -139,9 +139,7 @@ public:
 
   unsigned ACL2ValWidth () { return expr_->ACL2ValWidth(); }
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseParenthesis(this);
-  }
+  NodesId id() const override { return idOf_impl(this); }
 };
 
 
@@ -149,7 +147,7 @@ public:
 extern Boolean b_true;
 extern Boolean b_false;
 
-class SymRef : public Expression
+class SymRef final : public Expression
 {
   // type depends de la dec
 public:
@@ -164,9 +162,7 @@ public:
   Sexpression *ACL2Expr (bool isBV = false) override;
   Sexpression *ACL2Assign (Sexpression *rval) override;
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseSymRef(this);
-  }
+  NodesId id() const override { return idOf_impl(this); }
 };
 
 class FunDef;
@@ -178,15 +174,14 @@ public:
   FunDef *func;
   List<Expression> *args;
   FunCall (FunDef *f, List<Expression> *a);
+  FunCall (NodesId id, FunDef *f, List<Expression> *a);
 
   bool isInteger () override;
   const Type *exprType () override;
   void display (std::ostream &os) const override;
   Sexpression *ACL2Expr (bool isBV = false) override;
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseFunCall(this);
-  }
+  NodesId id() const override { return idOf_impl(this); }
 };
 
 class Template;
@@ -200,9 +195,7 @@ public:
   void display (std::ostream &os) const override;
   Sexpression *ACL2Expr (bool isBV = false) override;
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseTempCall(this);
-  }
+  NodesId id() const override { return idOf_impl(this); }
 };
 
 class Initializer final : public Expression
@@ -216,12 +209,10 @@ public:
 
   Sexpression *ACL2StructExpr (const std::vector<StructField *>& fields);
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseInitializer(this);
-  }
+  NodesId id() const override { return idOf_impl(this); }
 };
 
-class ArrayRef : public Expression
+class ArrayRef final : public Expression
 {
 public:
   Expression *array;
@@ -233,9 +224,7 @@ public:
   Sexpression *ACL2Expr (bool isBV = false) override;
   Sexpression *ACL2Assign (Sexpression *rval) override;
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseArrayRef(this);
-  }
+  NodesId id() const override { return idOf_impl(this); }
 };
 
 class StructRef final : public Expression
@@ -250,9 +239,7 @@ public:
   Sexpression *ACL2Expr (bool isBV = false) override;
   Sexpression *ACL2Assign (Sexpression *rval) override;
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseStructRef(this);
-  }
+  NodesId id() const override { return idOf_impl(this); }
 };
 
 class BitRef final : public Expression
@@ -267,9 +254,7 @@ public:
   Sexpression *ACL2Expr (bool isBV = false) override;
   Sexpression *ACL2Assign (Sexpression *rval) override;
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseBitRef(this);
-  }
+  NodesId id() const override { return idOf_impl(this); }
 };
 
 class Subrange final : public Expression
@@ -292,9 +277,7 @@ public:
   Sexpression *ACL2Expr (bool isBV = false) override;
   Sexpression *ACL2Assign (Sexpression *rval) override;
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseSubrange(this);
-  }
+  NodesId id() const override { return idOf_impl(this); }
 
 private:
   unsigned width_;
@@ -313,12 +296,10 @@ public:
   const Type *exprType () override;
   Sexpression *ACL2Expr (bool isBV = false) override;
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraversePrefixExpr(this);
-  }
+  NodesId id() const override { return idOf_impl(this); }
 };
 
-class CastExpr : public Expression
+class CastExpr final : public Expression
 {
 public:
   Expression *expr;
@@ -331,12 +312,10 @@ public:
   void display (std::ostream &os) const override;
   Sexpression *ACL2Expr (bool isBV = false) override;
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseCastExpr(this);
-  }
+  NodesId id() const override { return idOf_impl(this); }
 };
 
-class BinaryExpr : public Expression
+class BinaryExpr final : public Expression
 {
 public:
 
@@ -351,12 +330,10 @@ public:
   const Type *exprType () override;
   Sexpression *ACL2Expr (bool isBV = false) override;
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseBinaryExpr(this);
-  }
+  NodesId id() const override { return idOf_impl(this); }
 };
 
-class CondExpr : public Expression
+class CondExpr final : public Expression
 {
 public:
   Expression *expr1;
@@ -367,18 +344,17 @@ public:
   void display (std::ostream &os) const override;
   Sexpression *ACL2Expr (bool isBV = false) override;
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseCondExpr(this);
-  }
+  NodesId id() const override { return idOf_impl(this); }
 };
 
-class MultipleValue : public Expression
+class MultipleValue final : public Expression
 {
 public:
   MvType *type;
   std::vector<Expression *> expr;
 
-  MultipleValue (MvType *t, std::vector<Expression *> &&e) : type (t), expr (e)
+  MultipleValue (MvType *t, std::vector<Expression *> &&e)
+    : Expression(idOf(this)), type (t), expr (e)
   {
   }
   MultipleValue (MvType *t, List<Expression> *e);
@@ -386,9 +362,7 @@ public:
   void display (std::ostream &os) const override;
   Sexpression *ACL2Expr (bool isBV = false) override;
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseMultipleValue(this);
-  }
+  NodesId id() const override { return idOf_impl(this); }
 };
 
 #endif // EXPRESSIONS_H

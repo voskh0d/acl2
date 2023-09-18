@@ -10,7 +10,7 @@
 #include <vector>
 
 
-class ASTDumper : public RecursiveASTVisitor {
+class ASTDumper final : public RecursiveASTVisitor<ASTDumper> {
 
   using base_t = RecursiveASTVisitor;
   // We don't need type info, the address is enough.
@@ -26,14 +26,14 @@ public:
     std::cout << "}";
   }
 
-  bool TraverseExpression(Expression *e) override {
+  bool TraverseExpression(Expression *e) {
     parents_.push_back(e);
     bool b = base_t::TraverseExpression(e);
     parents_.pop_back();
     return b;
   }
 
-  bool TraverseStatement(Statement *s) override {
+  bool TraverseStatement(Statement *s) {
     parents_.push_back(s);
     bool b = base_t::TraverseStatement(s);
     parents_.pop_back();
@@ -45,7 +45,7 @@ public:
 // take for example the node Integer: we will run first VisitInteger, then
 // VisitConstant and finaly, VisitInteger.
 #define APPLY(CLASS, PARENT)                                                 \
-bool Visit##CLASS (CLASS *ptr) override {                                    \
+bool Visit##CLASS (CLASS *ptr) {                                    \
   /*  Node declaration: node_ADDRESS [label="KIND\nVALUE", shape=s]; */      \
   constexpr bool is_expression = std::is_base_of_v<Expression, CLASS>;       \
   const char *s = is_expression ? "diamond" : "oval";                        \

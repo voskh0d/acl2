@@ -66,7 +66,15 @@ public:
 
   // Run an action (implemented by v) on the full program in the following
   // order: constant declarations, template fuctions and functions.
-  bool runAction(RecursiveASTVisitor *v);
+  template <typename Visitor>
+  bool runAction(Visitor *v) {
+    return std::all_of (constDecs.begin(), constDecs.end(),
+                      [&] (auto e) { return v->TraverseStatement(e); })
+      && std::all_of (templates.begin(), templates.end(),
+                      [&] (auto e) { return v->TraverseStatement(e); })
+      && std::all_of (funDefs.begin(), funDefs.end(),
+                      [&] (auto e) { return v->TraverseStatement(e); });
+  }
 
 private:
   bool isEmpty () const;

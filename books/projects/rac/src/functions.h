@@ -45,9 +45,7 @@ public:
                         unsigned indent = 0);
   virtual void displayACL2Expr (std::ostream &os);
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseFunDef(this);
-  }
+  inline NodesId id() const override { return idOf_impl(this); }
 
 private:
   void displayPrototype (std::ostream &os, const char *prefix, unsigned indent);
@@ -61,9 +59,7 @@ public:
   {
   }
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseBuiltin(this);
-  }
+  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class Template final : public FunDef
@@ -78,9 +74,7 @@ public:
   void bindParams (List<Expression> *a);
   void displayACL2Expr (std::ostream &os) override;
 
-  bool accept(RecursiveASTVisitor *visitor) override {
-    return visitor->TraverseTemplate(this);
-  }
+  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 #endif // FUNCTIONS_H
