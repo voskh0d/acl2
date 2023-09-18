@@ -24,6 +24,7 @@ public:
   Block *body;
 
   FunDef (const char *n, Type *t, List<VarDec> *p, Block *b);
+  FunDef (NodesId id, const char *n, Type *t, List<VarDec> *p, Block *b);
 
   const char *
   getname () const
@@ -45,8 +46,6 @@ public:
                         unsigned indent = 0);
   virtual void displayACL2Expr (std::ostream &os);
 
-  inline NodesId id() const override { return idOf_impl(this); }
-
 private:
   void displayPrototype (std::ostream &os, const char *prefix, unsigned indent);
 };
@@ -55,11 +54,9 @@ class Builtin final : public FunDef
 {
 public:
   Builtin (const char *n, Type *t, List<VarDec> *p)
-    : FunDef(n, t, p, nullptr)
+    : FunDef(idOf(this), n, t, p, nullptr)
   {
   }
-
-  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class Template final : public FunDef
@@ -73,8 +70,6 @@ public:
                 unsigned indent = 0) override;
   void bindParams (List<Expression> *a);
   void displayACL2Expr (std::ostream &os) override;
-
-  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 #endif // FUNCTIONS_H

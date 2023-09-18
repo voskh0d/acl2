@@ -44,7 +44,7 @@ public:
 
   // Configure the order of the traversal. To do it in a postfix order,
   // overload this function and return true.
-  bool postfixTraversal() { return false; }
+  inline bool postfixTraversal() { return false; }
 
   // If the method is abstract (like Expression, Statement, Constant, ..),
   // dispatch the expression or statement to their most specific type. Those
@@ -53,9 +53,9 @@ public:
   // Otherwise, call Traverse on all its child. If we are doing a prefix
   // traversal call WalkUp on itself before traversing its child, if not call
   // it after.
-  bool TraverseExpression(Expression *e);
-  bool TraverseStatement(Statement *s);
-#define APPLY(CLASS, PARENT) bool Traverse##CLASS (CLASS *);
+  inline bool TraverseExpression(Expression *e);
+  inline bool TraverseStatement(Statement *s);
+#define APPLY(CLASS, PARENT) inline bool Traverse##CLASS (CLASS *);
 #include "astnodes.def"
 #undef APPLY
 
@@ -63,9 +63,9 @@ public:
   // calls VisitCLASS. WalkUpExpression and WalkUpStatement will only call
   // VisitExpression or VisitStatement since they are at the top of the
   // hierarchy.
-  bool WalkUpExpression(Expression *e);
-  bool WalkUpStatement(Statement *s);
-#define APPLY(CLASS, PARENT) bool WalkUp##CLASS (CLASS *);
+  inline bool WalkUpExpression(Expression *e);
+  inline bool WalkUpStatement(Statement *s);
+#define APPLY(CLASS, PARENT) inline bool WalkUp##CLASS (CLASS *);
 #include "astnodes.def"
 #undef APPLY
 
@@ -75,14 +75,17 @@ public:
   // example, Integer) is derived of an other (like Constant for Integer), both
   // Visit functions will be called (in our example, for an Integer node,
   // VisitExpression, VisitConstant, VisitInteger in this order) will be called.
-  bool VisitExpression(Expression *e);
-  bool VisitStatement(Statement *s);
-#define APPLY(CLASS, PARENT) bool Visit##CLASS (CLASS *);
+  inline bool VisitExpression(Expression *e);
+  inline bool VisitStatement(Statement *s);
+#define APPLY(CLASS, PARENT) inline bool Visit##CLASS (CLASS *);
 #include "astnodes.def"
 #undef APPLY
 
 private:
    inline Derived& derived() { return *static_cast<Derived *>(this); }
+
+   template <typename AbstractBase>
+   bool dispatchTraverse(AbstractBase *e);
 };
 
 #include "visitor.cpp"

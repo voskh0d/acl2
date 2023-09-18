@@ -857,7 +857,19 @@ BinaryExpr::BinaryExpr (Expression *e1, Expression *e2, const char *o)
 {
   expr1 = e1;
   expr2 = e2;
-  op = o;
+  op = parseOp(o);
+}
+
+BinaryExpr::Op
+BinaryExpr::parseOp(const char *o) {
+
+ if (false)
+ {}
+#define APPLY_BINARY_OP(NAME, OP) else if (!strcmp(o, #OP)) return Op::NAME;
+#define APPLY_ASSIGN_OP(_, __)
+#include "operators.def"
+#undef APPLY_BINARY_OP
+ else UNREACHABLE();
 }
 
 bool
@@ -871,43 +883,25 @@ BinaryExpr::evalConst ()
 {
   int val1 = expr1->evalConst ();
   int val2 = expr2->evalConst ();
-  if (!strcmp (op, "+"))
-    return val1 + val2;
-  if (!strcmp (op, "-"))
-    return val1 - val2;
-  if (!strcmp (op, "*"))
-    return val1 * val2;
-  if (!strcmp (op, "/"))
-    return val1 / val2;
-  if (!strcmp (op, "%"))
-    return val1 % val2;
-  if (!strcmp (op, "<<"))
-    return val1 << val2;
-  if (!strcmp (op, ">>"))
-    return val1 >> val2;
-  if (!strcmp (op, "&"))
-    return val1 & val2;
-  if (!strcmp (op, "^"))
-    return val1 ^ val2;
-  if (!strcmp (op, "|"))
-    return val1 | val2;
-  if (!strcmp (op, "<"))
-    return val1 < val2;
-  if (!strcmp (op, ">"))
-    return val1 > val2;
-  if (!strcmp (op, "<="))
-    return val1 <= val2;
-  if (!strcmp (op, ">="))
-    return val1 >= val2;
-  if (!strcmp (op, "=="))
-    return val1 == val2;
-  if (!strcmp (op, "!="))
-    return val1 != val2;
-  if (!strcmp (op, "&&"))
-    return val1 && val2;
-  if (!strcmp (op, "||"))
-    return val1 || val2;
-  UNREACHABLE ();
+
+  switch (op) {
+#define APPLY_BINARY_OP(NAME, OP) case Op::NAME: return val1 OP val2;
+#define APPLY_ASSIGN_OP(_, __)
+#include "operators.def"
+#undef APPLY_BINARY_OP
+    default: UNREACHABLE();
+  }
+}
+
+std::ostream&
+operator<<(std::ostream& os, BinaryExpr::Op op) {
+  switch (op) {
+#define APPLY_BINARY_OP(NAME, OP) case BinaryExpr::Op::NAME: return os << #OP;
+#define APPLY_ASSIGN_OP(_, __)
+#include "operators.def"
+#undef APPLY_BINARY_OP
+    default: UNREACHABLE();
+  }
 }
 
 bool
@@ -929,8 +923,7 @@ BinaryExpr::exprType ()
 {
   const Type *t1 = expr1->exprType ();
   const Type *t2 = expr2->exprType ();
-  if ((!strcmp (op, "&") || !strcmp (op, "|") || !strcmp (op, "^"))
-      && (t1 == t2))
+  if ((op == Op::BitAnd || op == Op::BitOr || op == Op::BitXor) && t1 == t2)
     {
       return t1;
     }
@@ -946,57 +939,39 @@ BinaryExpr::ACL2Expr (bool isBV)
   Symbol *ptr;
   Sexpression *sexpr1 = expr1->ACL2Expr ();
   Sexpression *sexpr2 = expr2->ACL2Expr ();
-  if (isFPType(expr1->get_type()) && !strcmp (op, "<<"))
+  if (isFPType(expr1->get_type()) && op == Op::LShift)
     {
       return new Plist (
           { &s_times, sexpr1, new Plist ({ &s_expt, &i_2, sexpr2 }) });
     }
-  else if (isFPType(expr1->get_type()) && !strcmp (op, ">>"))
+  else if (isFPType(expr1->get_type()) && op == Op::RShift)
     {
       return new Plist (
           { &s_divide, sexpr1, new Plist ({ &s_expt, &i_2, sexpr2 }) });
     }
-  if (!strcmp (op, "+"))
-    ptr = &s_plus;
-  else if (!strcmp (op, "-"))
-    ptr = &s_minus;
-  else if (!strcmp (op, "*"))
-    ptr = &s_times;
-  else if (!strcmp (op, "/"))
-    return new Plist ({ &s_fl, new Plist ({ &s_slash, sexpr1, sexpr2 }) });
-  else if (!strcmp (op, "%"))
-    ptr = &s_rem;
-  else if (!strcmp (op, "<<"))
-    ptr = &s_ash;
-  else if (!strcmp (op, ">>"))
-    {
-      ptr = &s_ash;
-      sexpr2 = new Plist ({ &s_minus, sexpr2 });
-    }
-  else if (!strcmp (op, "&"))
-    ptr = &s_logand;
-  else if (!strcmp (op, "^"))
-    ptr = &s_logxor;
-  else if (!strcmp (op, "|"))
-    ptr = &s_logior;
-  else if (!strcmp (op, "<"))
-    ptr = &s_logless;
-  else if (!strcmp (op, ">"))
-    ptr = &s_loggreater;
-  else if (!strcmp (op, "<="))
-    ptr = &s_logleq;
-  else if (!strcmp (op, ">="))
-    ptr = &s_loggeq;
-  else if (!strcmp (op, "=="))
-    ptr = &s_logeq;
-  else if (!strcmp (op, "!="))
-    ptr = &s_logneq;
-  else if (!strcmp (op, "&&"))
-    ptr = &s_logand1;
-  else if (!strcmp (op, "||"))
-    ptr = &s_logior1;
-  else
-    UNREACHABLE ();
+
+  switch (op) {
+    case Op::Plus: ptr = &s_plus; break;
+    case Op::Minus: ptr = &s_minus; break;
+    case Op::Times: ptr = &s_times; break;
+    case Op::Divide: return new Plist ({ &s_fl, new Plist ({ &s_slash, sexpr1, sexpr2 }) });
+    case Op::Mod: ptr = &s_rem; break;
+    case Op::LShift: ptr = &s_ash; break;
+    case Op::RShift: ptr = &s_ash; sexpr2 = new Plist ({ &s_minus, sexpr2 }); break;
+    case Op::BitAnd: ptr = &s_logand; break;
+    case Op::BitXor: ptr = &s_logxor; break;
+    case Op::BitOr: ptr = &s_logior; break;
+    case Op::Less: ptr = &s_logless; break;
+    case Op::Greater: ptr = &s_loggreater; break;
+    case Op::LessEqual: ptr = &s_logleq; break;
+    case Op::GreaterEqual: ptr = &s_loggeq; break;
+    case Op::Equal: ptr = &s_logeq; break;
+    case Op::NotEqual: ptr = &s_logneq; break;
+    case Op::And: ptr = &s_logand1; break;
+    case Op::Or: ptr = &s_logior1; break;
+    default: UNREACHABLE();
+  }
+
   if (get_type()
       && (ptr == &s_logand || ptr == &s_logior || ptr == &s_logxor))
     {

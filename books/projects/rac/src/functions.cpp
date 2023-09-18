@@ -10,8 +10,22 @@
 // *body;
 
 FunDef::FunDef(const char *n, Type *t, List<VarDec> *p, Block *b)
-    : sym(new Symbol(n)), returnType(t), params(p), body(b) {
-    }
+  : Statement(idOf(this))
+  , sym(new Symbol(n))
+  , returnType(t)
+  , params(p)
+  , body(b)
+{
+}
+
+FunDef::FunDef(NodesId id, const char *n, Type *t, List<VarDec> *p, Block *b)
+  : Statement(id)
+  , sym(new Symbol(n))
+  , returnType(t)
+  , params(p)
+  , body(b)
+{
+}
 
 void FunDef::displayPrototype(std::ostream &os, const char *prefix,
                               unsigned indent) {
@@ -67,7 +81,7 @@ void FunDef::displayACL2Expr(std::ostream &os) {
 
 Template::Template(const char *n, Type *t, List<VarDec> *p, Block *b,
                    List<TempParamDec> *tp)
-    : FunDef(n, t, p, b), tempParams(tp) {
+    : FunDef(idOf(this), n, t, p, b), tempParams(tp) {
     }
 
 void Template::display(std::ostream &os, const char *prefix, unsigned indent) {

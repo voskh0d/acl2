@@ -66,8 +66,6 @@ Statement::noteReturnType ([[maybe_unused]] Type *t)
 // class SimpleStatement : public Statement
 // ----------------------------------------
 
-SimpleStatement::SimpleStatement () : Statement () {}
-
 void
 SimpleStatement::display (std::ostream &os, unsigned indent)
 {
@@ -88,7 +86,18 @@ SimpleStatement::display (std::ostream &os, unsigned indent)
 // Data members: Symbol* sym; Type *type; Expression *init; (init is optional)
 
 SymDec::SymDec (const char *n, Type *t, Expression *i)
-    : sym (new Symbol (n)), type (t), init (i)
+    : SimpleStatement(idOf(this))
+    , sym (new Symbol (n))
+    , type (t)
+    , init (i)
+{
+}
+
+SymDec::SymDec (NodesId id, const char *n, Type *t, Expression *i)
+    : SimpleStatement(id)
+    , sym (new Symbol (n))
+    , type (t)
+    , init (i)
 {
 }
 
@@ -143,7 +152,7 @@ SymDec::ACL2SymExpr ()
 // ----------------------------------
 
 EnumConstDec::EnumConstDec (const char *n, Expression *v)
-    : SymDec (n, &intType, v)
+    : SymDec (idOf(this), n, &intType, v)
 {
 }
 
@@ -189,7 +198,12 @@ EnumConstDec::ACL2SymExpr ()
 // ---------------------------------------------------------------------------
 
 VarDec::VarDec (const char *n, Type *t, Expression *i)
-    : SymDec (n, t, i)
+    : SymDec (idOf(this), n, t, i)
+{
+}
+
+VarDec::VarDec (NodesId id, const char *n, Type *t, Expression *i)
+    : SymDec (id, n, t, i)
 {
 }
 
@@ -253,7 +267,8 @@ VarDec::ACL2SymExpr ()
 // class ConstDec : public VarDec
 // ------------------------------
 
-ConstDec::ConstDec (const char *n, Type *t, Expression *i) : VarDec (n, t, i)
+ConstDec::ConstDec (const char *n, Type *t, Expression *i)
+  : VarDec (idOf(this), n, t, i)
 {
 }
 
@@ -299,12 +314,17 @@ ConstDec::ACL2SymExpr ()
 // class MulVarDec : public SimpleStatement  (multiple variable declaration)
 // ---------------------------------------------------------------------------
 
-MulVarDec::MulVarDec (VarDec *dec1, VarDec *dec2) : SimpleStatement ()
+MulVarDec::MulVarDec (VarDec *dec1, VarDec *dec2)
+  : SimpleStatement (idOf(this))
 {
   decs = new List<VarDec> (dec1, dec2);
 }
 
-MulVarDec::MulVarDec (List<VarDec> *d) : SimpleStatement () { decs = d; }
+MulVarDec::MulVarDec (List<VarDec> *d)
+  : SimpleStatement (idOf(this))
+  , decs(d)
+{
+}
 
 Sexpression *
 MulVarDec::ACL2Expr ()
@@ -346,12 +366,17 @@ MulVarDec::displaySimple (std::ostream &os)
 // class MulConstDec : public SimpleStatement  (multiple constant declaration)
 // ---------------------------------------------------------------------------
 
-MulConstDec::MulConstDec (ConstDec *dec1, ConstDec *dec2) : SimpleStatement ()
+MulConstDec::MulConstDec (ConstDec *dec1, ConstDec *dec2)
+  : SimpleStatement (idOf(this))
 {
   decs = new List<ConstDec> (dec1, dec2);
 }
 
-MulConstDec::MulConstDec (List<ConstDec> *d) : SimpleStatement () { decs = d; }
+MulConstDec::MulConstDec (List<ConstDec> *d)
+  : SimpleStatement (idOf(this))
+  , decs(d)
+{
+}
 
 Sexpression *
 MulConstDec::ACL2Expr ()
@@ -393,9 +418,9 @@ MulConstDec::displaySimple (std::ostream &os)
 // class TempParamDec : public VarDec  (template parameter declaration)
 // --------------------------------------------------------------------
 
-TempParamDec::TempParamDec (const char *n, Type *t) : SymDec (n, t)
+TempParamDec::TempParamDec (const char *n, Type *t)
+  : SymDec (idOf(this), n, t)
 {
-  init = &i_1;
 }
 
 bool
@@ -413,7 +438,7 @@ TempParamDec::ACL2SymExpr ()
 // class BreakStmt : public SimpleStatement
 // ----------------------------------------
 
-BreakStmt::BreakStmt () : SimpleStatement () {}
+BreakStmt::BreakStmt () : SimpleStatement (idOf(this)) {}
 
 void
 BreakStmt::displaySimple (std::ostream &os)
@@ -434,7 +459,11 @@ BreakStmt breakStmt;
 
 // Data members: Expression *value;
 
-ReturnStmt::ReturnStmt (Expression *v) : SimpleStatement () { value = v; }
+ReturnStmt::ReturnStmt (Expression *v)
+  : SimpleStatement (idOf(this))
+  , value(v)
+{
+}
 
 void
 ReturnStmt::displaySimple (std::ostream &os)
@@ -461,7 +490,11 @@ ReturnStmt::noteReturnType (Type *t)
 
 // Data member: Expression *expr;
 
-Assertion::Assertion (Expression *e) : SimpleStatement () { expr = e; }
+Assertion::Assertion (Expression *e)
+  : SimpleStatement (idOf(this))
+  , expr(e)
+{
+}
 
 void
 Assertion::displaySimple (std::ostream &os)
@@ -485,11 +518,11 @@ Assertion::ACL2Expr ()
 // Data members: Expression *lval; const char* op; Expression *rval;
 
 Assignment::Assignment (Expression *l, const char *o, Expression *r)
-    : SimpleStatement ()
+  : SimpleStatement (idOf(this))
+  , lval(l)
+  , op(o)
+  , rval(r)
 {
-  lval = l;
-  op = o;
-  rval = r;
 }
 
 void
@@ -575,7 +608,9 @@ Assignment::ACL2Expr ()
 
 MultipleAssignment::MultipleAssignment (FunCall *r,
                                         std::vector<Expression *> e)
-    : SimpleStatement (), lval_ (e), rval_ (r)
+  : SimpleStatement (idOf(this))
+  , lval_ (e)
+  , rval_ (r)
 {
 }
 
@@ -652,7 +687,10 @@ MultipleAssignment::ACL2Expr ()
 // class NullStmt : public SimpleStatement (null statement)
 // --------------------------------------------------
 
-NullStmt::NullStmt () : SimpleStatement () {}
+NullStmt::NullStmt ()
+  : SimpleStatement (idOf(this))
+{
+}
 
 void
 NullStmt::displaySimple ([[maybe_unused]] std::ostream &os)
@@ -672,19 +710,26 @@ NullStmt nullStmt;
 
 // Data member: List<Statement> *stmtList;
 
-Block::Block (List<Statement> *s) : Statement () { stmtList = s; }
+Block::Block (List<Statement> *s)
+  : Statement (idOf(this))
+  , stmtList(s)
+{
+}
 
-Block::Block (Statement *s) : Statement ()
+Block::Block (Statement *s)
+  : Statement (idOf(this))
 {
   stmtList = new List<Statement> (s);
 }
 
-Block::Block (Statement *s1, Statement *s2) : Statement ()
+Block::Block (Statement *s1, Statement *s2)
+  : Statement (idOf(this))
 {
   stmtList = new List<Statement> (s1, new List<Statement> (s2));
 }
 
-Block::Block (Statement *s1, Statement *s2, Statement *s3) : Statement ()
+Block::Block (Statement *s1, Statement *s2, Statement *s3)
+  : Statement (idOf(this))
 {
   stmtList = new List<Statement> (
       s1, new List<Statement> (s2, new List<Statement> (s3)));
@@ -771,11 +816,12 @@ Block::noteReturnType (Type *t)
 
 // Data members: Expression *test; Statement *left; Statement *right;
 
-IfStmt::IfStmt (Expression *t, Statement *l, Statement *r) : Statement ()
+IfStmt::IfStmt (Expression *t, Statement *l, Statement *r)
+  : Statement (idOf(this))
+  , test(t)
+  , left(l)
+  , right(r)
 {
-  test = t;
-  left = l;
-  right = r;
 }
 
 void
@@ -823,9 +869,8 @@ IfStmt::noteReturnType (Type *t)
 // Data members: SimpleStatement *init; Expression *test; Assignment *update;
 // Statement *body;
 
-ForStmt::ForStmt (SimpleStatement *v, Expression *t, Assignment *u,
-                  Statement *b)
-    : Statement ()
+ForStmt::ForStmt (SimpleStatement *v, Expression *t, Assignment *u, Statement *b)
+  : Statement (idOf(this))
 {
   init = v;
   test = t;
@@ -864,9 +909,10 @@ ForStmt::ACL2Expr ()
 // Data members:   Expression *label; List<Statement> *action;
 
 Case::Case (Expression *l, List<Statement> *a)
+  : Statement(idOf(this))
+  , label(l)
+  , action(a)
 {
-  label = l;
-  action = a;
 }
 
 void
@@ -897,7 +943,9 @@ Case::display (std::ostream &os, unsigned indent)
 // Data members: Expression *test; List<Case> *cases;
 
 SwitchStmt::SwitchStmt (Expression *t, List<Case> *c)
-    : Statement (), test_ (t), cases_ (BetterList<Case>::_from_raw (c))
+  : Statement (idOf(this))
+  , test_ (t)
+  , cases_ (BetterList<Case>::_from_raw (c))
 {
 }
 

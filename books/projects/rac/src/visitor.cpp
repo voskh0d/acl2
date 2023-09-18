@@ -1,14 +1,15 @@
 template <typename Derived>
-bool RecursiveASTVisitor<Derived>::TraverseExpression(Expression *e) {
+template <typename AbstractBase>
+bool RecursiveASTVisitor<Derived>::dispatchTraverse(AbstractBase *e) {
   if (!e)
     return true;
 
   switch (e->id()) {
-#define APPLY(CLASS, _)                                                     \
-    case NodesId::CLASS:                                                    \
-      if constexpr (std::is_base_of_v<Expression, CLASS>)                   \
-        return derived().Traverse##CLASS(reinterpret_cast<CLASS *>(e));     \
-      else                                                                  \
+#define APPLY(CLASS, _)                                                       \
+    case NodesId::CLASS:                                                      \
+      if constexpr (std::is_base_of_v<AbstractBase, CLASS>)                   \
+        return derived().Traverse##CLASS(reinterpret_cast<CLASS *>(e));       \
+      else                                                                    \
         UNREACHABLE();
 #include "astnodes.def"
 #undef APPLY
@@ -17,57 +18,24 @@ bool RecursiveASTVisitor<Derived>::TraverseExpression(Expression *e) {
 }
 
 template <typename Derived>
-bool RecursiveASTVisitor<Derived>::TraverseStatement(Statement *s) {
-  if (!s)
-    return true;
+bool RecursiveASTVisitor<Derived>::TraverseExpression(Expression *e) {
+  return dispatchTraverse(e);
+}
 
-  switch (s->id()) {
-#define APPLY(CLASS, _)                                                     \
-    case NodesId::CLASS:                                                    \
-      if constexpr (std::is_base_of_v<Statement, CLASS>)                    \
-        return derived().Traverse##CLASS(reinterpret_cast<CLASS *>(s));     \
-      else                                                                  \
-        UNREACHABLE();
-#include "astnodes.def"
-#undef APPLY
-  }
-  UNREACHABLE();
+
+template <typename Derived>
+bool RecursiveASTVisitor<Derived>::TraverseStatement(Statement *s) {
+  return dispatchTraverse(s);
 }
 
 template <typename Derived>
 bool RecursiveASTVisitor<Derived>::TraverseSimpleStatement(SimpleStatement *s) {
-  if (!s)
-    return true;
-
-  switch (s->id()) {
-#define APPLY(CLASS, _)                                                     \
-    case NodesId::CLASS:                                                    \
-      if constexpr (std::is_base_of_v<SimpleStatement, CLASS>)              \
-        return derived().Traverse##CLASS(reinterpret_cast<CLASS *>(s));     \
-      else                                                                  \
-        UNREACHABLE();
-#include "astnodes.def"
-#undef APPLY
-  }
-  UNREACHABLE();
+  return dispatchTraverse(s);
 }
 
 template <typename Derived>
 bool RecursiveASTVisitor<Derived>::TraverseConstant(Constant *e) {
-  if (!e)
-    return true;
-
-  switch (e->id2()) {
-#define APPLY(CLASS, _)                                                     \
-    case NodesId::CLASS:                                                    \
-      if constexpr (std::is_base_of_v<Constant, CLASS>)                     \
-        return derived().Traverse##CLASS(reinterpret_cast<CLASS *>(e));     \
-      else                                                                  \
-        UNREACHABLE();
-#include "astnodes.def"
-#undef APPLY
-  }
-  UNREACHABLE();
+  return dispatchTraverse(e);
 }
 
 template <typename Derived>
@@ -102,9 +70,6 @@ bool RecursiveASTVisitor<Derived>::TraverseSymRef(SymRef *e) {
     if (!derived().WalkUpSymRef(e))
       return false;
 
-  if (!derived().TraverseStatement(e->symDec))
-    return false;
-
   if (derived().postfixTraversal())
     if (!derived().WalkUpSymRef(e))
       return false;
@@ -118,9 +83,6 @@ bool RecursiveASTVisitor<Derived>::TraverseFunCall(FunCall *e) {
   if (!derived().postfixTraversal())
     if (!derived().WalkUpFunCall(e))
       return false;
-
-  if (!derived().TraverseStatement(e->func))
-    return false;
 
   bool b = true;
   for_each(e->args, [&](Expression *e) {

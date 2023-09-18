@@ -18,6 +18,8 @@ class TempCall;
 class Statement
 {
 public:
+  Statement(NodesId id) : id_(id) {}
+
   virtual void display (std::ostream &os, unsigned indent = 0) = 0;
   virtual void displayAsRightBranch (std::ostream &os, unsigned indent = 0);
   virtual void displayWithinBlock (std::ostream &os, unsigned indent = 0);
@@ -26,17 +28,18 @@ public:
   virtual Sexpression *ACL2Expr () = 0;
   virtual void noteReturnType (Type *t);
 
-  virtual NodesId id() const = 0;
+  inline NodesId id() const { return id_; }
+
+private:
+  const NodesId id_;
 };
 
 class SimpleStatement : public Statement
 {
 public:
-  SimpleStatement ();
+  SimpleStatement (NodesId id) : Statement(id) {}
   void display (std::ostream &os, unsigned indent = 0) override;
   virtual void displaySimple (std::ostream &os) = 0;
-
-  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class SymDec : public SimpleStatement
@@ -46,6 +49,8 @@ public:
   Type *type;
   Expression *init;
   SymDec (const char *n, Type *t, Expression *i = nullptr);
+  SymDec (NodesId id, const char *n, Type *t, Expression *i = nullptr);
+
   const char *
   getname () const
   {
@@ -57,8 +62,6 @@ public:
   virtual bool isConst ();
   virtual int evalConst ();
   virtual Sexpression *ACL2SymExpr ();
-
-  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class EnumConstDec final : public SymDec
@@ -71,19 +74,16 @@ public:
   // ACL2expr Weird
   Sexpression *ACL2Expr ();
   Sexpression *ACL2SymExpr ();
-
-  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class VarDec : public SymDec
 {
 public:
   VarDec (const char *n, Type *t, Expression *i = nullptr);
+  VarDec (NodesId id, const char *n, Type *t, Expression *i = nullptr);
   void displaySimple (std::ostream &os) override;
   Sexpression *ACL2Expr () override;
   Sexpression *ACL2SymExpr () override;
-
-  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class ConstDec : public VarDec
@@ -95,8 +95,15 @@ public:
   bool isGlobal () override;
   bool isROM () override;
   Sexpression *ACL2SymExpr () override;
+};
 
-  inline NodesId id() const override { return idOf_impl(this); }
+class MulConstDec : public SimpleStatement {
+public:
+  List<ConstDec> *decs;
+  MulConstDec (ConstDec *dec1, ConstDec *dec2);
+  MulConstDec (List<ConstDec> *decs);
+  Sexpression *ACL2Expr () override;
+  void displaySimple (std::ostream &os) override;
 };
 
 class MulVarDec : public SimpleStatement
@@ -107,20 +114,6 @@ public:
   MulVarDec (List<VarDec> *decs);
   Sexpression *ACL2Expr () override;
   void displaySimple (std::ostream &os) override;
-
-  inline NodesId id() const override { return idOf_impl(this); }
-};
-
-class MulConstDec : public SimpleStatement
-{
-public:
-  List<ConstDec> *decs;
-  MulConstDec (ConstDec *dec1, ConstDec *dec2);
-  MulConstDec (List<ConstDec> *decs);
-  Sexpression *ACL2Expr () override;
-  void displaySimple (std::ostream &os) override;
-
-  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class TempParamDec final : public SymDec
@@ -137,8 +130,6 @@ public:
     assert(false);
     return nullptr;
   }
-
-  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class BreakStmt final : public SimpleStatement
@@ -147,8 +138,6 @@ public:
   BreakStmt ();
   void displaySimple (std::ostream &os) override;
   Sexpression *ACL2Expr () override;
-
-  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class ReturnStmt final : public SimpleStatement
@@ -160,8 +149,6 @@ public:
   void displaySimple (std::ostream &os) override;
   Sexpression *ACL2Expr () override;
   void noteReturnType (Type *t) override;
-
-  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class NullStmt final : public SimpleStatement
@@ -170,8 +157,6 @@ public:
   NullStmt ();
   void displaySimple (std::ostream &os) override;
   Sexpression *ACL2Expr () override;
-
-  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class Assertion final : public SimpleStatement
@@ -182,8 +167,6 @@ public:
   Assertion (Expression *e);
   void displaySimple (std::ostream &os) override;
   Sexpression *ACL2Expr () override;
-
-  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class Assignment final : public SimpleStatement
@@ -195,8 +178,6 @@ public:
   Assignment (Expression *l, const char *o, Expression *r = nullptr);
   void displaySimple (std::ostream &os) override;
   Sexpression *ACL2Expr () override;
-
-  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class MultipleAssignment : public SimpleStatement
@@ -211,8 +192,6 @@ public:
 
   const std::vector<Expression *>& lvals() const { return lval_; }
   FunCall *rval() { return rval_; }
-
-  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class Block final : public Statement
@@ -229,8 +208,6 @@ public:
   void displayWithinBlock (std::ostream &os, unsigned indent = 0) override;
   Sexpression *ACL2Expr () override;
   void noteReturnType (Type *t) override;
-
-  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class IfStmt final : public Statement
@@ -244,8 +221,6 @@ public:
   void displayAsRightBranch (std::ostream &os, unsigned indent = 0) override;
   Sexpression *ACL2Expr () override;
   void noteReturnType (Type *t) override;
-
-  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class ForStmt final : public Statement
@@ -258,8 +233,6 @@ public:
   ForStmt (SimpleStatement *v, Expression *t, Assignment *u, Statement *b);
   void display (std::ostream &os, unsigned indent = 0) override;
   Sexpression *ACL2Expr () override;
-
-  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class Case final : public Statement
@@ -284,8 +257,6 @@ public:
     if ((t == nullptr || !isEnumType(t)) && !dynamic_cast<Constant *>(label))
       assert(!"case label must be an integer or an enum constant");
   }
-
-  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 class SwitchStmt : public Statement
@@ -300,8 +271,6 @@ public:
 
   Expression *test() { return test_; }
   BetterList<Case> cases() { return cases_; }
-
-  inline NodesId id() const override { return idOf_impl(this); }
 };
 
 #endif // STATEMENTS_H

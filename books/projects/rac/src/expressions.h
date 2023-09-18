@@ -54,9 +54,7 @@ public:
 
   unsigned ACL2ValWidth ();
 
-  virtual NodesId id() const = 0;
-
-  inline NodesId id2() const { return id_; }
+  inline NodesId id() const { return id_; }
 
   // Only during the type passs we are allowed to modify the type.
   void set_type(const Type *t) { t_ = t; }
@@ -79,8 +77,6 @@ public:
   bool isInteger () override { return true; }
   void display (std::ostream &os) const override;
   Sexpression *ACL2Expr (bool isBV = false) override;
-
-  NodesId id() const override { return idOf_impl(this); }
 };
 
 class Integer final : public Constant
@@ -91,8 +87,6 @@ public:
   Integer (int n);
   int evalConst ();
   Sexpression *ACL2Expr (bool isBV);
-
-  NodesId id() const override { return idOf_impl(this); }
 };
 
 extern Integer i_0;
@@ -106,8 +100,6 @@ public:
   Boolean (const char *n);
   int evalConst () override;
   Sexpression *ACL2Expr (bool isBV = false) override;
-
-  NodesId id() const override { return idOf_impl(this); }
 };
 
 class Parenthesis final : public Expression {
@@ -138,18 +130,13 @@ public:
   virtual Sexpression *ACL2Assign (Sexpression *rval) { return expr_->ACL2Assign(rval); }
 
   unsigned ACL2ValWidth () { return expr_->ACL2ValWidth(); }
-
-  NodesId id() const override { return idOf_impl(this); }
 };
-
-
 
 extern Boolean b_true;
 extern Boolean b_false;
 
 class SymRef final : public Expression
 {
-  // type depends de la dec
 public:
   SymDec *symDec;
 
@@ -161,8 +148,6 @@ public:
   void display (std::ostream &os) const override;
   Sexpression *ACL2Expr (bool isBV = false) override;
   Sexpression *ACL2Assign (Sexpression *rval) override;
-
-  NodesId id() const override { return idOf_impl(this); }
 };
 
 class FunDef;
@@ -180,8 +165,6 @@ public:
   const Type *exprType () override;
   void display (std::ostream &os) const override;
   Sexpression *ACL2Expr (bool isBV = false) override;
-
-  NodesId id() const override { return idOf_impl(this); }
 };
 
 class Template;
@@ -194,8 +177,6 @@ public:
   TempCall (Template *f, List<Expression> *a, List<Expression> *p);
   void display (std::ostream &os) const override;
   Sexpression *ACL2Expr (bool isBV = false) override;
-
-  NodesId id() const override { return idOf_impl(this); }
 };
 
 class Initializer final : public Expression
@@ -208,8 +189,6 @@ public:
   Sexpression *ACL2ArrayExpr () override;
 
   Sexpression *ACL2StructExpr (const std::vector<StructField *>& fields);
-
-  NodesId id() const override { return idOf_impl(this); }
 };
 
 class ArrayRef final : public Expression
@@ -223,8 +202,6 @@ public:
   void display (std::ostream &os) const override;
   Sexpression *ACL2Expr (bool isBV = false) override;
   Sexpression *ACL2Assign (Sexpression *rval) override;
-
-  NodesId id() const override { return idOf_impl(this); }
 };
 
 class StructRef final : public Expression
@@ -238,8 +215,6 @@ public:
   void display (std::ostream &os) const override;
   Sexpression *ACL2Expr (bool isBV = false) override;
   Sexpression *ACL2Assign (Sexpression *rval) override;
-
-  NodesId id() const override { return idOf_impl(this); }
 };
 
 class BitRef final : public Expression
@@ -253,8 +228,6 @@ public:
   void display (std::ostream &os) const override;
   Sexpression *ACL2Expr (bool isBV = false) override;
   Sexpression *ACL2Assign (Sexpression *rval) override;
-
-  NodesId id() const override { return idOf_impl(this); }
 };
 
 class Subrange final : public Expression
@@ -277,8 +250,6 @@ public:
   Sexpression *ACL2Expr (bool isBV = false) override;
   Sexpression *ACL2Assign (Sexpression *rval) override;
 
-  NodesId id() const override { return idOf_impl(this); }
-
 private:
   unsigned width_;
 };
@@ -295,8 +266,6 @@ public:
   void display (std::ostream &os) const override;
   const Type *exprType () override;
   Sexpression *ACL2Expr (bool isBV = false) override;
-
-  NodesId id() const override { return idOf_impl(this); }
 };
 
 class CastExpr final : public Expression
@@ -311,17 +280,22 @@ public:
   bool isInteger () override;
   void display (std::ostream &os) const override;
   Sexpression *ACL2Expr (bool isBV = false) override;
-
-  NodesId id() const override { return idOf_impl(this); }
 };
 
 class BinaryExpr final : public Expression
 {
 public:
+  enum class Op {
+#define APPLY_BINARY_OP(NAME, _) NAME,
+#define APPLY_ASSIGN_OP(_, __)
+#include "operators.def"
+#undef APPLY_BINARY_OP
+  };
 
   Expression *expr1;
   Expression *expr2;
-  const char *op;
+  Op op;
+
   BinaryExpr (Expression *e1, Expression *e2, const char *o);
   bool isConst () override;
   int evalConst () override;
@@ -330,8 +304,11 @@ public:
   const Type *exprType () override;
   Sexpression *ACL2Expr (bool isBV = false) override;
 
-  NodesId id() const override { return idOf_impl(this); }
+private:
+  static Op parseOp(const char *o);
 };
+
+std::ostream& operator<<(std::ostream& os, BinaryExpr::Op op);
 
 class CondExpr final : public Expression
 {
@@ -343,8 +320,6 @@ public:
   bool isInteger () override;
   void display (std::ostream &os) const override;
   Sexpression *ACL2Expr (bool isBV = false) override;
-
-  NodesId id() const override { return idOf_impl(this); }
 };
 
 class MultipleValue final : public Expression
@@ -361,8 +336,6 @@ public:
 
   void display (std::ostream &os) const override;
   Sexpression *ACL2Expr (bool isBV = false) override;
-
-  NodesId id() const override { return idOf_impl(this); }
 };
 
 #endif // EXPRESSIONS_H

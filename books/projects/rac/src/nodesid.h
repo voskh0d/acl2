@@ -15,21 +15,8 @@ template <typename NodeType>
 constexpr NodesId idOf(const NodeType *) {
   if constexpr (false)
     {}
-#define APPLY(CLASS, _)                                                      \
-  else if constexpr (std::is_same_v<NodeType, CLASS>)     \
-    return NodesId::CLASS;
-#include "astnodes.def"
-#undef APPLY
-  else
-    assert(!"Uknown type");
-}
-
-template <typename NodeType>
-constexpr NodesId idOf_impl(const NodeType *) {
-  if constexpr (false)
-    {}
-#define APPLY(CLASS, _)                                                      \
-  else if constexpr (std::is_same_v<NodeType, CLASS>)     \
+#define APPLY(CLASS, _)                                                       \
+  else if constexpr (std::is_same_v<NodeType, CLASS>)                         \
     return NodesId::CLASS;
 #include "astnodes.def"
 #undef APPLY
