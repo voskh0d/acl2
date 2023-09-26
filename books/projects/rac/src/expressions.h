@@ -288,6 +288,7 @@ public:
   enum class Op {
 #define APPLY_BINARY_OP(NAME, _) NAME,
 #define APPLY_ASSIGN_OP(_, __)
+#define APPLY_UNARY_OP(_, __)
 #include "operators.def"
 #undef APPLY_BINARY_OP
   };

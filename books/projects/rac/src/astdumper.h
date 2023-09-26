@@ -53,7 +53,7 @@ bool Visit##CLASS (CLASS *ptr) {                                    \
                                                                              \
   if constexpr (is_expression) {                                             \
     Expression *e = reinterpret_cast<Expression *>(ptr);                     \
-    if (const Type *t = e->exprType()) {                                     \
+    if (const Type *t = e->get_type()) {                                     \
       std::cout << '\n';                                                     \
       t->displayVarType();                                                   \
     }                                                                        \
@@ -69,7 +69,6 @@ bool Visit##CLASS (CLASS *ptr) {                                    \
 }
 #include "astnodes.def"
 #undef APPLY
-
 };
 
 #endif // ASTDUMPER_H

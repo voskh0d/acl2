@@ -35,3 +35,8 @@ APPLY_ASSIGN_OP( BitXorAssign, ^= )
 APPLY_ASSIGN_OP( BitOrAssign, |= )
 APPLY_ASSIGN_OP( PlusPlus, ++ )
 APPLY_ASSIGN_OP( MinusMinus, -- )
+
+APPLY_UNARY_OP( UnaryPlus, + )
+APPLY_UNARY_OP( UnaryMinus, - )
+APPLY_UNARY_OP( BitNot, ~ )
+APPLY_UNARY_OP( Not, ! )

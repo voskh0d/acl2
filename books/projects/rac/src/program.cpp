@@ -151,8 +151,6 @@ Program::displayFunDefs (std::ostream &os, DispMode mode) const
                     [&os] (auto v) { v->displayACL2Expr (os); });
 }
 
-#include "typing.h"
-
 void
 Program::display (std::ostream &os, DispMode mode) const
 {

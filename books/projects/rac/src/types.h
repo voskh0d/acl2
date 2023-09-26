@@ -18,7 +18,7 @@ class DefinedType;
 
 // Derived classes:
 //
-//   PrimType           (primitive type: uintTYpe, intType, boolType)
+//   PrimType           (primitive type: uintType, intType, boolType)
 //   DefinedType        (introduced by typedef)
 //   RegType            (Algorithmic C register type)
 //   UintType           (unsigned limited integer register)
@@ -55,11 +55,8 @@ public:
   }
 
   // overridden by RegType
+  // Convert rval to an S-expression to be assigned to an object of this
   virtual Sexpression *ACL2Assign(Expression *rval) const;
-  //  {
-  //    // Convert rval to an S-expression to be assigned to an object of this
-  //    type. return rval->ACL2Expr()
-  //  }
 
   // overridden by UintType
   virtual unsigned ACL2ValWidth() const {

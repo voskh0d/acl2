@@ -566,9 +566,9 @@ BitRef::isInteger ()
 
 const Type *
 BitRef::exprType() {
-  // here should return a bool (according to ac_types ref).
-//  return new UintType(new Integer(1));
-  return nullptr;
+  // According to AC reference, the operator[] returns  ac_int::ac_bitref which
+  // can be implicitly converted to a boolean.
+  return &boolType;
 }
 
 void
@@ -853,11 +853,11 @@ CastExpr::ACL2Expr ([[maybe_unused]] bool isBV)
 // Data members: Expression *expr1; Expression *expr2; const char *op;
 
 BinaryExpr::BinaryExpr (Expression *e1, Expression *e2, const char *o)
-    : Expression (idOf(this))
+  : Expression (idOf(this))
+  , expr1(e1)
+  , expr2(e2)
+  , op(parseOp(o))
 {
-  expr1 = e1;
-  expr2 = e2;
-  op = parseOp(o);
 }
 
 BinaryExpr::Op
@@ -867,6 +867,7 @@ BinaryExpr::parseOp(const char *o) {
  {}
 #define APPLY_BINARY_OP(NAME, OP) else if (!strcmp(o, #OP)) return Op::NAME;
 #define APPLY_ASSIGN_OP(_, __)
+#define APPLY_UNARY_OP(_, __)
 #include "operators.def"
 #undef APPLY_BINARY_OP
  else UNREACHABLE();
@@ -887,6 +888,7 @@ BinaryExpr::evalConst ()
   switch (op) {
 #define APPLY_BINARY_OP(NAME, OP) case Op::NAME: return val1 OP val2;
 #define APPLY_ASSIGN_OP(_, __)
+#define APPLY_UNARY_OP(_, __)
 #include "operators.def"
 #undef APPLY_BINARY_OP
     default: UNREACHABLE();
@@ -898,6 +900,7 @@ operator<<(std::ostream& os, BinaryExpr::Op op) {
   switch (op) {
 #define APPLY_BINARY_OP(NAME, OP) case BinaryExpr::Op::NAME: return os << #OP;
 #define APPLY_ASSIGN_OP(_, __)
+#define APPLY_UNARY_OP(_, __)
 #include "operators.def"
 #undef APPLY_BINARY_OP
     default: UNREACHABLE();
@@ -936,9 +939,10 @@ BinaryExpr::exprType ()
 Sexpression *
 BinaryExpr::ACL2Expr (bool isBV)
 {
-  Symbol *ptr;
+  Symbol *ptr = nullptr;
   Sexpression *sexpr1 = expr1->ACL2Expr ();
   Sexpression *sexpr2 = expr2->ACL2Expr ();
+
   if (isFPType(expr1->get_type()) && op == Op::LShift)
     {
       return new Plist (
