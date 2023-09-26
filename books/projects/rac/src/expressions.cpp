@@ -232,7 +232,7 @@ Sexpression *
 SymRef::ACL2Expr (bool isBV)
 {
   Sexpression *s = symDec->ACL2SymExpr ();
-  return isBV ? s : get_type ()->ACL2Eval (s);
+  return isBV ? s : exprType()->ACL2Eval (s);
 }
 
 Sexpression *
@@ -441,17 +441,22 @@ ArrayRef::ArrayRef (Expression *a, Expression *i) : Expression (idOf(this))
   index = i;
 }
 
-const Type *
-ArrayRef::exprType ()
-{
-  return tryDownCast<ArrayType>(array->exprType ())->getBaseType ();
-}
-
 bool
 ArrayRef::isInteger ()
 {
-  return isIntegerType (exprType ());
+  return isIntegerType (get_type());
 }
+
+const Type *
+ArrayRef::exprType ()
+{
+  if (isArrayType(array->get_type())) {
+    return tryDownCast<ArrayType>(array->get_type())->getBaseType ();
+  } else {
+    return &boolType;
+  }
+}
+
 
 void
 ArrayRef::display (std::ostream &os) const
@@ -465,35 +470,53 @@ ArrayRef::display (std::ostream &os) const
 Sexpression *
 ArrayRef::ACL2Expr (bool isBV)
 {
-  Sexpression *s = nullptr;
-  SymRef *ref = dynamic_cast<SymRef *>(array);
+  if (isArrayType(array->get_type())) {
+    Sexpression *s = nullptr;
+    SymRef *ref = dynamic_cast<SymRef *>(array);
 
-  if (ref && ref->symDec->isROM ())
-    {
-      s = new Plist ({ &s_nth,
-                        index->ACL2Expr (),
-                        new Plist ({ ref->symDec->sym }) });
-    }
-  else if (ref && ref->symDec->isGlobal ())
-    {
-      s = new Plist ({ &s_ag,
-                        index->ACL2Expr (),
-                        new Plist ({ ref->symDec->sym }) });
-    }
-  else
-    {
-      s = new Plist ({ &s_ag,
-                        index->ACL2Expr (),
-                        array->ACL2Expr () });
-    }
-  return isBV ? s : get_type ()->ACL2Eval (s);
+    if (ref && ref->symDec->isROM ())
+      {
+        s = new Plist ({ &s_nth,
+                          index->ACL2Expr (),
+                          new Plist ({ ref->symDec->sym }) });
+      }
+    else if (ref && ref->symDec->isGlobal ())
+      {
+        s = new Plist ({ &s_ag,
+                          index->ACL2Expr (),
+                          new Plist ({ ref->symDec->sym }) });
+      }
+    else
+      {
+        s = new Plist ({ &s_ag,
+                          index->ACL2Expr (),
+                          array->ACL2Expr () });
+      }
+    return isBV ? s : get_type ()->ACL2Eval (s);
+  } else {
+    Sexpression *b = array->ACL2Expr (true);
+    Sexpression *i = index->ACL2Expr ();
+    return new Plist ({ &s_bitn, b, i });
+  }
 }
 
 Sexpression *
 ArrayRef::ACL2Assign (Sexpression *rval)
 {
-  return array->ACL2Assign (
-      new Plist ({ &s_as, index->ACL2Expr (), rval, array->ACL2Expr () }));
+  if (isArrayType(array->get_type())) {
+    return array->ACL2Assign (
+        new Plist ({ &s_as, index->ACL2Expr (), rval, array->ACL2Expr () }));
+  } else {
+    Sexpression *b = array->ACL2Expr (true);
+    Sexpression *i = index->ACL2Expr ();
+
+    unsigned n = tryDownCast<RegType>(array->get_type())
+      ->width ()
+      ->evalConst ();
+    Integer *s = new Integer (n);
+
+    return array->ACL2Assign (new Plist ({ &s_setbitn, b, s, i, rval }));
+  }
 }
 
 // class StructRef : public Expression
@@ -593,19 +616,14 @@ BitRef::ACL2Assign (Sexpression *rval)
 {
   Sexpression *b = base->ACL2Expr (true);
   Sexpression *i = index->ACL2Expr ();
+
   unsigned n = tryDownCast<RegType>(base->get_type())
     ->width ()
     ->evalConst ();
   Integer *s = new Integer (n);
+
   return base->ACL2Assign (new Plist ({ &s_setbitn, b, s, i, rval }));
 }
-
-
-//unsigned
-//BitRef::ACL2ValWidth ()
-//{
-//  return 1;
-//}
 
 // class Subrange : public Expression
 // ----------------------------------
@@ -640,7 +658,7 @@ Subrange::exprType() {
 
   Integer *width = new Integer(this->width_);
 
-  if (const RegType *t = tryDownCast<RegType>(base->get_type())) {
+  if (const RegType *t = tryDownCast<RegType>(base->exprType())) {
 
     if (t->isSigned()) {
       return new IntType(width);
@@ -661,7 +679,7 @@ Subrange::ACL2Expr ([[maybe_unused]] bool isBV)
 
   Sexpression *bv_val = new Plist ({ &s_bits, b, hi, lo });
 
-  if (const RegType *t = tryDownCast<RegType>(base->get_type())) {
+  if (const RegType *t = tryDownCast<RegType>(base->exprType())) {
 
     if (t->isSigned()) {
       return new Plist ({ &s_si, bv_val, new Integer (width_) });
@@ -680,7 +698,7 @@ Subrange::ACL2Assign (Sexpression *rval)
   Sexpression *hi = high->ACL2Expr ();
   Sexpression *lo = low->ACL2Expr ();
 
-  unsigned n = tryDownCast<RegType>(base->get_type())
+  unsigned n = tryDownCast<RegType>(base->exprType())
     ->width ()
     ->evalConst ();
 

@@ -398,21 +398,12 @@ funcall : ID '(' expr_list ')'
 postfix_expression : primary_expression | array_or_bit_ref | struct_ref
                    | subrange;
 
-// In order to distinguish between a bit reference and a (syntactically
-// equivalent) array reference, the base must be examined:
-
+// At this step, we don't know yet if it is a a bit reference and a
+// (syntactically equivalent) array reference. The base must be examined after
+// typing.
 array_or_bit_ref : postfix_expression '[' expression ']'
-                 {
-
-// should be operator[], then we resolve the overloading after typing.
-if (isArrayType($1->exprType()))
-    {
-      $$ = new ArrayRef ($1, $3);
-    }
-  else
-    {
-      $$ = new BitRef ($1, $3);
-    }
+{
+  $$ = new ArrayRef ($1, $3);
 };
 
 struct_ref : postfix_expression '.' ID { $$ = new StructRef ($1, $3); }
@@ -762,33 +753,13 @@ return_statement : RETURN { $$ = new ReturnStmt (nullptr); }
                  | RETURN expression { $$ = new ReturnStmt ($2); };
 
 assignment : expression assign_op expression
-           {
+{
   $$ = new Assignment ($1, $2, $3);
 }
 | expression inc_op { $$ = new Assignment ($1, $2, nullptr); }
 | postfix_expression '.' SET_SLC '(' expression ',' expression ')'
 {
-  // This can be moved after typing.
-  unsigned w = 0;
-  if (Subrange *subrange = dynamic_cast<Subrange *>($7))
-    {
-      w = subrange->width();
-    }
-  else
-    {
-      const Type *type = $7->exprType ();
-      if (type && isRegType (type))
-        w = tryDownCast<RegType>(type)->width ()->evalConst ();
-    }
-  if (w == 0)
-    {
-      yyerror ("Second arg of set_slc must have a defined width");
-      YYERROR;
-    }
-  else
-    {
-      $$ = new Assignment (new Subrange ($1, $5, w), "=", $7);
-    }
+  $$ = new Assignment ($1, $7, $5);
 };
 
 assign_op : '=' | RSHFT_ASSIGN | LSHFT_ASSIGN | ADD_ASSIGN | SUB_ASSIGN

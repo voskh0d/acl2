@@ -88,6 +88,6 @@ private:
    bool dispatchTraverse(AbstractBase *e);
 };
 
-#include "visitor.cpp"
+#include "visitor.hxx"
 
 #endif // VISITOR_H

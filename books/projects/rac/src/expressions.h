@@ -197,9 +197,11 @@ public:
   Expression *array;
   Expression *index;
   ArrayRef (Expression *a, Expression *i);
+
   bool isInteger () override;
   const Type *exprType () override;
   void display (std::ostream &os) const override;
+
   Sexpression *ACL2Expr (bool isBV = false) override;
   Sexpression *ACL2Assign (Sexpression *rval) override;
 };
@@ -223,9 +225,11 @@ public:
   Expression *base;
   Expression *index;
   BitRef (Expression *b, Expression *i);
+
   bool isInteger () override;
   const Type *exprType () override;
   void display (std::ostream &os) const override;
+
   Sexpression *ACL2Expr (bool isBV = false) override;
   Sexpression *ACL2Assign (Sexpression *rval) override;
 };

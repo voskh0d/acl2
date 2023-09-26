@@ -175,7 +175,18 @@ public:
   Expression *lval;
   const char *op;
   Expression *rval;
-  Assignment (Expression *l, const char *o, Expression *r = nullptr);
+  Expression *index = nullptr;
+
+  Assignment (Expression *l, const char *o, Expression *r);
+  // set_slc
+  Assignment (Expression *l, Expression *r, Expression *i)
+    : SimpleStatement (idOf(this))
+    , lval(l)
+    , op("set_slc")
+    , rval(r)
+    , index(i)
+  {}
+
   void displaySimple (std::ostream &os) override;
   Sexpression *ACL2Expr () override;
 };
