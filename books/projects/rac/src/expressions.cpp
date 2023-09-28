@@ -38,7 +38,7 @@ Sexpression *
 Expression::ACL2Assign([[maybe_unused]] Sexpression
                            *rval) { // virtual (overridden by valid lvalues)
   assert(!"Assigment can be made only to an expression of type SymRef, "
-          "ArrayRef, StructRef, BitRef, or Subrange");
+          "ArrayRef, StructRef, or Subrange");
   return nullptr;
 }
 
@@ -46,7 +46,7 @@ Expression::ACL2Assign([[maybe_unused]] Sexpression
 // width, then return the bound; otherwise, return 0:
 
 unsigned
-Expression::ACL2ValWidth() { // virtual (overridden by BitRef and Subrange)
+Expression::ACL2ValWidth() {
   const Type *t = get_type();
   return t ? t->ACL2ValWidth() : 0;
 }
@@ -401,42 +401,6 @@ Sexpression *StructRef::ACL2Assign(Sexpression *rval) {
 
   return base->ACL2Assign(new Plist(
       { &s_as, new Plist({ &s_quote, sym }), rval, base->ACL2Expr() }));
-}
-
-// class BitRef : public Expression
-// --------------------------------
-
-// Data members: Expression *base; Expression *index;
-
-BitRef::BitRef(Expression *b, Expression *i) : Expression(idOf(this)) {
-  base = b;
-  index = i;
-}
-
-bool BitRef::isInteger() { return true; }
-
-void BitRef::display(std::ostream &os) const {
-  base->display(os);
-  os << "[";
-  index->display(os);
-  os << "]";
-}
-
-Sexpression *BitRef::ACL2Expr([[maybe_unused]] bool isBV) {
-  Sexpression *b = base->ACL2Expr(true);
-  Sexpression *i = index->ACL2Expr();
-  return new Plist({ &s_bitn, b, i });
-}
-
-Sexpression *BitRef::ACL2Assign(Sexpression *rval) {
-  Sexpression *b = base->ACL2Expr(true);
-  Sexpression *i = index->ACL2Expr();
-
-  unsigned n
-      = always_cast<const RegType *>(base->get_type())->width()->evalConst();
-  Integer *s = new Integer(n);
-
-  return base->ACL2Assign(new Plist({ &s_setbitn, b, s, i, rval }));
 }
 
 // class Subrange : public Expression

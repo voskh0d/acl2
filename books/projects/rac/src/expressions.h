@@ -201,19 +201,6 @@ public:
   Sexpression *ACL2Assign(Sexpression *rval) override;
 };
 
-class BitRef final : public Expression {
-public:
-  Expression *base;
-  Expression *index;
-  BitRef(Expression *b, Expression *i);
-
-  bool isInteger() override;
-  void display(std::ostream &os) const override;
-
-  Sexpression *ACL2Expr(bool isBV = false) override;
-  Sexpression *ACL2Assign(Sexpression *rval) override;
-};
-
 class Subrange final : public Expression {
 public:
   Expression *base;

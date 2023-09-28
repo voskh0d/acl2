@@ -179,24 +179,6 @@ bool RecursiveASTVisitor<Derived>::TraverseStructRef(StructRef *e) {
 }
 
 template <typename Derived>
-bool RecursiveASTVisitor<Derived>::TraverseBitRef(BitRef *e) {
-
-  if (!derived().postfixTraversal())
-    if (!derived().WalkUpBitRef(e))
-      return false;
-
-  if (!(derived().TraverseExpression(e->base)
-        && derived().TraverseExpression(e->index)))
-    return false;
-
-  if (!derived().postfixTraversal())
-    if (!derived().WalkUpBitRef(e))
-      return false;
-
-  return true;
-}
-
-template <typename Derived>
 bool RecursiveASTVisitor<Derived>::TraverseSubrange(Subrange *e) {
 
   if (!derived().postfixTraversal())
