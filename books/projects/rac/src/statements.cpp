@@ -58,11 +58,6 @@ Statement::blockify (Statement *s)
   return new Block (this, s);
 }
 
-void
-Statement::noteReturnType ([[maybe_unused]] Type *t)
-{ // virtual (overridden by Block, ReturnStmt, and IfStmt)
-}
-
 // class SimpleStatement : public Statement
 // ----------------------------------------
 
@@ -189,7 +184,7 @@ EnumConstDec::ACL2Expr ()
 Sexpression *
 EnumConstDec::ACL2SymExpr ()
 {
-  return tryDownCast<EnumType>(type)->getEnumVal (sym);
+  return always_cast<const EnumType *>(type)->getEnumVal (sym);
 }
 
 
@@ -217,7 +212,7 @@ Sexpression *
 VarDec::ACL2Expr ()
 {
   Sexpression *val;
-  if (isArrayType (type))
+  if (isa<const ArrayType *>(type))
     {
       if (!init)
         {
@@ -232,7 +227,7 @@ VarDec::ACL2Expr ()
           val = init->ACL2ArrayExpr ();
         }
     }
-  else if (isStructType (type))
+  else if (isa<const StructType *>(type))
     {
       if (!init)
         {
@@ -240,7 +235,7 @@ VarDec::ACL2Expr ()
         }
       else if (Initializer *i = dynamic_cast<Initializer *>(init))
         {
-          val = i->ACL2StructExpr (tryDownCast<StructType>(type)->fields());
+          val = i->ACL2StructExpr (always_cast<const StructType *>(type)->fields());
         }
       else
         {
@@ -295,7 +290,7 @@ ConstDec::isGlobal ()
 bool
 ConstDec::isROM ()
 {
-  return isGlobal () && isArrayType (type);
+  return isGlobal () && isa<const ArrayType *>(type);
 }
 
 Sexpression *
@@ -479,12 +474,6 @@ ReturnStmt::ACL2Expr ()
       { &s_return, returnType->ACL2Assign (value) });
 }
 
-void
-ReturnStmt::noteReturnType (Type *t)
-{
-  returnType = t;
-}
-
 // class Assertion : public SimpleStatement
 // ----------------------------------------
 
@@ -596,16 +585,19 @@ Assignment::ACL2Expr ()
     {
       assert (!"Unknown assignment operator");
     }
-  const Type *lval_type = lval->exprType ();
+  const Type *lval_type = lval->get_type ();
   Sexpression *sexpr = lval_type ? lval_type->ACL2Assign (expr) : expr->ACL2Expr ();
 
   if (!strcmp (op, "set_slc")) {
-    const Type *rval_type = rval->exprType ();
-    if (!rval_type || !isRegType (rval_type)) {
+    const Type *rval_type = rval->get_type ();
+    if (!rval_type || !isa<const RegType *>(rval_type)) {
       assert (!"Second arg of set_slc must have a defined width");
     }
 
-    unsigned w = tryDownCast<RegType>(rval_type)->width ()->evalConst ();
+    unsigned w = always_cast<const RegType *>(rval_type)
+      ->width()
+      ->evalConst();
+
     Subrange lval_slc(lval, index, w);
     return lval_slc.ACL2Assign(sexpr);
   }
@@ -815,17 +807,6 @@ Block::ACL2Expr ()
   return result;
 }
 
-void
-Block::noteReturnType (Type *t)
-{
-  List<Statement> *ptr = stmtList;
-  while (ptr)
-    {
-      ptr->value->noteReturnType (t);
-      ptr = ptr->next;
-    }
-}
-
 // class IfStmt : public Statement
 // -------------------------------
 
@@ -868,14 +849,6 @@ IfStmt::ACL2Expr ()
   return new Plist (
       { &s_if, test->ACL2Expr (), left->blockify ()->ACL2Expr (),
         right ? right->blockify ()->ACL2Expr () : new Plist () });
-}
-
-void
-IfStmt::noteReturnType (Type *t)
-{
-  left->noteReturnType (t);
-  if (right)
-    right->noteReturnType (t);
 }
 
 // class ForStmt : public Statement

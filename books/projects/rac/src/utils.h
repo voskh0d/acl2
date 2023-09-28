@@ -472,4 +472,16 @@ private:
   std::deque<T *> data_;
 };
 
+template <typename T, typename U>
+inline bool isa(U elm) {
+  return dynamic_cast<T>(elm);
+}
+
+template <typename T, typename U>
+inline T always_cast(U elm) {
+  auto t = dynamic_cast<T>(elm);
+  assert(t && "Invalid conversion");
+  return t;
+}
+
 #endif // UTILS_H

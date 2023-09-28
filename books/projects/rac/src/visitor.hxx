@@ -491,6 +491,9 @@ bool RecursiveASTVisitor<Derived>::TraverseAssignment(Assignment *s) {
   if (!derived().TraverseExpression(s->rval))
     return false;
 
+  if (!derived().TraverseExpression(s->index))
+    return false;
+
   if (derived().postfixTraversal())
     if (!derived().WalkUpAssignment(s))
       return false;
@@ -740,12 +743,12 @@ bool RecursiveASTVisitor<Derived>::WalkUpStatement(Statement *s) {
   return derived().VisitStatement(s);
 }
 
-#define APPLY(CLASS, PARENT)                          \
-template <typename Derived>                        \
-bool RecursiveASTVisitor<Derived>::WalkUp##CLASS (CLASS *c) { \
-  if (!derived().WalkUp##PARENT(c)                 )      \
-    return false;                                     \
-  return derived().Visit##CLASS(c);                       \
+#define APPLY(CLASS, PARENT)                                                  \
+template <typename Derived>                                                   \
+bool RecursiveASTVisitor<Derived>::WalkUp##CLASS (CLASS *c) {                 \
+  if (!derived().WalkUp##PARENT(c))                                           \
+    return false;                                                             \
+  return derived().Visit##CLASS(c);                                           \
 }
 #include "astnodes.def"
 #undef APPLY
@@ -760,11 +763,10 @@ bool RecursiveASTVisitor<Derived>::VisitStatement(Statement *) {
   return true;
 }
 
-#define APPLY(CLASS, PARENT)                       \
-template <typename Derived> \
-bool RecursiveASTVisitor<Derived>::Visit##CLASS (CLASS *) { \
-  return true;                                     \
+#define APPLY(CLASS, PARENT)                                                  \
+template <typename Derived>                                                   \
+bool RecursiveASTVisitor<Derived>::Visit##CLASS (CLASS *) {                   \
+  return true;                                                                \
 }
 #include "astnodes.def"
 #undef APPLY
-

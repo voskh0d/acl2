@@ -68,8 +68,6 @@ void FunDef::displayACL2Expr(std::ostream &os) {
   Plist sparams;
   for_each(params, [&sparams](VarDec *v) { sparams.add(v->sym); });
 
-  body->noteReturnType(returnType);
-
   Plist({ &s_funcdef, sym, &sparams, body->blockify()->ACL2Expr() })
     .display(os);
 }
@@ -81,8 +79,10 @@ void FunDef::displayACL2Expr(std::ostream &os) {
 
 Template::Template(const char *n, Type *t, List<VarDec> *p, Block *b,
                    List<TempParamDec> *tp)
-    : FunDef(idOf(this), n, t, p, b), tempParams(tp) {
-    }
+    : FunDef(idOf(this), n, t, p, b)
+    , tempParams(tp)
+{
+}
 
 void Template::display(std::ostream &os, const char *prefix, unsigned indent) {
   os << "\n";

@@ -34,7 +34,7 @@ Sexpression *
 RegType::ACL2Assign (Expression *rval) const
 { // overridden by FPType
 
-  const RegType *rval_type = dynamic_cast<const RegType *>(rval->exprType ());
+  const RegType *rval_type = dynamic_cast<const RegType *>(rval->get_type());
   unsigned w = rval->ACL2ValWidth ();
 
   int width_evaluated = width_->evalConst ();
@@ -103,7 +103,7 @@ FPType::FPType (Expression *w, Expression *iw) : RegType (w) { iwidth = iw; }
 Sexpression *
 FPType::ACL2Assign (Expression *rval) const
 {
-  const Type *t = rval->exprType ();
+  const Type *t = rval->get_type();
   // ??? should be *this == *t sauf que vu que c'est des ptr partout ca
   // marchera pas...
   if (t == this)
@@ -117,7 +117,7 @@ FPType::ACL2Assign (Expression *rval) const
       s = new Plist (
           { &s_times, s,
             new Plist ({ &s_expt, &i_2, new Integer (wVal - iwVal) }) });
-      if (isFPType(rval->get_type ()) || wVal < iwVal)
+      if (isa<const FPType *>(rval->get_type ()) || wVal < iwVal)
         s = new Plist ({ &s_fl, s });
       return new Plist ({ &s_bits, s, new Integer (wVal - 1), &i_0 });
     }
@@ -212,7 +212,7 @@ ArrayType::makeDef (const char *name, std::ostream &os) const
 {
   const Type *b = baseType;
   List<Expression> *dims = new List<Expression> (dim);
-  while (isArrayType (b))
+  while (isa<const ArrayType *>(b))
     {
       dims = dims->push (((const ArrayType *)b)->dim);
       b = ((const ArrayType *)b)->baseType;

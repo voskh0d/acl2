@@ -31,19 +31,6 @@ Expression::isInteger ()
   return false;
 }
 
-// The following expressions have associated types: variable, array, and struct
-// references; function calls; cast expressions; applications of "~" to typed
-// expressions; and applications of "&", "|", and "^" to typed expressions of
-// the same type.  For all other expressions, exprType is undefined:
-
-const Type *
-Expression::exprType ()
-{ // virtual (overridden by SymRef, Funcall, ArrayRef, StructRef, PrefixExpr,
-  // and BinaryExpr)
-  // Dereferenced type of expression.
-  return nullptr;
-}
-
 // The following method converts an expression to an Sexpression to be used as
 // an array initialization. It returns the same value as ACL2Expr, except for
 // an Initializer:
@@ -191,12 +178,6 @@ Boolean::ACL2Expr ([[maybe_unused]] bool isBV)
 
 SymRef::SymRef (SymDec *s) : Expression (idOf(this)) { symDec = s; }
 
-const Type *
-SymRef::exprType ()
-{
-  return symDec->type;
-}
-
 bool
 SymRef::isConst ()
 {
@@ -219,7 +200,7 @@ SymRef::evalConst ()
 bool
 SymRef::isInteger ()
 {
-  return isIntegerType (exprType ());
+  return isIntegerType (get_type ());
 }
 
 void
@@ -232,7 +213,7 @@ Sexpression *
 SymRef::ACL2Expr (bool isBV)
 {
   Sexpression *s = symDec->ACL2SymExpr ();
-  return isBV ? s : exprType()->ACL2Eval (s);
+  return isBV ? s : get_type()->ACL2Eval (s);
 }
 
 Sexpression *
@@ -258,16 +239,10 @@ FunCall::FunCall (NodesId id, FunDef *f, List<Expression> *a) : Expression (id)
   args = a;
 }
 
-const Type *
-FunCall::exprType ()
-{
-  return func->returnType;
-}
-
 bool
 FunCall::isInteger ()
 {
-  return isIntegerType (exprType ());
+  return isIntegerType (get_type());
 }
 
 void
@@ -447,17 +422,6 @@ ArrayRef::isInteger ()
   return isIntegerType (get_type());
 }
 
-const Type *
-ArrayRef::exprType ()
-{
-  if (isArrayType(array->get_type())) {
-    return tryDownCast<ArrayType>(array->get_type())->getBaseType ();
-  } else {
-    return &boolType;
-  }
-}
-
-
 void
 ArrayRef::display (std::ostream &os) const
 {
@@ -470,7 +434,7 @@ ArrayRef::display (std::ostream &os) const
 Sexpression *
 ArrayRef::ACL2Expr (bool isBV)
 {
-  if (isArrayType(array->get_type())) {
+  if (isa<const ArrayType *>(array->get_type())) {
     Sexpression *s = nullptr;
     SymRef *ref = dynamic_cast<SymRef *>(array);
 
@@ -503,14 +467,14 @@ ArrayRef::ACL2Expr (bool isBV)
 Sexpression *
 ArrayRef::ACL2Assign (Sexpression *rval)
 {
-  if (isArrayType(array->get_type())) {
+  if (isa<const ArrayType *>(array->get_type())) {
     return array->ACL2Assign (
         new Plist ({ &s_as, index->ACL2Expr (), rval, array->ACL2Expr () }));
   } else {
     Sexpression *b = array->ACL2Expr (true);
     Sexpression *i = index->ACL2Expr ();
 
-    unsigned n = tryDownCast<RegType>(array->get_type())
+    unsigned n = always_cast<const RegType *>(array->get_type())
       ->width ()
       ->evalConst ();
     Integer *s = new Integer (n);
@@ -530,17 +494,10 @@ StructRef::StructRef (Expression *s, char *f) : Expression (idOf(this))
   field = f;
 }
 
-const Type *
-StructRef::exprType ()
-{
-  const StructType *t = tryDownCast<StructType>(base->exprType ());
-  return t->getField(field)->type;
-}
-
 bool
 StructRef::isInteger ()
 {
-  return isIntegerType (exprType ());
+  return isIntegerType (get_type());
 }
 
 void
@@ -553,7 +510,9 @@ StructRef::display (std::ostream &os) const
 Sexpression *
 StructRef::ACL2Expr (bool isBV)
 {
-  Symbol *sym = tryDownCast<StructType>(base->get_type())->getField(field)->sym;
+  Symbol *sym = always_cast<const StructType *>(base->get_type())
+    ->getField(field)
+    ->sym;
 
   Sexpression *s = new Plist (
       { &s_ag, new Plist ({ &s_quote, sym }), base->ACL2Expr () });
@@ -564,7 +523,9 @@ StructRef::ACL2Expr (bool isBV)
 Sexpression *
 StructRef::ACL2Assign (Sexpression *rval)
 {
-  Symbol *sym = tryDownCast<StructType>(base->get_type())->getField(field)->sym;
+  Symbol *sym = always_cast<const StructType *>(base->get_type())
+    ->getField(field)
+    ->sym;
 
   return base->ACL2Assign (new Plist (
       { &s_as, new Plist ({ &s_quote, sym }), rval, base->ACL2Expr () }));
@@ -585,13 +546,6 @@ bool
 BitRef::isInteger ()
 {
   return true;
-}
-
-const Type *
-BitRef::exprType() {
-  // According to AC reference, the operator[] returns  ac_int::ac_bitref which
-  // can be implicitly converted to a boolean.
-  return &boolType;
 }
 
 void
@@ -617,7 +571,7 @@ BitRef::ACL2Assign (Sexpression *rval)
   Sexpression *b = base->ACL2Expr (true);
   Sexpression *i = index->ACL2Expr ();
 
-  unsigned n = tryDownCast<RegType>(base->get_type())
+  unsigned n = always_cast<const RegType *>(base->get_type())
     ->width ()
     ->evalConst ();
   Integer *s = new Integer (n);
@@ -653,23 +607,6 @@ Subrange::display (std::ostream &os) const
   os << "]";
 }
 
-const Type *
-Subrange::exprType() {
-
-  Integer *width = new Integer(this->width_);
-
-  if (const RegType *t = tryDownCast<RegType>(base->exprType())) {
-
-    if (t->isSigned()) {
-      return new IntType(width);
-    } else {
-      return new UintType(width);
-    }
-  } else {
-    return nullptr;
-  }
-}
-
 Sexpression *
 Subrange::ACL2Expr ([[maybe_unused]] bool isBV)
 {
@@ -679,7 +616,7 @@ Subrange::ACL2Expr ([[maybe_unused]] bool isBV)
 
   Sexpression *bv_val = new Plist ({ &s_bits, b, hi, lo });
 
-  if (const RegType *t = tryDownCast<RegType>(base->exprType())) {
+  if (const RegType *t = dynamic_cast<const RegType *>(base->get_type())) {
 
     if (t->isSigned()) {
       return new Plist ({ &s_si, bv_val, new Integer (width_) });
@@ -698,7 +635,7 @@ Subrange::ACL2Assign (Sexpression *rval)
   Sexpression *hi = high->ACL2Expr ();
   Sexpression *lo = low->ACL2Expr ();
 
-  unsigned n = tryDownCast<RegType>(base->exprType())
+  unsigned n = always_cast<const RegType *>(base->get_type())
     ->width ()
     ->evalConst ();
 
@@ -760,20 +697,6 @@ PrefixExpr::display (std::ostream &os) const
   expr->display (os);
 }
 
-const Type *
-PrefixExpr::exprType ()
-{
-  if (!strcmp (op, "~"))
-    {
-      // TODO: ac_int<W+!S, true>
-      return expr->exprType ();
-    }
-  else
-    {
-      return nullptr;
-    }
-}
-
 Sexpression *
 PrefixExpr::ACL2Expr (bool isBV)
 {
@@ -796,9 +719,9 @@ PrefixExpr::ACL2Expr (bool isBV)
       if (t)
         {
           Plist *bv = new Plist ({ &s_lognot, expr->ACL2Expr (true) });
-          if (isBV && isRegType (t))
+          if (isBV && isa<const RegType *> (t))
             {
-              unsigned w = tryDownCast<RegType>(t)
+              unsigned w = always_cast<const RegType *>(t)
                 ->width ()
                 ->evalConst ();
               return new Plist ({ &s_bits, bv, new Integer (w - 1), &i_0 });
@@ -827,12 +750,6 @@ CastExpr::CastExpr (Expression *e, Type *t) : Expression (idOf(this))
 {
   expr = e;
   type = t;
-}
-
-const Type *
-CastExpr::exprType ()
-{
-  return type;
 }
 
 bool
@@ -939,21 +856,6 @@ BinaryExpr::display (std::ostream &os) const
   expr2->display (os);
 }
 
-const Type *
-BinaryExpr::exprType ()
-{
-  const Type *t1 = expr1->exprType ();
-  const Type *t2 = expr2->exprType ();
-  if ((op == Op::BitAnd || op == Op::BitOr || op == Op::BitXor) && t1 == t2)
-    {
-      return t1;
-    }
-  else
-    {
-      return nullptr;
-    }
-}
-
 Sexpression *
 BinaryExpr::ACL2Expr (bool isBV)
 {
@@ -961,12 +863,12 @@ BinaryExpr::ACL2Expr (bool isBV)
   Sexpression *sexpr1 = expr1->ACL2Expr ();
   Sexpression *sexpr2 = expr2->ACL2Expr ();
 
-  if (isFPType(expr1->get_type()) && op == Op::LShift)
+  if (isa<const FPType *>(expr1->get_type()) && op == Op::LShift)
     {
       return new Plist (
           { &s_times, sexpr1, new Plist ({ &s_expt, &i_2, sexpr2 }) });
     }
-  else if (isFPType(expr1->get_type()) && op == Op::RShift)
+  else if (isa<const FPType *>(expr1->get_type()) && op == Op::RShift)
     {
       return new Plist (
           { &s_divide, sexpr1, new Plist ({ &s_expt, &i_2, sexpr2 }) });

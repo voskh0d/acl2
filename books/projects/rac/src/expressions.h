@@ -29,22 +29,23 @@ public:
 
   virtual bool isInteger ();
 
-  virtual const Type *exprType ();
-
   const Type *get_type() { return t_; }
 
   virtual void display (std::ostream &os) const = 0;
 
 // The following method converts an expression to an S-expression.  The
 // argument isBV is relevant only for a typed expression of a register type
-// (see exprType above).  In this case, if isBV is true, then the resulting
-// S-expression should represent the value of the bit vector contents of the
-// register, and otherwise it should represent the value of that bit vector as
-// interpreted according to the type. The argument isBV is set the following
-// cases: (1) The expression is being assigned to a register of the same type;
+// In this case, if isBV is true, then the resulting S-expression should
+// represent the value of the bit vector contents of the register, and
+// otherwise it should represent the value of that bit vector as interpreted
+// according to the type. The argument isBV is set the following cases:
+//
+// (1) The expression is being assigned to a register of the same type;
+//
 // (2) The expression is being assigned to an integer register and the
-// expression is an unsigned
-//     integer register of width not exceeding that of the target;
+// expression is an unsigned integer register of width not exceeding that of
+// the target;
+//
 // (3) The resulting S-expression is to be the first argument of bitn, bits,
 // setbitn, or setbits. (4) The expression is an argument of a logical
 // expression of a register type.
@@ -116,8 +117,6 @@ public:
   int evalConst () override { return expr_->evalConst(); }
   bool isInteger () override { return expr_->isInteger(); }
 
-  const Type *exprType () override { return expr_->exprType(); }
-
   // TODO rename
   void display (std::ostream &os) const override {
     os << '(';
@@ -141,7 +140,6 @@ public:
   SymDec *symDec;
 
   SymRef (SymDec *s);
-  const Type *exprType () override;
   virtual bool isConst () override;
   virtual int evalConst () override;
   bool isInteger () override;
@@ -162,7 +160,6 @@ public:
   FunCall (NodesId id, FunDef *f, List<Expression> *a);
 
   bool isInteger () override;
-  const Type *exprType () override;
   void display (std::ostream &os) const override;
   Sexpression *ACL2Expr (bool isBV = false) override;
 };
@@ -199,7 +196,6 @@ public:
   ArrayRef (Expression *a, Expression *i);
 
   bool isInteger () override;
-  const Type *exprType () override;
   void display (std::ostream &os) const override;
 
   Sexpression *ACL2Expr (bool isBV = false) override;
@@ -213,7 +209,6 @@ public:
   char *field;
   StructRef (Expression *s, char *f);
   bool isInteger () override;
-  const Type *exprType () override;
   void display (std::ostream &os) const override;
   Sexpression *ACL2Expr (bool isBV = false) override;
   Sexpression *ACL2Assign (Sexpression *rval) override;
@@ -227,7 +222,6 @@ public:
   BitRef (Expression *b, Expression *i);
 
   bool isInteger () override;
-  const Type *exprType () override;
   void display (std::ostream &os) const override;
 
   Sexpression *ACL2Expr (bool isBV = false) override;
@@ -250,7 +244,6 @@ public:
   bool isInteger () override { return true; }
   void display (std::ostream &os) const override;
 
-  const Type *exprType () override;
   Sexpression *ACL2Expr (bool isBV = false) override;
   Sexpression *ACL2Assign (Sexpression *rval) override;
 
@@ -268,7 +261,6 @@ public:
   int evalConst () override;
   bool isInteger () override;
   void display (std::ostream &os) const override;
-  const Type *exprType () override;
   Sexpression *ACL2Expr (bool isBV = false) override;
 };
 
@@ -278,7 +270,6 @@ public:
   Expression *expr;
   Type *type;
   CastExpr (Expression *e, Type *t);
-  const Type *exprType () override;
   bool isConst () override;
   int evalConst () override;
   bool isInteger () override;
@@ -306,7 +297,6 @@ public:
   int evalConst () override;
   bool isInteger () override;
   void display (std::ostream &os) const override;
-  const Type *exprType () override;
   Sexpression *ACL2Expr (bool isBV = false) override;
 
 private:

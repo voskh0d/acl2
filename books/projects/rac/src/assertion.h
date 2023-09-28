@@ -5,7 +5,7 @@
 #include "statements.h"
 #include "functions.h"
 
-class MarkAssertion final : public RecursiveASTVisitor<MarkAssertion> {
+class MarkAssertionAction final : public RecursiveASTVisitor<MarkAssertionAction> {
 public:
   bool VisitFunDef(FunDef *f) {
     fn = f;

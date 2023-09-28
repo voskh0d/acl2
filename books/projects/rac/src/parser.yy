@@ -542,7 +542,7 @@ simple_statement : var_dec | const_dec | multiple_var_dec | multiple_const_dec
 var_dec : type_spec untyped_var_dec
         {
   $$ = $2;
-  Type *t = ((VarDec *)$$)->type;
+  const Type *t = ((VarDec *)$$)->type;
   if (t)
     {
       ((ArrayType *)t)->baseType = $1;
@@ -637,7 +637,7 @@ init_list : expression { $$ = new BigList<Expression> ($1); }
 const_dec : CONST type_spec untyped_const_dec
           {
   $$ = $3;
-  Type *t = ((ConstDec *)$$)->type;
+  const Type *t = ((ConstDec *)$$)->type;
   if (t)
     {
       ((ArrayType *)t)->baseType = $2;

@@ -26,7 +26,6 @@ public:
   virtual Block *blockify ();
   virtual Block *blockify (Statement *s);
   virtual Sexpression *ACL2Expr () = 0;
-  virtual void noteReturnType (Type *t);
 
   inline NodesId id() const { return id_; }
 
@@ -46,7 +45,7 @@ class SymDec : public SimpleStatement
 {
 public:
   Symbol *sym;
-  Type *type;
+  const Type *type;
   Expression *init;
   SymDec (const char *n, Type *t, Expression *i = nullptr);
   SymDec (NodesId id, const char *n, Type *t, Expression *i = nullptr);
@@ -144,11 +143,10 @@ class ReturnStmt final : public SimpleStatement
 {
 public:
   Expression *value;
-  Type *returnType;
+  const Type *returnType;
   ReturnStmt (Expression *v);
   void displaySimple (std::ostream &os) override;
   Sexpression *ACL2Expr () override;
-  void noteReturnType (Type *t) override;
 };
 
 class NullStmt final : public SimpleStatement
@@ -218,7 +216,6 @@ public:
   void display (std::ostream &os, unsigned indent = 0) override;
   void displayWithinBlock (std::ostream &os, unsigned indent = 0) override;
   Sexpression *ACL2Expr () override;
-  void noteReturnType (Type *t) override;
 };
 
 class IfStmt final : public Statement
@@ -231,7 +228,6 @@ public:
   void display (std::ostream &os, unsigned indent = 0) override;
   void displayAsRightBranch (std::ostream &os, unsigned indent = 0) override;
   Sexpression *ACL2Expr () override;
-  void noteReturnType (Type *t) override;
 };
 
 class ForStmt final : public Statement
@@ -263,9 +259,9 @@ public:
       return;
     }
 
-    const Type *t = label->exprType();
+    const Type *t = label->get_type();
     // If it is an enum, t will always be non null.
-    if ((t == nullptr || !isEnumType(t)) && !dynamic_cast<Constant *>(label))
+    if ((t == nullptr || !isa<const EnumType *>(t)) && !isa<Constant *>(label))
       assert(!"case label must be an integer or an enum constant");
   }
 };

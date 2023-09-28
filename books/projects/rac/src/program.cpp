@@ -104,13 +104,17 @@ Program::parse (const std::string& file) {
 bool
 Program::process() {
 
-  TypeIt typeit;
-  if (!runAction(&typeit))
-    return false;
+#ifdef DEBUG
+#define RUNPASS(ACTION, NAME)                                                 \
+  std::cerr << "Start " NAME "...\n";                                         \
+  { ACTION a; if (!runAction(&a)) return false; }                             \
+  std::cerr << NAME " done !\n";
+#else
+#define RUNPASS(ACTION, NAME) { ACTION a; if (!runAction(&a)) return false; }
+#endif
 
-  MarkAssertion m;
-  if (!runAction(&m))
-    return false;
+  RUNPASS(TypingAction, "Typing");
+  RUNPASS(MarkAssertionAction, "Marking assertions");
 
   return true;
 }

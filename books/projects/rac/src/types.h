@@ -101,8 +101,6 @@ extern PrimType uintType;
 extern PrimType int64Type;
 extern PrimType uint64Type;
 
-bool isRegType(const Type *t);
-
 class DefinedType : public Symbol, public Type {
 public:
   DefinedType(const char *s, Type *t) : Symbol(s), def_(t) {}
@@ -134,9 +132,10 @@ public:
   }
 
   void displayDef(std::ostream &os = std::cout) const {
-    if (!(isRegType( def_))) {
+    // Why do we display only if it is a regtype ? We should shpw all typedef.
+//    if (!(isa<const RegType *>( def_))) {
       def_->makeDef(getname(), os);
-    }
+//    }
   }
 
   Type *getdef() { return def_; }
@@ -281,66 +280,11 @@ private:
   std::vector<Type *> types_;
 };
 
-
-
-
-
-
-
-
-// TODO: after the type pass, every node should have its type already cast so
-// we won't need this anymore.
-// Apply a predicate to a type. If it is a defined type, we derefence it.
-inline const Type *typeDeref__(const Type * t) {
-
-  // If t is a typdef, we derefence it until we get a non-defined type.
-  if (const DefinedType *dt = dynamic_cast<const DefinedType *>(t)) {
-    t = dt->derefType();
-  }
-
-  return t;
-}
-
-inline bool isRegType(const Type *t) {
-  return dynamic_cast<const RegType *>(typeDeref__(t));
-}
-
-inline bool isArrayType(const Type *t) {
-  return dynamic_cast<const ArrayType *>(typeDeref__(t));
-}
-
-inline bool isStructType(const Type *t) {
-  return dynamic_cast<const StructType *>(typeDeref__(t));
-}
-
 inline bool isIntegerType(const Type *t) {
-  t = typeDeref__(t);
   return dynamic_cast<const PrimType *>(t)
     || dynamic_cast<const UintType *>(t)
     || dynamic_cast<const IntType *>(t)
     || dynamic_cast<const EnumType *>(t);
-}
-
-inline bool isEnumType(const Type * t) {
-  return dynamic_cast<const EnumType *>(typeDeref__(t));
-}
-
-inline bool isFPType(const Type *t) {
-  return dynamic_cast<const FPType *>(typeDeref__(t));
-}
-
-// TODO: after the type pass, every node should have its type already cast so
-// we won't need this anymore.
-template <typename ChildType>
-const ChildType *tryDownCast(const Type *t) {
-
-  if (auto *dt = dynamic_cast<const DefinedType *>(t)) {
-    t = dt->derefType();
-  }
-
-  const ChildType *ct = dynamic_cast<const ChildType *>(t);
-  assert(ct && "Invalid conversion");
-  return ct;
 }
 
 #endif // TYPES_H

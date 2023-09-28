@@ -26,7 +26,7 @@ main (int argc, char **argv)
   prog.process();
 
   if (args->dump_ast) {
-    ASTDumper a{};
+    ASTDumperAction a;
     prog.runAction(&a);
   }
 
