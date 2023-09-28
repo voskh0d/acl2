@@ -6,7 +6,6 @@
 #include <iostream>
 #include <optional>
 
-
 //***********************************************************************************
 // Types
 //***********************************************************************************
@@ -47,7 +46,8 @@ public:
   }
 
   // overridden by ArrayType, StructType, and EnumType
-  virtual void makeDef([[maybe_unused]] const char *name, std::ostream &os = std::cout) const {
+  virtual void makeDef([[maybe_unused]] const char *name,
+                       std::ostream &os = std::cout) const {
     // How this type is displayed in a type definition.
     os << "\ntypedef ";
     display(os);
@@ -81,7 +81,8 @@ public:
 class PrimType : public Symbol, public Type {
 public:
   PrimType(const char *s, const char *m = nullptr)
-      : Symbol(s), RACname_(m ? std::optional(std::string(m)) : std::nullopt) {}
+      : Symbol(s), RACname_(m ? std::optional(std::string(m)) : std::nullopt) {
+  }
 
   void display(std::ostream &os) const override {
     if (RACname_) {
@@ -105,13 +106,14 @@ class DefinedType : public Symbol, public Type {
 public:
   DefinedType(const char *s, Type *t) : Symbol(s), def_(t) {}
 
-  void display(std::ostream &os) const { Symbol::display(os); }
+  void display(std::ostream &os) const override { Symbol::display(os); }
 
   void displayVarType(std::ostream &os = std::cout) const override {
     derefType()->displayVarType(os);
   }
 
-  void displayVarName(const char *name, std::ostream &os = std::cout) const override {
+  void displayVarName(const char *name,
+                      std::ostream &os = std::cout) const override {
     derefType()->displayVarName(name, os);
   }
 
@@ -127,15 +129,13 @@ public:
     return derefType()->ACL2ValWidth();
   }
 
-  Sexpression *ACL2Eval(Sexpression *s) {
-    return derefType()->ACL2Eval(s);
-  }
+  Sexpression *ACL2Eval(Sexpression *s) { return derefType()->ACL2Eval(s); }
 
   void displayDef(std::ostream &os = std::cout) const {
     // Why do we display only if it is a regtype ? We should shpw all typedef.
-//    if (!(isa<const RegType *>( def_))) {
-      def_->makeDef(getname(), os);
-//    }
+    //    if (!(isa<const RegType *>( def_))) {
+    def_->makeDef(getname(), os);
+    //    }
   }
 
   Type *getdef() { return def_; }
@@ -221,13 +221,12 @@ public:
 
   ArrayType(Expression *d, Type *t) : baseType(t), dim(d) {}
 
-  const Type *getBaseType() const {
-    return baseType;
-  }
+  const Type *getBaseType() const { return baseType; }
 
   void display(std::ostream &os) const override;
   void displayVarType(std::ostream &os = std::cout) const override;
-  void displayVarName(const char *name, std::ostream &os = std::cout) const override;
+  void displayVarName(const char *name,
+                      std::ostream &os = std::cout) const override;
   void makeDef(const char *name, std::ostream &os) const override;
 };
 
@@ -247,9 +246,9 @@ public:
   void display(std::ostream &os) const override;
   void makeDef(const char *name, std::ostream &os = std::cout) const override;
 
-  const std::vector<StructField *>& fields() const { return fields_; }
+  const std::vector<StructField *> &fields() const { return fields_; }
 
-  const StructField *getField(const std::string& name) const;
+  const StructField *getField(const std::string &name) const;
 
 private:
   std::vector<StructField *> fields_;
@@ -271,7 +270,7 @@ private:
 class MvType : public Type {
 public:
   MvType(std::initializer_list<Type *> &&t) : types_(t) {}
-  void display(std::ostream &os) const;
+  void display(std::ostream &os) const override;
 
   unsigned size() const { return types_.size(); }
   const Type *get(unsigned n) { return types_[n]; }
@@ -281,10 +280,9 @@ private:
 };
 
 inline bool isIntegerType(const Type *t) {
-  return dynamic_cast<const PrimType *>(t)
-    || dynamic_cast<const UintType *>(t)
-    || dynamic_cast<const IntType *>(t)
-    || dynamic_cast<const EnumType *>(t);
+  return dynamic_cast<const PrimType *>(t) || dynamic_cast<const UintType *>(t)
+         || dynamic_cast<const IntType *>(t)
+         || dynamic_cast<const EnumType *>(t);
 }
 
 #endif // TYPES_H

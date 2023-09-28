@@ -5,7 +5,7 @@
 
 extern int yylineno;
 
-extern int yyparse ();
+extern int yyparse();
 extern FILE *yyin;
 extern FILE *yyout;
 extern Program prog;

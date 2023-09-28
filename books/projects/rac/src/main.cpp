@@ -6,9 +6,7 @@
 #include "astdumper.h"
 #include "program.h"
 
-int
-main (int argc, char **argv)
-{
+int main(int argc, char **argv) {
   CommandLine cl;
   auto args = cl.parse(argc, argv);
   if (!args) {
@@ -35,13 +33,13 @@ main (int argc, char **argv)
     const std::string out = *args->file + ext;
 
     std::fstream fout;
-    fout.open (out, std::fstream::out);
-    if (!fout.is_open ()) {
-      std::cerr << "Failed to open file " << out << ": " << strerror (errno)
+    fout.open(out, std::fstream::out);
+    if (!fout.is_open()) {
+      std::cerr << "Failed to open file " << out << ": " << strerror(errno)
                 << '\n';
     }
 
-    prog.display (fout, *args->mode);
+    prog.display(fout, *args->mode);
   }
 
   return 0;

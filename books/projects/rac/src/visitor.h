@@ -4,9 +4,8 @@
 #include <algorithm>
 
 #include "expressions.h"
-#include "statements.h"
 #include "functions.h"
-
+#include "statements.h"
 
 // This class perform a preorder or postorder depth-first travsersal of the
 // AST. This class should be inherited to add custom actions, see astdumper.h
@@ -41,7 +40,6 @@
 template <typename Derived>
 class RecursiveASTVisitor {
 public:
-
   // Configure the order of the traversal. To do it in a postfix order,
   // overload this function and return true.
   inline bool postfixTraversal() { return false; }
@@ -55,7 +53,7 @@ public:
   // it after.
   inline bool TraverseExpression(Expression *e);
   inline bool TraverseStatement(Statement *s);
-#define APPLY(CLASS, PARENT) inline bool Traverse##CLASS (CLASS *);
+#define APPLY(CLASS, PARENT) inline bool Traverse##CLASS(CLASS *);
 #include "astnodes.def"
 #undef APPLY
 
@@ -65,7 +63,7 @@ public:
   // hierarchy.
   inline bool WalkUpExpression(Expression *e);
   inline bool WalkUpStatement(Statement *s);
-#define APPLY(CLASS, PARENT) inline bool WalkUp##CLASS (CLASS *);
+#define APPLY(CLASS, PARENT) inline bool WalkUp##CLASS(CLASS *);
 #include "astnodes.def"
 #undef APPLY
 
@@ -74,18 +72,19 @@ public:
   // will be processed by the custom action. Be carefull, it a class (for
   // example, Integer) is derived of an other (like Constant for Integer), both
   // Visit functions will be called (in our example, for an Integer node,
-  // VisitExpression, VisitConstant, VisitInteger in this order) will be called.
+  // VisitExpression, VisitConstant, VisitInteger in this order) will be
+  // called.
   inline bool VisitExpression(Expression *e);
   inline bool VisitStatement(Statement *s);
-#define APPLY(CLASS, PARENT) inline bool Visit##CLASS (CLASS *);
+#define APPLY(CLASS, PARENT) inline bool Visit##CLASS(CLASS *);
 #include "astnodes.def"
 #undef APPLY
 
 private:
-   inline Derived& derived() { return *static_cast<Derived *>(this); }
+  inline Derived &derived() { return *static_cast<Derived *>(this); }
 
-   template <typename AbstractBase>
-   bool dispatchTraverse(AbstractBase *e);
+  template <typename AbstractBase>
+  bool dispatchTraverse(AbstractBase *e);
 };
 
 #include "visitor.hxx"

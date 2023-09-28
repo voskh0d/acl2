@@ -1,10 +1,9 @@
 #ifndef TYPING_H
 #define TYPING_H
 
-#include "visitor.h"
 #include "expressions.h"
 #include "types.h"
-
+#include "visitor.h"
 
 // This pass is rensposible of the typing (type check and determing the type)
 // of each nodes (expressions and some statements). It also dereference the
@@ -59,8 +58,7 @@ private:
   static inline const Type *deref(const Type *t);
 };
 
-const Type *
-TypingAction::deref(const Type *t) {
+const Type *TypingAction::deref(const Type *t) {
 
   if (const DefinedType *dt = dynamic_cast<const DefinedType *>(t)) {
     return dt->derefType();

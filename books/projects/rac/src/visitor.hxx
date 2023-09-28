@@ -6,11 +6,11 @@ bool RecursiveASTVisitor<Derived>::dispatchTraverse(AbstractBase *e) {
 
   switch (e->id()) {
 #define APPLY(CLASS, _)                                                       \
-    case NodesId::CLASS:                                                      \
-      if constexpr (std::is_base_of_v<AbstractBase, CLASS>)                   \
-        return derived().Traverse##CLASS(reinterpret_cast<CLASS *>(e));       \
-      else                                                                    \
-        UNREACHABLE();
+  case NodesId::CLASS:                                                        \
+    if constexpr (std::is_base_of_v<AbstractBase, CLASS>)                     \
+      return derived().Traverse##CLASS(reinterpret_cast<CLASS *>(e));         \
+    else                                                                      \
+      UNREACHABLE();
 #include "astnodes.def"
 #undef APPLY
   }
@@ -22,14 +22,14 @@ bool RecursiveASTVisitor<Derived>::TraverseExpression(Expression *e) {
   return dispatchTraverse(e);
 }
 
-
 template <typename Derived>
 bool RecursiveASTVisitor<Derived>::TraverseStatement(Statement *s) {
   return dispatchTraverse(s);
 }
 
 template <typename Derived>
-bool RecursiveASTVisitor<Derived>::TraverseSimpleStatement(SimpleStatement *s) {
+bool RecursiveASTVisitor<Derived>::TraverseSimpleStatement(
+    SimpleStatement *s) {
   return dispatchTraverse(s);
 }
 
@@ -39,7 +39,7 @@ bool RecursiveASTVisitor<Derived>::TraverseConstant(Constant *e) {
 }
 
 template <typename Derived>
-bool RecursiveASTVisitor<Derived>::TraverseInteger(Integer * e) {
+bool RecursiveASTVisitor<Derived>::TraverseInteger(Integer *e) {
   return derived().WalkUpInteger(e);
 }
 
@@ -86,8 +86,8 @@ bool RecursiveASTVisitor<Derived>::TraverseFunCall(FunCall *e) {
 
   bool b = true;
   for_each(e->args, [&](Expression *e) {
-      if (b && !derived().TraverseExpression(e))
-        b = false;
+    if (b && !derived().TraverseExpression(e))
+      b = false;
   });
   if (!b)
     return false;
@@ -108,8 +108,8 @@ bool RecursiveASTVisitor<Derived>::TraverseTempCall(TempCall *e) {
 
   bool b = true;
   for_each(e->params, [&](Expression *e) {
-      if (b && !derived().TraverseExpression(e))
-        b = false;
+    if (b && !derived().TraverseExpression(e))
+      b = false;
   });
   if (!b)
     return false;
@@ -130,8 +130,8 @@ bool RecursiveASTVisitor<Derived>::TraverseInitializer(Initializer *e) {
 
   bool b = true;
   for_each(e->vals, [&](Expression *e) {
-      if (b && !derived().TraverseExpression(e))
-        b = false;
+    if (b && !derived().TraverseExpression(e))
+      b = false;
   });
   if (!b)
     return false;
@@ -152,7 +152,7 @@ bool RecursiveASTVisitor<Derived>::TraverseArrayRef(ArrayRef *e) {
 
   if (!(derived().TraverseExpression(e->array)
         && derived().TraverseExpression(e->index)))
-      return false;
+    return false;
 
   if (derived().postfixTraversal())
     if (!derived().WalkUpArrayRef(e))
@@ -206,7 +206,7 @@ bool RecursiveASTVisitor<Derived>::TraverseSubrange(Subrange *e) {
   if (!(derived().TraverseExpression(e->base)
         && derived().TraverseExpression(e->high)
         && derived().TraverseExpression(e->low)))
-      return false;
+    return false;
 
   if (derived().postfixTraversal())
     if (!derived().WalkUpSubrange(e))
@@ -258,7 +258,7 @@ bool RecursiveASTVisitor<Derived>::TraverseBinaryExpr(BinaryExpr *e) {
 
   if (!(derived().TraverseExpression(e->expr1)
         && derived().TraverseExpression(e->expr2)))
-      return false;
+    return false;
 
   if (derived().postfixTraversal())
     if (!derived().WalkUpBinaryExpr(e))
@@ -293,8 +293,9 @@ bool RecursiveASTVisitor<Derived>::TraverseMultipleValue(MultipleValue *e) {
     if (!derived().WalkUpMultipleValue(e))
       return false;
 
-  if (!std::all_of(e->expr.begin(), e->expr.end(),
-      [this](Expression *e) { return derived().TraverseExpression(e); }))
+  if (!std::all_of(e->expr.begin(), e->expr.end(), [this](Expression *e) {
+        return derived().TraverseExpression(e);
+      }))
     return false;
 
   if (derived().postfixTraversal())
@@ -339,7 +340,7 @@ bool RecursiveASTVisitor<Derived>::TraverseEnumConstDec(EnumConstDec *s) {
 }
 
 template <typename Derived>
-bool RecursiveASTVisitor<Derived>::TraverseVarDec(VarDec* s) {
+bool RecursiveASTVisitor<Derived>::TraverseVarDec(VarDec *s) {
 
   if (!derived().postfixTraversal())
     if (!derived().WalkUpVarDec(s))
@@ -356,7 +357,7 @@ bool RecursiveASTVisitor<Derived>::TraverseVarDec(VarDec* s) {
 }
 
 template <typename Derived>
-bool RecursiveASTVisitor<Derived>::TraverseConstDec(ConstDec* s) {
+bool RecursiveASTVisitor<Derived>::TraverseConstDec(ConstDec *s) {
 
   if (!derived().postfixTraversal())
     if (!derived().WalkUpConstDec(s))
@@ -381,8 +382,8 @@ bool RecursiveASTVisitor<Derived>::TraverseMulVarDec(MulVarDec *s) {
 
   bool b = true;
   for_each(s->decs, [&](VarDec *s) {
-      if (b && !derived().TraverseStatement(s))
-        b = false;
+    if (b && !derived().TraverseStatement(s))
+      b = false;
   });
   if (!b)
     return false;
@@ -403,8 +404,8 @@ bool RecursiveASTVisitor<Derived>::TraverseMulConstDec(MulConstDec *s) {
 
   bool b = true;
   for_each(s->decs, [&](ConstDec *s) {
-      if (b && !derived().TraverseStatement(s))
-        b = false;
+    if (b && !derived().TraverseStatement(s))
+      b = false;
   });
   if (!b)
     return false;
@@ -469,7 +470,7 @@ bool RecursiveASTVisitor<Derived>::TraverseAssertion(Assertion *s) {
       return false;
 
   if (!derived().TraverseExpression(s->expr))
-   return false;
+    return false;
 
   if (derived().postfixTraversal())
     if (!derived().WalkUpAssertion(s))
@@ -502,15 +503,16 @@ bool RecursiveASTVisitor<Derived>::TraverseAssignment(Assignment *s) {
 }
 
 template <typename Derived>
-bool RecursiveASTVisitor<Derived>::TraverseMultipleAssignment(MultipleAssignment *s) {
+bool RecursiveASTVisitor<Derived>::TraverseMultipleAssignment(
+    MultipleAssignment *s) {
 
   if (!derived().postfixTraversal())
     if (!derived().WalkUpMultipleAssignment(s))
       return false;
 
-  if (!std::all_of(s->lvals().begin(), s->lvals().end(),
-        [this](Expression *e)
-        { return derived().TraverseExpression(e); }))
+  if (!std::all_of(
+          s->lvals().begin(), s->lvals().end(),
+          [this](Expression *e) { return derived().TraverseExpression(e); }))
     return false;
 
   if (!derived().TraverseExpression(s->rval()))
@@ -532,8 +534,8 @@ bool RecursiveASTVisitor<Derived>::TraverseBlock(Block *s) {
 
   bool b = true;
   for_each(s->stmtList, [&](Statement *s) {
-      if (b && !derived().TraverseStatement(s))
-        b = false;
+    if (b && !derived().TraverseStatement(s))
+      b = false;
   });
   if (!b)
     return false;
@@ -606,8 +608,8 @@ bool RecursiveASTVisitor<Derived>::TraverseCase(Case *s) {
 
   bool b = true;
   for_each(s->action, [&](Statement *s) {
-      if (b && !derived().TraverseStatement(s))
-        b = false;
+    if (b && !derived().TraverseStatement(s))
+      b = false;
   });
   if (!b)
     return false;
@@ -631,8 +633,8 @@ bool RecursiveASTVisitor<Derived>::TraverseSwitchStmt(SwitchStmt *s) {
 
   bool b = true;
   for_each(s->cases(), [&](Case *s) {
-      if (b && !derived().TraverseStatement(s))
-        b = false;
+    if (b && !derived().TraverseStatement(s))
+      b = false;
   });
   if (!b)
     return false;
@@ -653,11 +655,11 @@ bool RecursiveASTVisitor<Derived>::TraverseFunDef(FunDef *s) {
 
   bool b = true;
   for_each(s->params, [&](VarDec *s) {
-      if (b && !derived().TraverseStatement(s))
-        b = false;
+    if (b && !derived().TraverseStatement(s))
+      b = false;
   });
   if (!b)
-   return false;
+    return false;
 
   if (!derived().TraverseStatement(s->body))
     return false;
@@ -678,8 +680,8 @@ bool RecursiveASTVisitor<Derived>::TraverseBuiltin(Builtin *s) {
 
   bool b = true;
   for_each(s->params, [&](VarDec *s) {
-      if (b && !derived().TraverseStatement(s))
-        b = false;
+    if (b && !derived().TraverseStatement(s))
+      b = false;
   });
   if (!b)
     return false;
@@ -703,8 +705,8 @@ bool RecursiveASTVisitor<Derived>::TraverseTemplate(Template *s) {
 
   bool b = true;
   for_each(s->params, [&](VarDec *s) {
-      if (b && !derived().TraverseStatement(s))
-        b = false;
+    if (b && !derived().TraverseStatement(s))
+      b = false;
   });
   if (!b)
     return false;
@@ -713,15 +715,15 @@ bool RecursiveASTVisitor<Derived>::TraverseTemplate(Template *s) {
     return false;
 
   for_each(s->tempParams, [&](TempParamDec *s) {
-      if (b && !derived().TraverseStatement(s))
-        b = false;
+    if (b && !derived().TraverseStatement(s))
+      b = false;
   });
   if (!b)
     return false;
 
   for_each(s->calls, [&](TempCall *s) {
-      if (b && !derived().TraverseExpression(s))
-        b = false;
+    if (b && !derived().TraverseExpression(s))
+      b = false;
   });
   if (!b)
     return false;
@@ -744,12 +746,12 @@ bool RecursiveASTVisitor<Derived>::WalkUpStatement(Statement *s) {
 }
 
 #define APPLY(CLASS, PARENT)                                                  \
-template <typename Derived>                                                   \
-bool RecursiveASTVisitor<Derived>::WalkUp##CLASS (CLASS *c) {                 \
-  if (!derived().WalkUp##PARENT(c))                                           \
-    return false;                                                             \
-  return derived().Visit##CLASS(c);                                           \
-}
+  template <typename Derived>                                                 \
+  bool RecursiveASTVisitor<Derived>::WalkUp##CLASS(CLASS *c) {                \
+    if (!derived().WalkUp##PARENT(c))                                         \
+      return false;                                                           \
+    return derived().Visit##CLASS(c);                                         \
+  }
 #include "astnodes.def"
 #undef APPLY
 
@@ -764,9 +766,9 @@ bool RecursiveASTVisitor<Derived>::VisitStatement(Statement *) {
 }
 
 #define APPLY(CLASS, PARENT)                                                  \
-template <typename Derived>                                                   \
-bool RecursiveASTVisitor<Derived>::Visit##CLASS (CLASS *) {                   \
-  return true;                                                                \
-}
+  template <typename Derived>                                                 \
+  bool RecursiveASTVisitor<Derived>::Visit##CLASS(CLASS *) {                  \
+    return true;                                                              \
+  }
 #include "astnodes.def"
 #undef APPLY

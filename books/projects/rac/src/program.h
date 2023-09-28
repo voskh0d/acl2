@@ -3,18 +3,14 @@
 
 #include "visitor.h"
 
-#include <vector>
 #include <string>
+#include <vector>
 
 //***********************************************************************************
 // Programs
 //***********************************************************************************
 
-enum class DispMode
-{
-  rac,
-  acl2
-};
+enum class DispMode { rac, acl2 };
 
 class DefinedType;
 class ConstDec;
@@ -23,18 +19,18 @@ class FunDef;
 
 // A program consists of type definitions, global constant declarations, and
 // function definitions.
-class Program
-{
+class Program {
   std::vector<DefinedType *> typeDefs;
   std::vector<ConstDec *> constDecs;
   std::vector<Template *> templates;
   std::vector<FunDef *> funDefs;
+
 public:
-  Program ();
+  Program();
 
   // Parse the file given and store the result into this class. The program
   // should be empty before calling it.
-  bool parse(const std::string& file);
+  bool parse(const std::string &file);
 
   // Apply all required passes (type check, desugarization, ...) to the
   // program.
@@ -50,34 +46,35 @@ public:
 
   // Get an type/dec/function called `name`. Return nullptr if nothing was
   // registered with this name.
-  DefinedType *getType(const std::string& name);
-  ConstDec *getConstDec(const std::string& name);
-  Template *getTemplate(const std::string& name);
-  FunDef *getFunDef(const std::string& name);
+  DefinedType *getType(const std::string &name);
+  ConstDec *getConstDec(const std::string &name);
+  Template *getTemplate(const std::string &name);
+  FunDef *getFunDef(const std::string &name);
 
   // Display functions.
-  void displayConstDecs (std::ostream &os, DispMode mode) const;
+  void displayConstDecs(std::ostream &os, DispMode mode) const;
   // Why this one is not defined
-  //  void displayTemplates(ostream& os, DispMode mode, const std::string& prefix="");
-  void displayTypeDefs (std::ostream &os, DispMode mode) const;
-  void displayFunDefs (std::ostream &os, DispMode mode) const;
-  void displayFunDecs (std::ostream &os) const;
-  void display (std::ostream &os, DispMode mode = DispMode::rac) const;
+  //  void displayTemplates(ostream& os, DispMode mode, const std::string&
+  //  prefix="");
+  void displayTypeDefs(std::ostream &os, DispMode mode) const;
+  void displayFunDefs(std::ostream &os, DispMode mode) const;
+  void displayFunDecs(std::ostream &os) const;
+  void display(std::ostream &os, DispMode mode = DispMode::rac) const;
 
   // Run an action (implemented by v) on the full program in the following
   // order: constant declarations, template fuctions and functions.
   template <typename Visitor>
   bool runAction(Visitor *v) {
-    return std::all_of (constDecs.begin(), constDecs.end(),
-                      [&] (auto e) { return v->TraverseStatement(e); })
-      && std::all_of (templates.begin(), templates.end(),
-                      [&] (auto e) { return v->TraverseStatement(e); })
-      && std::all_of (funDefs.begin(), funDefs.end(),
-                      [&] (auto e) { return v->TraverseStatement(e); });
+    return std::all_of(constDecs.begin(), constDecs.end(),
+                       [&](auto e) { return v->TraverseStatement(e); })
+           && std::all_of(templates.begin(), templates.end(),
+                          [&](auto e) { return v->TraverseStatement(e); })
+           && std::all_of(funDefs.begin(), funDefs.end(),
+                          [&](auto e) { return v->TraverseStatement(e); });
   }
 
 private:
-  bool isEmpty () const;
+  bool isEmpty() const;
 };
 
 extern Program prog;

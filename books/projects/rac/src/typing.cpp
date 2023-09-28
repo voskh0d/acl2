@@ -2,8 +2,7 @@
 #include "expressions.h"
 #include "types.h"
 
-bool
-TypingAction::TraverseExpression(Expression *e) {
+bool TypingAction::TraverseExpression(Expression *e) {
 
   if (!base_t::TraverseExpression(e))
     return false;
@@ -15,8 +14,7 @@ TypingAction::TraverseExpression(Expression *e) {
   return true;
 }
 
-bool
-TypingAction::TraverseFunDef(FunDef *e) {
+bool TypingAction::TraverseFunDef(FunDef *e) {
 
   assert(!type_of_scope);
   type_of_scope = e->returnType;
@@ -29,8 +27,7 @@ TypingAction::TraverseFunDef(FunDef *e) {
   return true;
 }
 
-bool
-TypingAction::TraverseTemplate(Template *e) {
+bool TypingAction::TraverseTemplate(Template *e) {
 
   assert(!type_of_scope);
   type_of_scope = e->returnType;
@@ -43,68 +40,58 @@ TypingAction::TraverseTemplate(Template *e) {
   return true;
 }
 
-bool
-TypingAction::VisitInteger(Integer *e) {
+bool TypingAction::VisitInteger(Integer *e) {
   e->set_type(nullptr);
   return true;
 }
 
-bool
-TypingAction::VisitBoolean(Boolean *e) {
+bool TypingAction::VisitBoolean(Boolean *e) {
   e->set_type(nullptr);
   return true;
 }
 
-bool
-TypingAction::VisitParenthesis(Parenthesis *e) {
+bool TypingAction::VisitParenthesis(Parenthesis *e) {
   e->set_type(e->expr_->get_type());
   return true;
 }
 
-bool
-TypingAction::VisitSymRef(SymRef *e) {
+bool TypingAction::VisitSymRef(SymRef *e) {
   e->set_type(e->symDec->type);
   return true;
 }
 
-bool
-TypingAction::VisitFunCall(FunCall *e) {
+bool TypingAction::VisitFunCall(FunCall *e) {
   e->set_type(e->func->returnType);
   return true;
 }
 
-bool
-TypingAction::VisitTempCall(TempCall *e) {
+bool TypingAction::VisitTempCall(TempCall *e) {
   e->set_type(e->get_type());
   return true;
 }
 
-bool
-TypingAction::VisitInitializer(Initializer *e) {
+bool TypingAction::VisitInitializer(Initializer *e) {
   e->set_type(e->get_type());
   return true;
 }
 
-bool
-TypingAction::VisitArrayRef(ArrayRef *e) {
+bool TypingAction::VisitArrayRef(ArrayRef *e) {
   if (isa<const ArrayType *>(e->array->get_type())) {
-    e->set_type(always_cast<const ArrayType *>(e->array->get_type())
-        ->getBaseType ());
+    e->set_type(
+        always_cast<const ArrayType *>(e->array->get_type())->getBaseType());
   } else {
     e->set_type(&boolType);
   }
   return true;
 }
 
-bool
-TypingAction::VisitStructRef(StructRef *e) {
+bool TypingAction::VisitStructRef(StructRef *e) {
   const StructType *t = always_cast<const StructType *>(e->base->get_type());
   e->set_type(t->getField(e->field)->type);
   return true;
 }
 
-bool
-TypingAction::VisitSubrange(Subrange *e) {
+bool TypingAction::VisitSubrange(Subrange *e) {
   Integer *width = new Integer(e->width());
 
   if (const RegType *t = always_cast<const RegType *>(e->base->get_type())) {
@@ -120,60 +107,50 @@ TypingAction::VisitSubrange(Subrange *e) {
   return true;
 }
 
-bool
-TypingAction::VisitPrefixExpr(PrefixExpr *e) {
-  if (!strcmp (e->op, "~")) {
+bool TypingAction::VisitPrefixExpr(PrefixExpr *e) {
+  if (!strcmp(e->op, "~")) {
     // TODO: ac_int<W+!S, true>
     e->set_type(e->expr->get_type());
-  }
-  else {
+  } else {
     e->set_type(nullptr);
   }
   return true;
 }
 
-bool
-TypingAction::VisitCastExpr(CastExpr *e) {
+bool TypingAction::VisitCastExpr(CastExpr *e) {
   e->set_type(e->type);
   return true;
 }
 
-bool
-TypingAction::VisitBinaryExpr(BinaryExpr *e) {
+bool TypingAction::VisitBinaryExpr(BinaryExpr *e) {
   const Type *t1 = e->expr1->get_type();
   const Type *t2 = e->expr2->get_type();
-  if ((e->op == BinaryExpr::Op::BitAnd
-        || e->op == BinaryExpr::Op::BitOr
-        || e->op == BinaryExpr::Op::BitXor)
+  if ((e->op == BinaryExpr::Op::BitAnd || e->op == BinaryExpr::Op::BitOr
+       || e->op == BinaryExpr::Op::BitXor)
       && t1 == t2) {
     e->set_type(t1);
-  }
-  else {
+  } else {
     e->set_type(nullptr);
   }
   return true;
 }
 
-bool
-TypingAction::VisitCondExpr(CondExpr *e) {
+bool TypingAction::VisitCondExpr(CondExpr *e) {
   e->set_type(nullptr);
   return true;
 }
 
-bool
-TypingAction::VisitMultipleValue(MultipleValue *e) {
+bool TypingAction::VisitMultipleValue(MultipleValue *e) {
   e->set_type(nullptr);
   return true;
 }
 
-bool
-TypingAction::VisitSymDec(SymDec *s) {
+bool TypingAction::VisitSymDec(SymDec *s) {
   s->type = deref(s->type);
   return true;
 }
 
-bool
-TypingAction::VisitReturnStmt(ReturnStmt *s) {
+bool TypingAction::VisitReturnStmt(ReturnStmt *s) {
   s->returnType = deref(type_of_scope);
   assert(s->returnType);
   return true;

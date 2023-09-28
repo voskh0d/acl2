@@ -1,11 +1,12 @@
 #ifndef ASSERTION_H
 #define ASSERTION_H
 
-#include "visitor.h"
-#include "statements.h"
 #include "functions.h"
+#include "statements.h"
+#include "visitor.h"
 
-class MarkAssertionAction final : public RecursiveASTVisitor<MarkAssertionAction> {
+class MarkAssertionAction final
+    : public RecursiveASTVisitor<MarkAssertionAction> {
 public:
   bool VisitFunDef(FunDef *f) {
     fn = f;

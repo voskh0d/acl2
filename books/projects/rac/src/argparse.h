@@ -1,14 +1,13 @@
 #ifndef ARGPARSE_H
 #define ARGPARSE_H
 
-#include <optional>
-#include <vector>
-#include <string>
 #include <iostream>
+#include <optional>
+#include <string>
+#include <vector>
 
 #include "program.h"
 #include "version.h"
-
 
 class CommandLine {
 public:
@@ -34,15 +33,15 @@ public:
       std::string arg(argv[i]);
 
       if (arg == "-h" || arg == "-help") {
-          help();
+        help();
       } else if (arg == "-v" || arg == "-version") {
-          version();
+        version();
       } else if (arg == "-rac") {
         res.mode = DispMode::rac;
       } else if (arg == "-acl2") {
-          res.mode = DispMode::acl2;
+        res.mode = DispMode::acl2;
       } else if (arg == "-dump-ast") {
-          res.dump_ast = true;
+        res.dump_ast = true;
       } else {
         if (arg.size() >= 1 && arg[0] == '-') {
           return error("Unknown option `", arg, '`');
@@ -62,27 +61,24 @@ public:
   }
 
   void help() {
-    std::cout <<
-      "This is the RAC (Restricted Algorithmic C) parser which translate a\n"
-      "RAC program into a list of S-Expressions.\n\n"
-      "Usage:\n"
-      "  parse FILE [options]\n\n"
-      "Options:\n"
-      "  -rac       convert to RAC pseudocode and write to file.pc\n"
-      "  -acl2      write ACL2 translation to file.ast.lsp\n"
-      "  -dump-ast  display the intermediate AST in dot format\n";
+    std::cout
+        << "This is the RAC (Restricted Algorithmic C) parser which translate "
+           "a\n"
+           "RAC program into a list of S-Expressions.\n\n"
+           "Usage:\n"
+           "  parse FILE [options]\n\n"
+           "Options:\n"
+           "  -rac       convert to RAC pseudocode and write to file.pc\n"
+           "  -acl2      write ACL2 translation to file.ast.lsp\n"
+           "  -dump-ast  display the intermediate AST in dot format\n";
   }
 
   void version() {
-    std::cout
-      << "RAC (Restricted Algorithmic C) parser\n"
-      << "Built from ACL2 commit: " << git_commit << '\n';
+    std::cout << "RAC (Restricted Algorithmic C) parser\n"
+              << "Built from ACL2 commit: " << git_commit << '\n';
   }
 
-
-
 private:
-
   template <typename T>
   void print_pack(T t) {
     std::cerr << t;
@@ -101,6 +97,5 @@ private:
     return std::nullopt;
   }
 };
-
 
 #endif // ARGPARSE_H

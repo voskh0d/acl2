@@ -10,22 +10,11 @@
 // *body;
 
 FunDef::FunDef(const char *n, Type *t, List<VarDec> *p, Block *b)
-  : Statement(idOf(this))
-  , sym(new Symbol(n))
-  , returnType(t)
-  , params(p)
-  , body(b)
-{
-}
+    : Statement(idOf(this)), sym(new Symbol(n)), returnType(t), params(p),
+      body(b) {}
 
 FunDef::FunDef(NodesId id, const char *n, Type *t, List<VarDec> *p, Block *b)
-  : Statement(id)
-  , sym(new Symbol(n))
-  , returnType(t)
-  , params(p)
-  , body(b)
-{
-}
+    : Statement(id), sym(new Symbol(n)), returnType(t), params(p), body(b) {}
 
 void FunDef::displayPrototype(std::ostream &os, const char *prefix,
                               unsigned indent) {
@@ -49,7 +38,8 @@ void FunDef::displayPrototype(std::ostream &os, const char *prefix,
   os << ")";
 }
 
-void FunDef::displayDec(std::ostream &os, const char *prefix, unsigned indent) {
+void FunDef::displayDec(std::ostream &os, const char *prefix,
+                        unsigned indent) {
   displayPrototype(os, prefix, indent);
   os << ';';
 }
@@ -69,7 +59,7 @@ void FunDef::displayACL2Expr(std::ostream &os) {
   for_each(params, [&sparams](VarDec *v) { sparams.add(v->sym); });
 
   Plist({ &s_funcdef, sym, &sparams, body->blockify()->ACL2Expr() })
-    .display(os);
+      .display(os);
 }
 
 // class Template : public FunDef
@@ -79,10 +69,7 @@ void FunDef::displayACL2Expr(std::ostream &os) {
 
 Template::Template(const char *n, Type *t, List<VarDec> *p, Block *b,
                    List<TempParamDec> *tp)
-    : FunDef(idOf(this), n, t, p, b)
-    , tempParams(tp)
-{
-}
+    : FunDef(idOf(this), n, t, p, b), tempParams(tp) {}
 
 void Template::display(std::ostream &os, const char *prefix, unsigned indent) {
   os << "\n";
