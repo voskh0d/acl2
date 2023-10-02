@@ -25,6 +25,8 @@ class Program {
   std::vector<Template *> templates;
   std::vector<FunDef *> funDefs;
 
+  DiagnosticHandler diag_;
+
 public:
   Program();
 
@@ -36,7 +38,7 @@ public:
   // program.
   bool process();
 
-  // Add a new type/constant/function to the program. Those should only be
+  // Add anew type/constant/function to the program. Those should only be
   // called in the parser. Return false if the registration failed (they is
   // already something with the same name).
   bool registerType(DefinedType *t);

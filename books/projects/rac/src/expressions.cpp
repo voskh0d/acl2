@@ -45,8 +45,7 @@ Expression::ACL2Assign([[maybe_unused]] Sexpression
 // If a numerical expression is known to have a non-negative value of bounded
 // width, then return the bound; otherwise, return 0:
 
-unsigned
-Expression::ACL2ValWidth() {
+unsigned Expression::ACL2ValWidth() {
   const Type *t = get_type();
   return t ? t->ACL2ValWidth() : 0;
 }
@@ -54,9 +53,13 @@ Expression::ACL2ValWidth() {
 // class Constant : public Expression, public Symbol
 // -------------------------------------------------
 
-Constant::Constant(NodesId id, const char *n) : Expression(id), Symbol(n) {}
+Constant::Constant(NodesId id, Location loc, const char *n)
+    : Expression(id, loc), Symbol(n) {}
+Constant::Constant(NodesId id, Location loc, std::string &&n)
+    : Expression(id, loc), Symbol(std::move(n)) {}
 
-Constant::Constant(NodesId id, int n) : Expression(id), Symbol(n) {}
+Constant::Constant(NodesId id, Location loc, int n)
+    : Expression(id, loc), Symbol(n) {}
 
 bool Constant::isConst() { return true; }
 
@@ -67,9 +70,9 @@ Sexpression *Constant::ACL2Expr([[maybe_unused]] bool isBV) { return this; }
 // class Integer : public Constant
 // -------------------------------
 
-Integer::Integer(const char *n) : Constant(idOf(this), n) {}
+Integer::Integer(Location loc, const char *n) : Constant(idOf(this), loc, n) {}
 
-Integer::Integer(int n) : Constant(idOf(this), n) {}
+Integer::Integer(Location loc, int n) : Constant(idOf(this), loc, n) {}
 
 int Integer::evalConst() {
   if (!strncmp(getname(), "0x", 2)) {
@@ -97,34 +100,15 @@ Sexpression *Integer::ACL2Expr([[maybe_unused]] bool isBV) {
   }
 }
 
-Integer i_0("0");
-Integer i_1("1");
-Integer i_2("2");
-
 // class Boolean : public Constant
 // -------------------------------
-Boolean::Boolean(const char *n) : Constant(idOf(this), n) {}
+Boolean::Boolean(Location loc, bool value)
+    : Constant(idOf(this), loc, std::to_string(value)), value_(value) {}
 
-int Boolean::evalConst() {
-  if (!strcmp(getname(), "true"))
-    return 1;
-  else if (!strcmp(getname(), "false"))
-    return 0;
-  else
-    UNREACHABLE();
-}
-
-Boolean b_true("true");
-Boolean b_false("false");
+int Boolean::evalConst() { return value_; }
 
 Sexpression *Boolean::ACL2Expr([[maybe_unused]] bool isBV) {
-  if (!strcmp(getname(), "true"))
-    return new Plist({ &s_true });
-  else if (!strcmp(getname(), "false"))
-    return new Plist({ &s_false });
-  else // error
-    std::cerr << getname() << '\n';
-  UNREACHABLE();
+  return new Plist({ value_ ? &s_true : &s_false });
 }
 
 // class SymRef : public Expression
@@ -135,7 +119,9 @@ Sexpression *Boolean::ACL2Expr([[maybe_unused]] bool isBV) {
 
 // Data member: SymDec *symDec;
 
-SymRef::SymRef(SymDec *s) : Expression(idOf(this)) { symDec = s; }
+SymRef::SymRef(Location loc, SymDec *s) : Expression(idOf(this), loc) {
+  symDec = s;
+}
 
 bool SymRef::isConst() { return symDec->isConst(); }
 
@@ -165,12 +151,14 @@ Sexpression *SymRef::ACL2Assign(Sexpression *rval) {
 
 // Data members:  FunDef *func; List<Expression> *args;
 
-FunCall::FunCall(FunDef *f, List<Expression> *a) : Expression(idOf(this)) {
+FunCall::FunCall(Location loc, FunDef *f, List<Expression> *a)
+    : Expression(idOf(this), loc) {
   func = f;
   args = a;
 }
 
-FunCall::FunCall(NodesId id, FunDef *f, List<Expression> *a) : Expression(id) {
+FunCall::FunCall(NodesId id, Location loc, FunDef *f, List<Expression> *a)
+    : Expression(id, loc) {
   func = f;
   args = a;
 }
@@ -208,14 +196,11 @@ Sexpression *FunCall::ACL2Expr(bool isBV) {
 
 // call members:  Symbol *instanceSym; List<Expression> *params;
 
-TempCall::TempCall(Template *f, List<Expression> *a, List<Expression> *p)
-    : FunCall(idOf(this), f, a) {
+TempCall::TempCall(Location loc, Template *f, List<Expression> *a,
+                   List<Expression> *p)
+    : FunCall(idOf(this), loc, f, a) {
   params = p;
-  if (f->calls == nullptr) {
-    f->calls = new List<TempCall>(this);
-  } else {
-    f->calls->add(this);
-  }
+  f->calls.push_back(this);
 }
 
 void TempCall::display(std::ostream &os) const {
@@ -250,7 +235,8 @@ Sexpression *TempCall::ACL2Expr(bool isBV) {
 
 // Data member:  List<Constant> *vals;
 
-Initializer::Initializer(List<Constant> *v) : Expression(idOf(this)) {
+Initializer::Initializer(Location loc, List<Constant> *v)
+    : Expression(idOf(this), loc) {
   vals = v;
 }
 
@@ -283,7 +269,7 @@ Sexpression *Initializer::ACL2ArrayExpr() {
   unsigned i = 0;
   while (entries) {
     if (strcmp(((Constant *)(entries->value))->getname(), "0")) {
-      p->add(new Cons(new Integer(i), entries->value));
+      p->add(new Cons(new Integer(loc_, i), entries->value));
     }
     i++;
     entries = entries->next;
@@ -313,7 +299,8 @@ Initializer::ACL2StructExpr(const std::vector<StructField *> &fields) {
 
 // Data members:  Expression *array; Expression *index;
 
-ArrayRef::ArrayRef(Expression *a, Expression *i) : Expression(idOf(this)) {
+ArrayRef::ArrayRef(Location loc, Expression *a, Expression *i)
+    : Expression(idOf(this), loc) {
   array = a;
   index = i;
 }
@@ -360,7 +347,7 @@ Sexpression *ArrayRef::ACL2Assign(Sexpression *rval) {
     unsigned n = always_cast<const RegType *>(array->get_type())
                      ->width()
                      ->evalConst();
-    Integer *s = new Integer(n);
+    Integer *s = new Integer(loc_, n);
 
     return array->ACL2Assign(new Plist({ &s_setbitn, b, s, i, rval }));
   }
@@ -371,7 +358,8 @@ Sexpression *ArrayRef::ACL2Assign(Sexpression *rval) {
 
 // Data members:  Expression *base; char *field;
 
-StructRef::StructRef(Expression *s, char *f) : Expression(idOf(this)) {
+StructRef::StructRef(Location loc, Expression *s, char *f)
+    : Expression(idOf(this), loc) {
   base = s;
   field = f;
 }
@@ -408,12 +396,12 @@ Sexpression *StructRef::ACL2Assign(Sexpression *rval) {
 
 // Data members: Expression *base; Expression *high; Expression *low;
 
-Subrange::Subrange(Expression *b, Expression *l, unsigned w)
-    : Expression(idOf(this)), base(b), low(l), width_(w) {
+Subrange::Subrange(Location loc, Expression *b, Expression *l, unsigned w)
+    : Expression(idOf(this), loc), base(b), low(l), width_(w) {
   if (l->isConst())
-    high = new Integer(l->evalConst() + w - 1);
+    high = new Integer(loc_, l->evalConst() + w - 1);
   else
-    high = new BinaryExpr(l, new Integer(w - 1), strdup("+"));
+    high = new BinaryExpr(loc_, l, new Integer(loc_, w - 1), strdup("+"));
 }
 
 void Subrange::display(std::ostream &os) const {
@@ -435,7 +423,7 @@ Sexpression *Subrange::ACL2Expr([[maybe_unused]] bool isBV) {
   if (const RegType *t = dynamic_cast<const RegType *>(base->get_type())) {
 
     if (t->isSigned()) {
-      return new Plist({ &s_si, bv_val, new Integer(width_) });
+      return new Plist({ &s_si, bv_val, new Integer(loc_, width_) });
     } else {
       return bv_val;
     }
@@ -452,7 +440,7 @@ Sexpression *Subrange::ACL2Assign(Sexpression *rval) {
   unsigned n
       = always_cast<const RegType *>(base->get_type())->width()->evalConst();
 
-  Integer *s = new Integer(n);
+  Integer *s = new Integer(loc_, n);
   return base->ACL2Assign(new Plist({ &s_setbits, b, s, hi, lo, rval }));
 }
 
@@ -461,28 +449,58 @@ Sexpression *Subrange::ACL2Assign(Sexpression *rval) {
 
 // Data members: Expression *expr; const char *op;
 
-PrefixExpr::PrefixExpr(Expression *e, const char *o) : Expression(idOf(this)) {
-  expr = e;
-  op = o;
+PrefixExpr::PrefixExpr(Location loc, Expression *e, const char *o)
+    : Expression(idOf(this), loc), expr(e), op(parseOp(o)) {}
+
+PrefixExpr::Op PrefixExpr::parseOp(const char *o) {
+  if (false) {
+  }
+#define APPLY_BINARY_OP(_, __)
+#define APPLY_ASSIGN_OP(_, __)
+#define APPLY_UNARY_OP(NAME, OP) else if (!strcmp(o, #OP)) return Op::NAME;
+#include "operators.def"
+#undef APPLY_BINARY_OP
+#undef APPLY_ASSIGN_OP
+#undef APPLY_UNARY_OP
+  else
+    UNREACHABLE();
 }
 
 bool PrefixExpr::isConst() { return expr->isConst(); }
 
 int PrefixExpr::evalConst() {
   int val = expr->evalConst();
-  if (!strcmp(op, "+")) {
+  switch (op) {
+  case Op::UnaryPlus:
     return val;
-  } else if (!strcmp(op, "-")) {
+  case Op::UnaryMinus:
     return -val;
-  } else if (!strcmp(op, "~")) {
+  case Op::BitNot:
     return -1 - val;
-  } else if (!strcmp(op, "!")) {
-    return val ? 1 : 0;
-  } else
+  case Op::Not:
+    return val ? 0 : 1;
+  default:
     UNREACHABLE();
+  }
 }
 
 bool PrefixExpr::isInteger() { return expr->isInteger(); }
+
+std::ostream &operator<<(std::ostream &os, PrefixExpr::Op op) {
+  switch (op) {
+#define APPLY_BINARY_OP(NAME, OP)
+#define APPLY_ASSIGN_OP(_, __)
+#define APPLY_UNARY_OP(NAME, OP)                                              \
+  case PrefixExpr::Op::NAME:                                                  \
+    return os << #OP;
+#include "operators.def"
+#undef APPLY_BINARY_OP
+#undef APPLY_ASSIGN_OP
+#undef APPLY_UNARY_OP
+  default:
+    UNREACHABLE();
+  }
+}
 
 void PrefixExpr::display(std::ostream &os) const {
   os << op;
@@ -491,19 +509,20 @@ void PrefixExpr::display(std::ostream &os) const {
 
 Sexpression *PrefixExpr::ACL2Expr(bool isBV) {
   Sexpression *s = expr->ACL2Expr();
-  if (!strcmp(op, "+")) {
+  if (op == Op::UnaryPlus) {
     return s;
-  } else if (!strcmp(op, "-")) {
+  } else if (op == Op::UnaryMinus) {
     return new Plist({ &s_minus, s });
-  } else if (!strcmp(op, "!")) {
+  } else if (op == Op::Not) {
     return new Plist({ &s_lognot1, s });
-  } else if (!strcmp(op, "~")) {
+  } else if (op == Op::BitNot) {
     const Type *t = get_type();
     if (t) {
       Plist *bv = new Plist({ &s_lognot, expr->ACL2Expr(true) });
       if (isBV && isa<const RegType *>(t)) {
         unsigned w = always_cast<const RegType *>(t)->width()->evalConst();
-        return new Plist({ &s_bits, bv, new Integer(w - 1), &i_0 });
+        return new Plist(
+            { &s_bits, bv, new Integer(loc_, w - 1), Integer::zero_v(loc_) });
       } else {
         return t->ACL2Eval(bv);
         //?? return bv;
@@ -520,7 +539,8 @@ Sexpression *PrefixExpr::ACL2Expr(bool isBV) {
 
 // Data members: Expression *expr; Type *type;
 
-CastExpr::CastExpr(Expression *e, Type *t) : Expression(idOf(this)) {
+CastExpr::CastExpr(Location loc, Expression *e, Type *t)
+    : Expression(idOf(this), loc) {
   expr = e;
   type = t;
 }
@@ -542,8 +562,9 @@ Sexpression *CastExpr::ACL2Expr([[maybe_unused]] bool isBV) {
 
 // Data members: Expression *expr1; Expression *expr2; const char *op;
 
-BinaryExpr::BinaryExpr(Expression *e1, Expression *e2, const char *o)
-    : Expression(idOf(this)), expr1(e1), expr2(e2), op(parseOp(o)) {}
+BinaryExpr::BinaryExpr(Location loc, Expression *e1, Expression *e2,
+                       const char *o)
+    : Expression(idOf(this), loc), expr1(e1), expr2(e2), op(parseOp(o)) {}
 
 BinaryExpr::Op BinaryExpr::parseOp(const char *o) {
 
@@ -554,6 +575,8 @@ BinaryExpr::Op BinaryExpr::parseOp(const char *o) {
 #define APPLY_UNARY_OP(_, __)
 #include "operators.def"
 #undef APPLY_BINARY_OP
+#undef APPLY_ASSIGN_OP
+#undef APPLY_UNARY_OP
   else
     UNREACHABLE();
 }
@@ -572,6 +595,8 @@ int BinaryExpr::evalConst() {
 #define APPLY_UNARY_OP(_, __)
 #include "operators.def"
 #undef APPLY_BINARY_OP
+#undef APPLY_ASSIGN_OP
+#undef APPLY_UNARY_OP
   default:
     UNREACHABLE();
   }
@@ -586,6 +611,8 @@ std::ostream &operator<<(std::ostream &os, BinaryExpr::Op op) {
 #define APPLY_UNARY_OP(_, __)
 #include "operators.def"
 #undef APPLY_BINARY_OP
+#undef APPLY_ASSIGN_OP
+#undef APPLY_UNARY_OP
   default:
     UNREACHABLE();
   }
@@ -607,11 +634,11 @@ Sexpression *BinaryExpr::ACL2Expr(bool isBV) {
   Sexpression *sexpr2 = expr2->ACL2Expr();
 
   if (isa<const FPType *>(expr1->get_type()) && op == Op::LShift) {
-    return new Plist(
-        { &s_times, sexpr1, new Plist({ &s_expt, &i_2, sexpr2 }) });
+    return new Plist({ &s_times, sexpr1,
+                       new Plist({ &s_expt, Integer::two_v(loc_), sexpr2 }) });
   } else if (isa<const FPType *>(expr1->get_type()) && op == Op::RShift) {
-    return new Plist(
-        { &s_divide, sexpr1, new Plist({ &s_expt, &i_2, sexpr2 }) });
+    return new Plist({ &s_divide, sexpr1,
+                       new Plist({ &s_expt, Integer::two_v(loc_), sexpr2 }) });
   }
 
   switch (op) {
@@ -688,8 +715,8 @@ Sexpression *BinaryExpr::ACL2Expr(bool isBV) {
 
 // Data members:  Expression *expr1; Expression *expr2; Expression *test;
 
-CondExpr::CondExpr(Expression *e1, Expression *e2, Expression *t)
-    : Expression(idOf(this)) {
+CondExpr::CondExpr(Location loc, Expression *e1, Expression *e2, Expression *t)
+    : Expression(idOf(this), loc) {
   expr1 = e1;
   expr2 = e2;
   test = t;
@@ -715,8 +742,8 @@ Sexpression *CondExpr::ACL2Expr([[maybe_unused]] bool isBV) {
 
 // Data members: MvType *type; Expression *expr[8];
 
-MultipleValue::MultipleValue(MvType *t, List<Expression> *e)
-    : Expression(idOf(this)), type(t) {
+MultipleValue::MultipleValue(Location loc, MvType *t, List<Expression> *e)
+    : Expression(idOf(this), loc), type(t) {
 
   expr.reserve(8);
   for (unsigned i = 0; i < 8 && e; ++i) {

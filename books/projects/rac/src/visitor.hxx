@@ -703,11 +703,8 @@ bool RecursiveASTVisitor<Derived>::TraverseTemplate(Template *s) {
   if (!b)
     return false;
 
-  for_each(s->calls, [&](TempCall *s) {
-    if (b && !derived().TraverseExpression(s))
-      b = false;
-  });
-  if (!b)
+  if (!std::all_of(s->calls.begin(), s->calls.end(),
+        [&](TempCall *s) { return derived().TraverseExpression(s); }))
     return false;
 
   if (derived().postfixTraversal())

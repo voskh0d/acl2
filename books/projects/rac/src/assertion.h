@@ -8,6 +8,9 @@
 class MarkAssertionAction final
     : public RecursiveASTVisitor<MarkAssertionAction> {
 public:
+
+  MarkAssertionAction(const DiagnosticHandler&) {}
+
   bool VisitFunDef(FunDef *f) {
     fn = f;
     return true;

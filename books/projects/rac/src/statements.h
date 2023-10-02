@@ -1,6 +1,7 @@
 #ifndef STATEMENTS_H
 #define STATEMENTS_H
 
+#include "diagnostics.h"
 #include "expressions.h"
 #include "sexpressions.h"
 #include "types.h"
@@ -16,7 +17,7 @@ class TempCall;
 
 class Statement {
 public:
-  Statement(NodesId id) : id_(id) {}
+  Statement(NodesId id, Location loc) : id_(id), loc_(loc) {}
 
   virtual void display(std::ostream &os, unsigned indent = 0) = 0;
   virtual void displayAsRightBranch(std::ostream &os, unsigned indent = 0);
@@ -26,14 +27,18 @@ public:
   virtual Sexpression *ACL2Expr() = 0;
 
   inline NodesId id() const { return id_; }
+  inline const Location& loc() const { return loc_; }
 
 private:
   const NodesId id_;
+
+protected:
+  Location loc_;
 };
 
 class SimpleStatement : public Statement {
 public:
-  SimpleStatement(NodesId id) : Statement(id) {}
+  SimpleStatement(NodesId id, Location loc) : Statement(id, loc) {}
   void display(std::ostream &os, unsigned indent = 0) override;
   virtual void displaySimple(std::ostream &os) = 0;
 };
@@ -43,11 +48,11 @@ public:
   Symbol *sym;
   const Type *type;
   Expression *init;
-  SymDec(const char *n, Type *t, Expression *i = nullptr);
-  SymDec(NodesId id, const char *n, Type *t, Expression *i = nullptr);
+  SymDec(Location loc, const char *n, Type *t, Expression *i = nullptr);
+  SymDec(NodesId id, Location loc, const char *n, Type *t, Expression *i = nullptr);
 
   const char *getname() const { return sym->getname(); }
-  void displaySymDec(std::ostream &os) const;
+  virtual void displaySymDec(std::ostream &os) const;
   virtual bool isGlobal();
   virtual bool isROM();
   virtual bool isConst();
@@ -57,9 +62,10 @@ public:
 
 class EnumConstDec final : public SymDec {
 public:
-  EnumConstDec(const char *n, Expression *v = nullptr);
-  void display(std::ostream &os) const;
-  void displaySimple(std::ostream &os) override { display(os); }
+  EnumConstDec(Location loc, const char *n, Expression *v = nullptr);
+  // TODO indent.
+  void display(std::ostream &os, unsigned) override;
+  void displaySimple(std::ostream &os) override { display(os, 0); }
   bool isConst() override;
   // ACL2expr Weird
   Sexpression *ACL2Expr() override;
@@ -68,8 +74,8 @@ public:
 
 class VarDec : public SymDec {
 public:
-  VarDec(const char *n, Type *t, Expression *i = nullptr);
-  VarDec(NodesId id, const char *n, Type *t, Expression *i = nullptr);
+  VarDec(Location loc, const char *n, Type *t, Expression *i = nullptr);
+  VarDec(NodesId id, Location loc, const char *n, Type *t, Expression *i = nullptr);
   void displaySimple(std::ostream &os) override;
   Sexpression *ACL2Expr() override;
   Sexpression *ACL2SymExpr() override;
@@ -77,7 +83,7 @@ public:
 
 class ConstDec : public VarDec {
 public:
-  ConstDec(const char *n, Type *t, Expression *i);
+  ConstDec(Location loc, const char *n, Type *t, Expression *i);
   void displaySimple(std::ostream &os) override;
   bool isConst() override;
   bool isGlobal() override;
@@ -88,8 +94,8 @@ public:
 class MulConstDec : public SimpleStatement {
 public:
   List<ConstDec> *decs;
-  MulConstDec(ConstDec *dec1, ConstDec *dec2);
-  MulConstDec(List<ConstDec> *decs);
+  MulConstDec(Location loc, ConstDec *dec1, ConstDec *dec2);
+  MulConstDec(Location loc, List<ConstDec> *decs);
   Sexpression *ACL2Expr() override;
   void displaySimple(std::ostream &os) override;
 };
@@ -97,15 +103,15 @@ public:
 class MulVarDec : public SimpleStatement {
 public:
   List<VarDec> *decs;
-  MulVarDec(VarDec *dec1, VarDec *dec2);
-  MulVarDec(List<VarDec> *decs);
+  MulVarDec(Location loc, VarDec *dec1, VarDec *dec2);
+  MulVarDec(Location loc, List<VarDec> *decs);
   Sexpression *ACL2Expr() override;
   void displaySimple(std::ostream &os) override;
 };
 
 class TempParamDec final : public SymDec {
 public:
-  TempParamDec(const char *n, Type *t);
+  TempParamDec(Location loc, const char *n, Type *t);
   bool isConst() override;
   Sexpression *ACL2SymExpr() override;
 
@@ -120,7 +126,7 @@ public:
 
 class BreakStmt final : public SimpleStatement {
 public:
-  BreakStmt();
+  BreakStmt(Location loc);
   void displaySimple(std::ostream &os) override;
   Sexpression *ACL2Expr() override;
 };
@@ -129,14 +135,14 @@ class ReturnStmt final : public SimpleStatement {
 public:
   Expression *value;
   const Type *returnType;
-  ReturnStmt(Expression *v);
+  ReturnStmt(Location loc, Expression *v);
   void displaySimple(std::ostream &os) override;
   Sexpression *ACL2Expr() override;
 };
 
 class NullStmt final : public SimpleStatement {
 public:
-  NullStmt();
+  NullStmt(Location loc);
   void displaySimple(std::ostream &os) override;
   Sexpression *ACL2Expr() override;
 };
@@ -145,7 +151,7 @@ class Assertion final : public SimpleStatement {
 public:
   Expression *expr;
   FunDef *funDef;
-  Assertion(Expression *e);
+  Assertion(Location loc, Expression *e);
   void displaySimple(std::ostream &os) override;
   Sexpression *ACL2Expr() override;
 };
@@ -157,10 +163,10 @@ public:
   Expression *rval;
   Expression *index = nullptr;
 
-  Assignment(Expression *l, const char *o, Expression *r);
+  Assignment(Location loc, Expression *l, const char *o, Expression *r);
   // set_slc
-  Assignment(Expression *l, Expression *r, Expression *i)
-      : SimpleStatement(idOf(this)), lval(l), op("set_slc"), rval(r),
+  Assignment(Location loc, Expression *l, Expression *r, Expression *i)
+      : SimpleStatement(idOf(this), loc), lval(l), op("set_slc"), rval(r),
         index(i) {}
 
   void displaySimple(std::ostream &os) override;
@@ -172,7 +178,7 @@ class MultipleAssignment : public SimpleStatement {
   FunCall *rval_;
 
 public:
-  MultipleAssignment(FunCall *r, std::vector<Expression *> e);
+  MultipleAssignment(Location loc, FunCall *r, std::vector<Expression *> e);
   void displaySimple(std::ostream &os) override;
   Sexpression *ACL2Expr() override;
 
@@ -183,10 +189,10 @@ public:
 class Block final : public Statement {
 public:
   List<Statement> *stmtList;
-  Block(List<Statement> *s);
-  Block(Statement *s);
-  Block(Statement *s1, Statement *s2);
-  Block(Statement *s1, Statement *s2, Statement *s3);
+  Block(Location loc, List<Statement> *s);
+  Block(Location loc, Statement *s);
+  Block(Location loc, Statement *s1, Statement *s2);
+  Block(Location loc, Statement *s1, Statement *s2, Statement *s3);
   Block *blockify() override;
   Block *blockify(Statement *s) override;
   void display(std::ostream &os, unsigned indent = 0) override;
@@ -199,7 +205,7 @@ public:
   Expression *test;
   Statement *left;
   Statement *right;
-  IfStmt(Expression *t, Statement *l, Statement *r);
+  IfStmt(Location loc, Expression *t, Statement *l, Statement *r);
   void display(std::ostream &os, unsigned indent = 0) override;
   void displayAsRightBranch(std::ostream &os, unsigned indent = 0) override;
   Sexpression *ACL2Expr() override;
@@ -211,7 +217,7 @@ public:
   Expression *test;
   Assignment *update;
   Statement *body;
-  ForStmt(SimpleStatement *v, Expression *t, Assignment *u, Statement *b);
+  ForStmt(Location loc, SimpleStatement *v, Expression *t, Assignment *u, Statement *b);
   void display(std::ostream &os, unsigned indent = 0) override;
   Sexpression *ACL2Expr() override;
 };
@@ -220,31 +226,18 @@ class Case final : public Statement {
 public:
   Expression *label;
   List<Statement> *action;
-  Case(Expression *l, List<Statement> *a);
+  Case(Location loc, Expression *l, List<Statement> *a);
   void display(std::ostream &os, unsigned indent = 0) override;
 
   Sexpression *ACL2Expr() override { assert(!"TODO"); }
-
-  // TODO move this to the type pass.
-  void typeCheck() const {
-
-    if (!label) {
-      return;
-    }
-
-    const Type *t = label->get_type();
-    // If it is an enum, t will always be non null.
-    if ((t == nullptr || !isa<const EnumType *>(t)) && !isa<Constant *>(label))
-      assert(!"case label must be an integer or an enum constant");
-  }
 };
 
 class SwitchStmt : public Statement {
+public:
   Expression *test_;
   BetterList<Case> cases_;
 
-public:
-  SwitchStmt(Expression *t, List<Case> *c);
+  SwitchStmt(Location loc, Expression *t, List<Case> *c);
   void display(std::ostream &os, unsigned indent = 0) override;
   Sexpression *ACL2Expr() override;
 

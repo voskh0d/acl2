@@ -1,6 +1,6 @@
-#include "typing.h"
 #include "expressions.h"
 #include "types.h"
+#include "typing.h"
 
 bool TypingAction::TraverseExpression(Expression *e) {
 
@@ -92,7 +92,7 @@ bool TypingAction::VisitStructRef(StructRef *e) {
 }
 
 bool TypingAction::VisitSubrange(Subrange *e) {
-  Integer *width = new Integer(e->width());
+  Integer *width = new Integer(e->loc(), e->width());
 
   if (const RegType *t = always_cast<const RegType *>(e->base->get_type())) {
 
@@ -108,7 +108,7 @@ bool TypingAction::VisitSubrange(Subrange *e) {
 }
 
 bool TypingAction::VisitPrefixExpr(PrefixExpr *e) {
-  if (!strcmp(e->op, "~")) {
+  if (e->op == PrefixExpr::Op::BitNot) {
     // TODO: ac_int<W+!S, true>
     e->set_type(e->expr->get_type());
   } else {
@@ -153,5 +153,22 @@ bool TypingAction::VisitSymDec(SymDec *s) {
 bool TypingAction::VisitReturnStmt(ReturnStmt *s) {
   s->returnType = deref(type_of_scope);
   assert(s->returnType);
+  return true;
+}
+
+bool TypingAction::VisitSwitchStmt(SwitchStmt *s) {
+  for_each(s->cases_, [s, this](Case *c) {
+    if (!c->label) {
+      // true
+      return;
+    }
+
+    const Type *t = c->label->get_type();
+    // If it is an enum, t will always be non null.
+    if ((t == nullptr || !isa<const EnumType *>(t))
+        && !isa<Constant *>(c->label))
+      diag_.report(c, c->label,
+                   "Case label must be an integer or an enum constant.");
+  });
   return true;
 }

@@ -4,6 +4,7 @@
 #include "program.h"
 
 extern int yylineno;
+extern Location yylloc;
 
 extern int yyparse();
 extern FILE *yyin;

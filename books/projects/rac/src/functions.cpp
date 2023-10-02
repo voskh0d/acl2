@@ -1,5 +1,6 @@
 #include "functions.h"
 
+#include <algorithm>
 #include <sstream>
 
 //***********************************************************************************
@@ -9,12 +10,14 @@
 // Data members: Symbol *sym; Type *returnType; List<VarDec> *params; Block
 // *body;
 
-FunDef::FunDef(const char *n, Type *t, List<VarDec> *p, Block *b)
-    : Statement(idOf(this)), sym(new Symbol(n)), returnType(t), params(p),
+FunDef::FunDef(Location loc, const char *n, Type *t, List<VarDec> *p, Block *b)
+    : Statement(idOf(this), loc), sym(new Symbol(n)), returnType(t), params(p),
       body(b) {}
 
-FunDef::FunDef(NodesId id, const char *n, Type *t, List<VarDec> *p, Block *b)
-    : Statement(id), sym(new Symbol(n)), returnType(t), params(p), body(b) {}
+FunDef::FunDef(NodesId id, Location loc, const char *n, Type *t,
+               List<VarDec> *p, Block *b)
+    : Statement(id, loc), sym(new Symbol(n)), returnType(t), params(p),
+      body(b) {}
 
 void FunDef::displayPrototype(std::ostream &os, const char *prefix,
                               unsigned indent) {
@@ -65,11 +68,9 @@ void FunDef::displayACL2Expr(std::ostream &os) {
 // class Template : public FunDef
 // -----------------------------
 
-// Data members: List<TempParamDec> *tempParams; List<TempCall> *calls;
-
-Template::Template(const char *n, Type *t, List<VarDec> *p, Block *b,
-                   List<TempParamDec> *tp)
-    : FunDef(idOf(this), n, t, p, b), tempParams(tp) {}
+Template::Template(Location loc, const char *n, Type *t, List<VarDec> *p,
+                   Block *b, List<TempParamDec> *tp)
+    : FunDef(idOf(this), loc, n, t, p, b), tempParams(tp) {}
 
 void Template::display(std::ostream &os, const char *prefix, unsigned indent) {
   os << "\n";
@@ -92,26 +93,33 @@ void Template::display(std::ostream &os, const char *prefix, unsigned indent) {
 // This is called by both Template::displayACL2Expr and TempCall::ACL2Expr:
 
 void Template::bindParams(List<Expression> *actuals) {
-  List<TempParamDec> *formals = tempParams;
-  while (formals) {
+
+  for_each(tempParams, [&](TempParamDec *formal) {
     assert(actuals);
-    formals->value->init = actuals->value, formals = formals->next;
+    formal->init = actuals->value;
     actuals = actuals->next;
-  }
+  });
 }
 
 void Template::displayACL2Expr(std::ostream &os) {
-  List<TempCall> *c = calls;
+
   unsigned numCalls = 0;
   Symbol *saveSym = sym;
-  while (c) {
+
+  std::for_each(calls.begin(), calls.end(), [&](TempCall *c) {
+    // Generate a new name for each template instanciation and tranform this
+    // into the instanciated function.
     std::ostringstream ostr;
     ostr << saveSym->getname() << "-" << numCalls++;
     sym = new Symbol(ostr.str());
-    c->value->instanceSym = sym;
-    bindParams(c->value->params);
+
+    // Change the caller to call the instanciated function (this).
+    c->instanceSym = sym;
+
+    // Bind params and display this as a standard function.
+    bindParams(c->params);
     FunDef::displayACL2Expr(os);
-    c = c->next;
-  }
+  });
+
   sym = saveSym;
 }

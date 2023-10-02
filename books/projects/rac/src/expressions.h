@@ -1,6 +1,7 @@
 #ifndef EXPRESSIONS_H
 #define EXPRESSIONS_H
 
+#include "diagnostics.h"
 #include "nodesid.h"
 #include "sexpressions.h"
 #include "types.h"
@@ -20,7 +21,7 @@ class MvType;
 
 class Expression {
 public:
-  Expression(NodesId id) : id_(id){};
+  Expression(NodesId id, Location loc) : id_(id), loc_(loc){};
 
   virtual bool isConst();
   virtual int evalConst();
@@ -54,6 +55,7 @@ public:
   unsigned ACL2ValWidth();
 
   inline NodesId id() const { return id_; }
+  inline const Location& loc() { return loc_; }
 
   // Only during the type passs we are allowed to modify the type.
   void set_type(const Type *t) { t_ = t; }
@@ -65,12 +67,14 @@ private:
 
 protected:
   const NodesId id_;
+  const Location loc_;
 };
 
 class Constant : public Expression, public Symbol {
 public:
-  Constant(NodesId id, const char *n);
-  Constant(NodesId id, int n);
+  Constant(NodesId id, Location loc, const char *n);
+  Constant(NodesId id, Location loc, std::string&& n);
+  Constant(NodesId id, Location loc, int n);
   bool isConst() override;
   bool isInteger() override { return true; }
   void display(std::ostream &os) const override;
@@ -80,29 +84,35 @@ public:
 class Integer final : public Constant {
   // type: primType
 public:
-  Integer(const char *n);
-  Integer(int n);
+  Integer(Location loc, const char *n);
+  Integer(Location loc, int n);
   int evalConst() override;
   Sexpression *ACL2Expr(bool isBV) override;
-};
 
-extern Integer i_0;
-extern Integer i_1;
-extern Integer i_2;
+  static Integer *zero_v(Location loc) { return new Integer(loc, "0"); }
+  static Integer *one_v(Location loc) { return new Integer(loc, "1"); }
+  static Integer *two_v(Location loc) { return new Integer(loc, "2"); }
+};
 
 class Boolean final : public Constant {
   // PrimType (boolType)
 public:
-  Boolean(const char *n);
+  Boolean(Location loc, bool value);
   int evalConst() override;
   Sexpression *ACL2Expr(bool isBV = false) override;
+
+  static Boolean *true_v(Location loc) { return new Boolean(loc, true); }
+  static Boolean *false_v(Location loc) { return new Boolean(loc, false); }
+
+private:
+  bool value_;
 };
 
 class Parenthesis final : public Expression {
 public:
   Expression *expr_;
 
-  Parenthesis(Expression *e) : Expression(idOf(this)), expr_(e) { assert(e); }
+  Parenthesis(Location loc, Expression *e) : Expression(idOf(this), loc), expr_(e) { assert(e); }
 
   bool isConst() override { return expr_->isConst(); }
   int evalConst() override { return expr_->evalConst(); }
@@ -124,14 +134,11 @@ public:
   }
 };
 
-extern Boolean b_true;
-extern Boolean b_false;
-
 class SymRef final : public Expression {
 public:
   SymDec *symDec;
 
-  SymRef(SymDec *s);
+  SymRef(Location loc, SymDec *s);
   virtual bool isConst() override;
   virtual int evalConst() override;
   bool isInteger() override;
@@ -147,8 +154,8 @@ class FunCall : public Expression {
 public:
   FunDef *func;
   List<Expression> *args;
-  FunCall(FunDef *f, List<Expression> *a);
-  FunCall(NodesId id, FunDef *f, List<Expression> *a);
+  FunCall(Location loc, FunDef *f, List<Expression> *a);
+  FunCall(NodesId id, Location loc, FunDef *f, List<Expression> *a);
 
   bool isInteger() override;
   void display(std::ostream &os) const override;
@@ -161,7 +168,7 @@ class TempCall final : public FunCall {
 public:
   Symbol *instanceSym;
   List<Expression> *params;
-  TempCall(Template *f, List<Expression> *a, List<Expression> *p);
+  TempCall(Location loc, Template *f, List<Expression> *a, List<Expression> *p);
   void display(std::ostream &os) const override;
   Sexpression *ACL2Expr(bool isBV = false) override;
 };
@@ -169,7 +176,7 @@ public:
 class Initializer final : public Expression {
 public:
   List<Constant> *vals;
-  Initializer(List<Constant> *v);
+  Initializer(Location loc, List<Constant> *v);
   void display(std::ostream &os) const override;
   Sexpression *ACL2Expr(bool isBV = false) override;
   Sexpression *ACL2ArrayExpr() override;
@@ -181,7 +188,7 @@ class ArrayRef final : public Expression {
 public:
   Expression *array;
   Expression *index;
-  ArrayRef(Expression *a, Expression *i);
+  ArrayRef(Location loc, Expression *a, Expression *i);
 
   bool isInteger() override;
   void display(std::ostream &os) const override;
@@ -194,7 +201,7 @@ class StructRef final : public Expression {
 public:
   Expression *base;
   char *field;
-  StructRef(Expression *s, char *f);
+  StructRef(Location loc, Expression *s, char *f);
   bool isInteger() override;
   void display(std::ostream &os) const override;
   Sexpression *ACL2Expr(bool isBV = false) override;
@@ -209,7 +216,7 @@ public:
 
   unsigned width() { return width_; }
 
-  Subrange(Expression *b, Expression *l, unsigned w);
+  Subrange(Location loc, Expression *b, Expression *l, unsigned w);
 
   bool isInteger() override { return true; }
   void display(std::ostream &os) const override;
@@ -223,9 +230,22 @@ private:
 
 class PrefixExpr final : public Expression {
 public:
+enum class Op {
+#define APPLY_BINARY_OP(_, __) 
+#define APPLY_ASSIGN_OP(_, __)
+#define APPLY_UNARY_OP(NAME, __) NAME,
+#include "operators.def"
+#undef APPLY_BINARY_OP
+#undef APPLY_ASSIGN_OP
+#undef APPLY_UNARY_OP
+  };
+
   Expression *expr;
-  const char *op;
-  PrefixExpr(Expression *e, const char *o);
+  Op op;
+
+  static Op parseOp(const char *o);
+
+  PrefixExpr(Location loc, Expression *e, const char *o);
   bool isConst() override;
   int evalConst() override;
   bool isInteger() override;
@@ -233,11 +253,13 @@ public:
   Sexpression *ACL2Expr(bool isBV = false) override;
 };
 
+std::ostream &operator<<(std::ostream &os, PrefixExpr::Op op);
+
 class CastExpr final : public Expression {
 public:
   Expression *expr;
   Type *type;
-  CastExpr(Expression *e, Type *t);
+  CastExpr(Location loc, Expression *e, Type *t);
   bool isConst() override;
   int evalConst() override;
   bool isInteger() override;
@@ -253,13 +275,15 @@ public:
 #define APPLY_UNARY_OP(_, __)
 #include "operators.def"
 #undef APPLY_BINARY_OP
+#undef APPLY_ASSIGN_OP
+#undef APPLY_UNARY_OP
   };
 
   Expression *expr1;
   Expression *expr2;
   Op op;
 
-  BinaryExpr(Expression *e1, Expression *e2, const char *o);
+  BinaryExpr(Location loc, Expression *e1, Expression *e2, const char *o);
   bool isConst() override;
   int evalConst() override;
   bool isInteger() override;
@@ -277,7 +301,7 @@ public:
   Expression *expr1;
   Expression *expr2;
   Expression *test;
-  CondExpr(Expression *e1, Expression *e2, Expression *t);
+  CondExpr(Location loc, Expression *e1, Expression *e2, Expression *t);
   bool isInteger() override;
   void display(std::ostream &os) const override;
   Sexpression *ACL2Expr(bool isBV = false) override;
@@ -288,9 +312,9 @@ public:
   MvType *type;
   std::vector<Expression *> expr;
 
-  MultipleValue(MvType *t, std::vector<Expression *> &&e)
-      : Expression(idOf(this)), type(t), expr(e) {}
-  MultipleValue(MvType *t, List<Expression> *e);
+  MultipleValue(Location loc, MvType *t, std::vector<Expression *> &&e)
+      : Expression(idOf(this), loc), type(t), expr(e) {}
+  MultipleValue(Location loc, MvType *t, List<Expression> *e);
 
   void display(std::ostream &os) const override;
   Sexpression *ACL2Expr(bool isBV = false) override;

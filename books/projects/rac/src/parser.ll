@@ -15,14 +15,31 @@ lineba ^"#"\ [0-9]+\ \"[^\"]*\".*\n
 #include "statements.h"
 #include "types.h"
 
+
 extern int yylex ();
-extern void yyerror(const char *);
+extern void yyerror(const Location& loc, const char *);
 static bool comment();
 char *tokstr();
 static void lineba();
-char yyfilenm[1024];
-%}
 
+#define YY_USER_ACTION {                                                      \
+  yylloc.last_line = yylineno;                                                \
+  yylloc.first_line = yylloc.last_line;                                       \
+  yylloc.first_column = yylloc.last_column;                                   \
+  yylloc.f_pos = yylloc.f_pos_end;                                            \
+  yylloc.f_pos_end += yyleng;                                                 \
+  for(int i = 0; yytext[i] != '\0'; i++) {                                    \
+    if(yytext[i] == '\n') {                                                   \
+      yylloc.last_line++;                                                     \
+      yylloc.last_column = 0;                                                 \
+    }                                                                         \
+    else {                                                                    \
+      yylloc.last_column++;                                                   \
+    }                                                                         \
+  }                                                                           \
+}
+
+%}
 %%
 
 
@@ -146,7 +163,7 @@ comment ()
         c = yyinput();
       }
     }
-  yyerror ("unterminated comment");
+  yyerror (yylloc, "unterminated comment");
   return false;
 }
 
@@ -165,8 +182,11 @@ yywrap (void)
 static void
 lineba ()
 {
-  char *i = strtok(yytext, "# \"");
-  char *f = strtok(nullptr, "# \"");
-  sscanf(i, "%d", &yylineno);
-  sscanf(f, "%s", yyfilenm);
+  char *cur = nullptr;
+
+  char *i = strtok_r(yytext, "# \"", &cur);
+  yylineno = atoi(i);
+
+  char *f = strtok_r(cur, "# \"", &cur);
+  yylloc.file_name = std::string(f);
 }

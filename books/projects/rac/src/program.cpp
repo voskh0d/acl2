@@ -77,10 +77,11 @@ bool Program::parse(const std::string &file) {
   }
 
   yylineno = 1;
+  yylloc = Location::from_file(file);
   if (yyparse())
     return false;
 
-  fclose(yyin);
+  diag_.setup(yyin);
 
   if (isEmpty())
     puts("Warning: no function definitions found,"
@@ -95,7 +96,7 @@ bool Program::process() {
 #define RUNPASS(ACTION, NAME)                                                 \
   std::cerr << "Start " NAME "...\n";                                         \
   {                                                                           \
-    ACTION a;                                                                 \
+    ACTION a(diag_);                                                          \
     if (!runAction(&a))                                                       \
       return false;                                                           \
   }                                                                           \
@@ -103,7 +104,7 @@ bool Program::process() {
 #else
 #define RUNPASS(ACTION, NAME)                                                 \
   {                                                                           \
-    ACTION a;                                                                 \
+    ACTION a(diag_);                                                          \
     if (!runAction(&a))                                                       \
       return false;                                                           \
   }

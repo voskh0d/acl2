@@ -44,8 +44,11 @@ RegType::ACL2Assign(Expression *rval) const { // overridden by FPType
     assert(width_evaluated);
 
     Sexpression *bv_val
-        = new Plist({ &s_bits, rval->ACL2Expr(true),
-                      new Integer(width_evaluated - 1), &i_0 });
+        = new Plist({
+            &s_bits,
+            rval->ACL2Expr(true),
+            new Integer(rval->loc(), width_evaluated - 1),
+            Integer::zero_v(rval->loc())});
 
     return bv_val;
   }
@@ -72,7 +75,7 @@ void IntType::display(std::ostream &os) const {
 }
 
 Sexpression *IntType::ACL2Eval(Sexpression *s) const {
-  return new Plist({ &s_si, s, new Integer(width()->evalConst()) });
+  return new Plist({ &s_si, s, new Integer(Location::dummy(), width()->evalConst()) });
 }
 
 // class FPType :public RegType
@@ -84,18 +87,25 @@ FPType::FPType(Expression *w, Expression *iw) : RegType(w) { iwidth = iw; }
 
 Sexpression *FPType::ACL2Assign(Expression *rval) const {
   const Type *t = rval->get_type();
-  // ??? should be *this == *t sauf que vu que c'est des ptr partout ca
-  // marchera pas...
   if (t == this) {
     return rval->ACL2Expr(true);
   } else {
     Sexpression *s = rval->ACL2Expr();
     int wVal = width()->evalConst(), iwVal = iwidth->evalConst();
-    s = new Plist({ &s_times, s,
-                    new Plist({ &s_expt, &i_2, new Integer(wVal - iwVal) }) });
+    s = new Plist({
+        &s_times,
+        s,
+        new Plist({
+            &s_expt,
+            Integer::two_v(rval->loc()),
+            new Integer(rval->loc(), wVal - iwVal) }) });
     if (isa<const FPType *>(rval->get_type()) || wVal < iwVal)
       s = new Plist({ &s_fl, s });
-    return new Plist({ &s_bits, s, new Integer(wVal - 1), &i_0 });
+    return new Plist({
+        &s_bits,
+        s,
+        new Integer(rval->loc(), wVal - 1),
+        Integer::zero_v(rval->loc())});
   }
 }
 
@@ -113,10 +123,15 @@ void UfixedType::display(std::ostream &os) const {
 }
 
 Sexpression *UfixedType::ACL2Eval(Sexpression *s) const {
-  return new Plist({ &s_divide, s,
-                     new Plist({ &s_expt, &i_2,
-                                 new Integer(width()->evalConst()
-                                             - iwidth->evalConst()) }) });
+  return new Plist({
+      &s_divide,
+      s,
+      new Plist({
+          &s_expt,
+          Integer::two_v(Location::dummy()),
+          new Integer(
+              Location::dummy(),
+              width()->evalConst() - iwidth->evalConst()) }) });
 }
 
 // class FixedType : public RegType
@@ -136,10 +151,12 @@ void FixedType::display(std::ostream &os) const {
 
 Sexpression *FixedType::ACL2Eval(Sexpression *s) const {
   Sexpression *numerator
-      = new Plist({ &s_si, s, new Integer(width()->evalConst()) });
+      = new Plist({ &s_si, s, new Integer(Location::dummy(), width()->evalConst()) });
   Sexpression *denominator
-      = new Plist({ &s_expt, &i_2,
-                    new Integer(width()->evalConst() - iwidth->evalConst()) });
+    = new Plist({
+        &s_expt,
+        Integer::two_v(Location::dummy()),
+        new Integer(Location::dummy(), width()->evalConst() - iwidth->evalConst()) });
   return new Plist({ &s_divide, numerator, denominator });
 }
 
@@ -247,7 +264,7 @@ EnumType::EnumType(std::vector<EnumConstDec *> v) : Type(), vals_(v) {
 
 Sexpression *EnumType::ACL2Expr() {
   Plist *result = new Plist();
-  std::for_each(vals_.begin(), vals_.end(), [this, result](EnumConstDec *e) {
+  std::for_each(vals_.begin(), vals_.end(), [result](EnumConstDec *e) {
     result->add(e->ACL2Expr());
   });
   return result;
@@ -259,7 +276,7 @@ void EnumType::displayConsts(std::ostream &os) const {
   std::for_each(vals_.begin(), vals_.end(), [&](EnumConstDec *e) {
     if (!is_first)
       os << ", ";
-    e->display(os);
+    e->display(os, 0);
     is_first = false;
   });
   os << "}";
@@ -276,7 +293,7 @@ Sexpression *EnumType::getEnumVal(Symbol *s) const {
     if (d->init)
       count = d->init->evalConst();
     if (d->sym == s)
-      return new Integer(count);
+      return new Integer(Location::dummy(), count);
     else
       count++;
   }

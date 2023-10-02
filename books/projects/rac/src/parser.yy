@@ -11,26 +11,57 @@
 
 int yylex ();
 
+extern Location yylloc;
+
 void yyerror (const char *s)
 {
-  fflush (stdout);
-  fprintf (stderr, "%s:%d: %s\n", yyfilenm, yylineno, s);
+  std::fflush (stdout);
+  std::fprintf (stderr, "%s:%d: %s\n", yylloc.file_name.c_str(), yylloc.first_line, s);
+}
+
+void yyerror (const Location& loc, const char *s)
+{
+  std::fflush (stdout);
+  std::fprintf (stderr, "%s:%d: %s\n", loc.file_name.c_str(), loc.first_line, s);
 }
 
 // TODO: replace this horror by C++20 std::format().
-template <typename... Args> void yyerror (const char *format, Args... args)
+// TODO can we remove the function above ? args=void
+template <typename... Args> void yyerror (const Location& loc, const char *format, Args... args)
 {
-  fflush (stdout);
-  std::fprintf (stderr, "%s:%d: ", yyfilenm, yylineno);
+  std::fflush (stdout);
+  std::fprintf (stderr, "%s:%d: ", loc.file_name.c_str(), loc.first_line);
   std::fprintf (stderr, format, args...);
-  std::fprintf (stderr, "\n");
+  std::fputc ('\n', stderr);
 }
 
-extern BreakStmt breakStmt;
 
 Program prog;
-  List<Builtin> builtins (new Builtin ("abs", &intType, new List<VarDec>(new VarDec("", &intType))));
+  List<Builtin> builtins (new Builtin (Location::dummy(), "abs", &intType,
+    new List<VarDec>(new VarDec(Location::dummy(), "", &intType))));
   SymbolStack<SymDec> symTab;
+
+#define YYLLOC_DEFAULT(Cur, Rhs, N)                                           \
+do                                                                            \
+  if (N)                                                                      \
+    {                                                                         \
+      (Cur).first_line   = YYRHSLOC(Rhs, 1).first_line;                       \
+      (Cur).first_column = YYRHSLOC(Rhs, 1).first_column;                     \
+      (Cur).last_line    = YYRHSLOC(Rhs, N).last_line;                        \
+      (Cur).last_column  = YYRHSLOC(Rhs, N).last_column;                      \
+      (Cur).f_pos = YYRHSLOC(Rhs, 1).f_pos;                                   \
+      (Cur).f_pos_end = YYRHSLOC(Rhs, 1).f_pos_end;                           \
+      (Cur).file_name = YYRHSLOC(Rhs, 1).file_name;                           \
+    }                                                                         \
+  else                                                                        \
+    {                                                                         \
+      (Cur).first_line = (Cur).last_line = YYRHSLOC(Rhs, 0).last_line;        \
+      (Cur).first_column = (Cur).last_column = YYRHSLOC(Rhs, 0).last_column;  \
+      (Cur).f_pos = YYRHSLOC(Rhs, 0).f_pos;                                   \
+      (Cur).f_pos_end = YYRHSLOC(Rhs, 0).f_pos_end;                           \
+      (Cur).file_name = YYRHSLOC(Rhs, 0).file_name;                           \
+    }                                                                         \
+while (0)
 %}
 
 %union {
@@ -58,6 +89,9 @@ Program prog;
 
 %define parse.error verbose
 %define parse.lac full
+
+%locations
+%define api.location.type { Location }
 
 %token TYPEDEF CONST STRUCT ENUM TEMPLATE
 %token INT UINT INT64 UINT64 BOOL
@@ -121,7 +155,7 @@ program_element : type_dec ';'
 {
   if (!prog.registerType($1))
   {
-      yyerror ("Duplicate type definition");
+      yyerror (@$, "Duplicate type definition");
       YYERROR;
   }
 }
@@ -129,7 +163,7 @@ program_element : type_dec ';'
 {
   if(!prog.registerConstDec(static_cast<ConstDec *>($1)))
     {
-      yyerror ("Duplicate global constant declaration");
+      yyerror (@$, "Duplicate global constant declaration");
       YYERROR;
     }
 }
@@ -137,7 +171,7 @@ program_element : type_dec ';'
 {
   if (!prog.registerFunDef($1))
     {
-      yyerror ("Duplicate function definition");
+      yyerror (@$, "Duplicate function definition");
       YYERROR;
     }
 };
@@ -161,7 +195,7 @@ typedef_dec : TYPEDEF typedef_type ID { $$ = new DefinedType ($3, $2); }
     }
   else
     {
-      yyerror ("Array dimension not a positive integer constant");
+      yyerror (@$, "Array dimension not a positive integer constant");
       YYERROR;
     }
 };
@@ -203,7 +237,7 @@ register_type
     }
   else
     {
-      yyerror ("Illegal parameter of ac_fixed");
+      yyerror (@$, "Illegal parameter of ac_fixed");
       YYERROR;
     }
 }
@@ -216,7 +250,7 @@ register_type
     }
   else
     {
-      yyerror ("Illegal parameter of ac_fixed");
+      yyerror (@$, "Illegal parameter of ac_fixed");
       YYERROR;
     }
 }
@@ -228,7 +262,7 @@ register_type
     }
   else
     {
-      yyerror ("Illegal parameter of ac_int");
+      yyerror (@$, "Illegal parameter of ac_int");
       YYERROR;
     }
 }
@@ -240,7 +274,7 @@ register_type
     }
   else
     {
-      yyerror ("Illegal parameter of ac_int");
+      yyerror (@$, "Illegal parameter of ac_int");
       YYERROR;
     }
 }
@@ -255,7 +289,7 @@ array_param_type : ARRAY '<' type_spec ',' arithmetic_expression '>'
     }
   else
     {
-      yyerror ("Non-constant array dimension");
+      yyerror (@$, "Non-constant array dimension");
       YYERROR;
     }
 };
@@ -277,24 +311,24 @@ enum_const_dec : ID
                {
   if (symTab.find_last_frame ($1))
     {
-      yyerror ("Duplicate identifier declaration (could be an enum, a "
+      yyerror (@$, "Duplicate identifier declaration (could be an enum, a "
                "variable or template parameter) `%s`",
                $1);
       YYERROR;
     }
-  $$ = new EnumConstDec ($1);
+  $$ = new EnumConstDec (@$, $1);
   symTab.push ($$);
 }
 | ID '=' expression
 {
   if (symTab.find_last_frame ($1))
     {
-      yyerror ("Duplicate identifier declaration (could be an enum, a "
+      yyerror (@$, "Duplicate identifier declaration (could be an enum, a "
                "variable or template parameter) `%s`",
                $1);
       YYERROR;
     }
-  $$ = new EnumConstDec ($1, $3);
+  $$ = new EnumConstDec (@$, $1, $3);
   symTab.push ($$);
 };
 
@@ -333,33 +367,33 @@ mv_type : TUPLE '<' type_spec ',' type_spec '>'
 
 primary_expression : constant | symbol_ref | funcall | '(' expression ')'
                    {
-  $$ = new Parenthesis($2);
+  $$ = new Parenthesis(@$, $2);
 };
 
 constant : integer | boolean;
 
-integer : NAT { $$ = new Integer ($1); }
+integer : NAT { $$ = new Integer (@$, $1); }
         | '-' NAT
 {
   char *name = new char[strlen ($2) + 2];
   strcpy (name + 1, $2);
   name[0] = '-';
-  $$ = new Integer (name);
+  $$ = new Integer (@$, name);
 };
 
-boolean : TRUE { $$ = &b_true; }
-        | FALSE { $$ = &b_false; };
+boolean : TRUE { $$ = Boolean::true_v(@$); }
+        | FALSE { $$ = Boolean::false_v(@$); };
 
 symbol_ref : ID
            {
   SymDec *s = symTab.find ($1);
   if (s)
     {
-      $$ = new SymRef (s);
+      $$ = new SymRef (@$, s);
     }
   else
     {
-      yyerror ("Unknown symbol `%s`\n", $1);
+      yyerror (@$, "Unknown symbol `%s`\n", $1);
       YYERROR;
     }
 }
@@ -372,12 +406,12 @@ funcall : ID '(' expr_list ')'
   if ((f = prog.getFunDef ($1)) == nullptr
       && (f = builtins.find ($1)) == nullptr)
     {
-      yyerror ("Undefined function");
+      yyerror (@$, "Undefined function");
       YYERROR;
     }
   else
     {
-      $$ = new FunCall (f, $3);
+      $$ = new FunCall (@$, f, $3);
     }
 }
 | TEMPLATEID '<' arith_expr_list '>' '(' arith_expr_list ')'
@@ -386,12 +420,12 @@ funcall : ID '(' expr_list ')'
 // TODO: Why are we looking into funDefs and not in templates ???
   if ((f = (Template *)prog.getFunDef ($1)) == nullptr)
     {
-      yyerror ("Undefined function template");
+      yyerror (@$, "Undefined function template");
       YYERROR;
     }
   else
     {
-      $$ = new TempCall (f, $6, $3);
+      $$ = new TempCall (@$, f, $6, $3);
     }
 };
 
@@ -403,107 +437,107 @@ postfix_expression : primary_expression | array_or_bit_ref | struct_ref
 // typing.
 array_or_bit_ref : postfix_expression '[' expression ']'
 {
-  $$ = new ArrayRef ($1, $3);
+  $$ = new ArrayRef (@$, $1, $3);
 };
 
-struct_ref : postfix_expression '.' ID { $$ = new StructRef ($1, $3); }
+struct_ref : postfix_expression '.' ID { $$ = new StructRef (@$, $1, $3); }
 
 subrange : postfix_expression '.' SLC '<' NAT '>' '(' expression ')'
 {
-  $$ = new Subrange ($1, $8, Integer ($5).evalConst ());
+  $$ = new Subrange (@$, $1, $8, Integer (@$, $5).evalConst ());
 }
 
 prefix_expression : postfix_expression | unary_op prefix_expression
                   {
-  $$ = new PrefixExpr ($2, $1);
+  $$ = new PrefixExpr (@$, $2, $1);
 }
-| '(' type_spec ')' prefix_expression { $$ = new CastExpr ($4, $2); }
-| type_spec '(' expression ')' { $$ = new CastExpr ($3, $1); };
+| '(' type_spec ')' prefix_expression { $$ = new CastExpr (@$, $4, $2); }
+| type_spec '(' expression ')' { $$ = new CastExpr (@$, $3, $1); };
 
 unary_op : '+' | '-' | '~' | '!';
 
 mult_expression : prefix_expression | mult_expression '*' prefix_expression
                 {
-  $$ = new BinaryExpr ($1, $3, $2);
+  $$ = new BinaryExpr (@$, $1, $3, $2);
 }
-| mult_expression '/' prefix_expression { $$ = new BinaryExpr ($1, $3, $2); }
-| mult_expression '%' prefix_expression { $$ = new BinaryExpr ($1, $3, $2); };
+| mult_expression '/' prefix_expression { $$ = new BinaryExpr (@$, $1, $3, $2); }
+| mult_expression '%' prefix_expression { $$ = new BinaryExpr (@$, $1, $3, $2); };
 
 add_expression : mult_expression | add_expression '+' mult_expression
                {
-  $$ = new BinaryExpr ($1, $3, $2);
+  $$ = new BinaryExpr (@$, $1, $3, $2);
 }
-| add_expression '-' mult_expression { $$ = new BinaryExpr ($1, $3, $2); };
+| add_expression '-' mult_expression { $$ = new BinaryExpr (@$, $1, $3, $2); };
 
 arithmetic_expression : add_expression
                       | arithmetic_expression LSHFT_OP add_expression
 {
-  $$ = new BinaryExpr ($1, $3, $2);
+  $$ = new BinaryExpr (@$, $1, $3, $2);
 }
 | arithmetic_expression RSHFT_OP add_expression
 {
-  $$ = new BinaryExpr ($1, $3, $2);
+  $$ = new BinaryExpr (@$, $1, $3, $2);
 };
 
 rel_expression : arithmetic_expression
                | rel_expression '<' arithmetic_expression
 {
-  $$ = new BinaryExpr ($1, $3, $2);
+  $$ = new BinaryExpr (@$, $1, $3, $2);
 }
 | rel_expression '>' arithmetic_expression
 {
-  $$ = new BinaryExpr ($1, $3, $2);
+  $$ = new BinaryExpr (@$, $1, $3, $2);
 }
 | rel_expression LE_OP arithmetic_expression
 {
-  $$ = new BinaryExpr ($1, $3, $2);
+  $$ = new BinaryExpr (@$, $1, $3, $2);
 }
 | rel_expression GE_OP arithmetic_expression
 {
-  $$ = new BinaryExpr ($1, $3, $2);
+  $$ = new BinaryExpr (@$, $1, $3, $2);
 };
 
 eq_expression : rel_expression | eq_expression EQ_OP rel_expression
               {
-  $$ = new BinaryExpr ($1, $3, $2);
+  $$ = new BinaryExpr (@$, $1, $3, $2);
 }
-| eq_expression NE_OP rel_expression { $$ = new BinaryExpr ($1, $3, $2); };
+| eq_expression NE_OP rel_expression { $$ = new BinaryExpr (@$, $1, $3, $2); };
 
 and_expression : eq_expression | and_expression '&' eq_expression
                {
-  $$ = new BinaryExpr ($1, $3, $2);
+  $$ = new BinaryExpr (@$, $1, $3, $2);
 };
 
 xor_expression : and_expression | xor_expression '^' and_expression
                {
-  $$ = new BinaryExpr ($1, $3, $2);
+  $$ = new BinaryExpr (@$, $1, $3, $2);
 };
 
 ior_expression : xor_expression | ior_expression '|' xor_expression
                {
-  $$ = new BinaryExpr ($1, $3, $2);
+  $$ = new BinaryExpr (@$, $1, $3, $2);
 };
 
 log_and_expression : ior_expression | log_and_expression AND_OP ior_expression
                    {
-  $$ = new BinaryExpr ($1, $3, $2);
+  $$ = new BinaryExpr (@$, $1, $3, $2);
 };
 
 log_or_expression : log_and_expression
                   | log_or_expression OR_OP log_and_expression
 {
-  $$ = new BinaryExpr ($1, $3, $2);
+  $$ = new BinaryExpr (@$, $1, $3, $2);
 };
 
 cond_expression : log_or_expression
                 | log_or_expression '?' expression ':' cond_expression
 {
-  $$ = new CondExpr ($3, $5, $1);
+  $$ = new CondExpr (@$, $3, $5, $1);
 };
 
 mv_expression : mv_type '(' expr_list ')'
               {
-  $$ = new MultipleValue ((MvType *)$1, $3);
+  $$ = new MultipleValue (@$, (MvType *)$1, $3);
 };
 
 expression : cond_expression | mv_expression;
@@ -557,78 +591,78 @@ untyped_var_dec : ID
                 {
   if (symTab.find_last_frame ($1))
     {
-      yyerror ("Duplicate identifier declaration (could be an enum, a "
+      yyerror (@$, "Duplicate identifier declaration (could be an enum, a "
                "variable or template parameter) `%s`",
                $1);
       YYERROR;
     }
-  $$ = new VarDec ($1, nullptr);
+  $$ = new VarDec (@$, $1, nullptr);
   symTab.push ((VarDec *)$$);
 }
 | ID '=' expression
 {
   if (symTab.find_last_frame ($1))
     {
-      yyerror ("Duplicate identifier declaration (could be an enum, a "
+      yyerror (@$, "Duplicate identifier declaration (could be an enum, a "
                "variable or template parameter) `%s`",
                $1);
       YYERROR;
     }
-  $$ = new VarDec ($1, nullptr, $3);
+  $$ = new VarDec (@$, $1, nullptr, $3);
   symTab.push ((VarDec *)$$);
 }
 | ID '=' array_or_struct_init
 {
   if (symTab.find_last_frame ($1))
     {
-      yyerror ("Duplicate identifier declaration (could be an enum, a "
+      yyerror (@$, "Duplicate identifier declaration (could be an enum, a "
                "variable or template parameter) `%s`",
                $1);
       YYERROR;
     }
-  $$ = new VarDec ($1, nullptr, $3);
+  $$ = new VarDec (@$, $1, nullptr, $3);
   symTab.push ((VarDec *)$$);
 }
 | ID '[' arithmetic_expression ']'
 {
   if (!$3->isConst () || $3->evalConst () <= 0)
     {
-      yyerror ("Invalid array size (it shoud be a constant, stricly positive "
+      yyerror (@$, "Invalid array size (it shoud be a constant, stricly positive "
                "expression)");
       YYERROR;
     }
   if (symTab.find_last_frame ($1))
     {
-      yyerror ("Duplicate identifier declaration (could be an enum, a "
+      yyerror (@$, "Duplicate identifier declaration (could be an enum, a "
                "variable or template parameter) `%s`",
                $1);
       YYERROR;
     }
-  $$ = new VarDec ($1, new ArrayType ($3, nullptr));
+  $$ = new VarDec (@$, $1, new ArrayType ($3, nullptr));
   symTab.push ((VarDec *)$$);
 }
 | ID '[' arithmetic_expression ']' '=' array_or_struct_init
 {
   if (!$3->isConst () || $3->evalConst () <= 0)
     {
-      yyerror ("Invalid array size (it shoud be a constant, stricly positive "
+      yyerror (@$, "Invalid array size (it shoud be a constant, stricly positive "
                "expression)");
       YYERROR;
     }
   if (symTab.find_last_frame ($1))
     {
-      yyerror ("Duplicate identifier declaration (could be an enum, a "
+      yyerror (@$, "Duplicate identifier declaration (could be an enum, a "
                "variable or template parameter) `%s`",
                $1);
       YYERROR;
     }
-  $$ = new VarDec ($1, new ArrayType ($3, nullptr), $6);
+  $$ = new VarDec (@$, $1, new ArrayType ($3, nullptr), $6);
   symTab.push ((VarDec *)$$);
 };
 
 array_or_struct_init : '{' init_list '}'
                      {
-  $$ = new Initializer ((List<Constant> *)($2->front ()));
+  $$ = new Initializer (@$, (List<Constant> *)($2->front ()));
 };
 
 init_list : expression { $$ = new BigList<Expression> ($1); }
@@ -652,42 +686,42 @@ untyped_const_dec : ID '=' expression
                   {
   if (symTab.find_last_frame ($1))
     {
-      yyerror ("Duplicate identifier declaration (could be an enum, a "
+      yyerror (@$, "Duplicate identifier declaration (could be an enum, a "
                "variable or template parameter) `%s`",
                $1);
       YYERROR;
     }
-  $$ = new ConstDec ($1, nullptr, $3);
+  $$ = new ConstDec (@$, $1, nullptr, $3);
   symTab.push ((ConstDec *)$$);
 }
 | ID '=' array_or_struct_init
 {
   if (symTab.find_last_frame ($1))
     {
-      yyerror ("Duplicate identifier declaration (could be an enum, a "
+      yyerror (@$, "Duplicate identifier declaration (could be an enum, a "
                "variable or template parameter) `%s`",
                $1);
       YYERROR;
     }
-  $$ = new ConstDec ($1, nullptr, $3);
+  $$ = new ConstDec (@$, $1, nullptr, $3);
   symTab.push ((ConstDec *)$$);
 }
 | ID '[' arithmetic_expression ']' '=' array_or_struct_init
 {
   if (!$3->isConst () || $3->evalConst () <= 0)
     {
-      yyerror ("Invalid array size (it shoud be a constant, stricly positive "
+      yyerror (@$, "Invalid array size (it shoud be a constant, stricly positive "
                "expression)");
       YYERROR;
     }
   if (symTab.find_last_frame ($1))
     {
-      yyerror ("Duplicate identifier declaration (could be an enum, a "
+      yyerror (@$, "Duplicate identifier declaration (could be an enum, a "
                "variable or template parameter) `%s`",
                $1);
       YYERROR;
     }
-  $$ = new ConstDec ($1, new ArrayType ($3, nullptr), $6);
+  $$ = new ConstDec (@$, $1, new ArrayType ($3, nullptr), $6);
   symTab.push ((ConstDec *)$$);
 };
 
@@ -702,7 +736,7 @@ multiple_var_dec : var_dec ',' untyped_var_dec
     {
       ((VarDec *)$3)->type = ((VarDec *)$1)->type;
     }
-  $$ = new MulVarDec ((VarDec *)$1, (VarDec *)$3);
+  $$ = new MulVarDec (@$, (VarDec *)$1, (VarDec *)$3);
 }
 | multiple_var_dec ',' untyped_var_dec
 {
@@ -730,7 +764,7 @@ multiple_const_dec : const_dec ',' untyped_const_dec
     {
       ((ConstDec *)$3)->type = ((ConstDec *)$1)->type;
     }
-  $$ = new MulConstDec ((ConstDec *)$1, (ConstDec *)$3);
+  $$ = new MulConstDec (@$, (ConstDec *)$1, (ConstDec *)$3);
 }
 | multiple_const_dec ',' untyped_const_dec
 {
@@ -747,19 +781,19 @@ multiple_const_dec : const_dec ',' untyped_const_dec
   ((MulConstDec *)$$)->decs->add ((ConstDec *)$3);
 };
 
-break_statement : BREAK { $$ = &breakStmt; };
+break_statement : BREAK { $$ = new BreakStmt(@$); };
 
-return_statement : RETURN { $$ = new ReturnStmt (nullptr); }
-                 | RETURN expression { $$ = new ReturnStmt ($2); };
+return_statement : RETURN { $$ = new ReturnStmt (@$, nullptr); }
+                 | RETURN expression { $$ = new ReturnStmt (@$, $2); };
 
 assignment : expression assign_op expression
 {
-  $$ = new Assignment ($1, $2, $3);
+  $$ = new Assignment (@$, $1, $2, $3);
 }
-| expression inc_op { $$ = new Assignment ($1, $2, nullptr); }
+| expression inc_op { $$ = new Assignment (@$, $1, $2, nullptr); }
 | postfix_expression '.' SET_SLC '(' expression ',' expression ')'
 {
-  $$ = new Assignment ($1, $7, $5);
+  $$ = new Assignment (@$, $1, $7, $5);
 };
 
 assign_op : '=' | RSHFT_ASSIGN | LSHFT_ASSIGN | ADD_ASSIGN | SUB_ASSIGN
@@ -773,26 +807,26 @@ inc_op : INC_OP | DEC_OP;
 
 multiple_assignment : TIE '(' nontrivial_expr_list ')' '=' postfix_expression
                     {
-  $$ = new MultipleAssignment ((FunCall *)$6, collect ($3));
+  $$ = new MultipleAssignment (@$, (FunCall *)$6, collect ($3));
 };
 
-assertion : ASSERT '(' expression ')' { $$ = new Assertion ($3); };
+assertion : ASSERT '(' expression ')' { $$ = new Assertion (@$, $3); };
 
-null_statement: { $$ = new NullStmt; };
+null_statement: { $$ = new NullStmt(@$); };
 
 dummy: { symTab.pushFrame (); };
 
 block : '{' dummy statement_list '}'
       {
   symTab.popFrame ();
-  $$ = new Block ($3);
+  $$ = new Block (@$, $3);
 }; // Replace 'dummy' with the midrule action '{symTab.pushFrame();}'
    // will cause reduce/reduce conflicts.
 
 r_block : '{' dummy r_statement_list '}'
         {
   symTab.popFrame ();
-  $$ = new Block ($3);
+  $$ = new Block (@$, $3);
 }; // Replace 'dummy' with the midrule action '{symTab.pushFrame();}'
    // will cause reduce/reduce conflicts.
 
@@ -810,7 +844,7 @@ r_statement_list : statement_list final_statement
 for_statement : FOR { symTab.pushFrame (); }
               '(' for_init ';' expression ';' assignment ')' statement
 {
-  $$ = new ForStmt ((SimpleStatement *)$4, $6, (Assignment *)$8, $10);
+  $$ = new ForStmt (@$, (SimpleStatement *)$4, $6, (Assignment *)$8, $10);
   symTab.popFrame ();
 };
 
@@ -824,31 +858,33 @@ for_init : var_dec
 
 if_statement : IF '(' expression ')' statement
              {
-  $$ = new IfStmt ($3, $5, nullptr);
+  $$ = new IfStmt (@$, $3, $5, nullptr);
 }
 | IF '(' expression ')' statement ELSE statement
 {
-  $$ = new IfStmt ($3, $5, $7);
+  $$ = new IfStmt (@$, $3, $5, $7);
 };
 
 switch_statement : SWITCH '(' expression ')' '{' case_list '}'
                  {
-  $$ = new SwitchStmt ($3, $6);
+  //Location loc_{ @$.first_line, @$.first_column, @$.last_line,
+//@$.last_column, -1, @$.file_name };
+  $$ = new SwitchStmt (@$, $3, $6);
 };
 
 case_list : case { $$ = new List<Case> ($1); }
           | case_list case { $$ = $1->add ($2); };
 
 case:
-    CASE case_label ':' statement_list { $$ = new Case ($2, $4); }
-| DEFAULT ':' statement_list { $$ = new Case (nullptr, $3); };
+    CASE case_label ':' statement_list { $$ = new Case (@$, $2, $4); }
+| DEFAULT ':' statement_list { $$ = new Case (@$, nullptr, $3); };
 
 case_label : constant | symbol_ref
 
 final_statement : return_statement ';'
                 | IF '(' expression ')' r_statement ELSE r_statement
 {
-  $$ = new IfStmt ($3, $5, $7);
+  $$ = new IfStmt (@$, $3, $5, $7);
 };
 
 //*************************************************************************************
@@ -858,7 +894,7 @@ final_statement : return_statement ';'
 func_def : type_spec ID { symTab.pushFrame (); }
          '(' param_dec_list ')' r_block
 {
-  $$ = new FunDef ($2, $1, $5, (Block *)$7);
+  $$ = new FunDef (@$, $2, $1, $5, (Block *)$7);
   symTab.popFrame ();
 }
 | func_template;
@@ -872,10 +908,10 @@ nontrivial_param_dec_list : var_dec { $$ = new List<VarDec> ((VarDec *)$1); }
 func_template : TEMPLATE { symTab.pushFrame (); }
               '<' template_param_dec_list '>' type_spec ID '(' param_dec_list ')' r_block
 {
-  $$ = new Template ($7, $6, $9, (Block *)$11, $4);
+  $$ = new Template (@$, $7, $6, $9, (Block *)$11, $4);
   symTab.popFrame ();
   if (!prog.registerTemplate(static_cast<Template *>($$))) {
-      yyerror ("Duplicate function definition");
+      yyerror (@$, "Duplicate function definition");
       YYERROR;
   }
 };
@@ -896,12 +932,12 @@ template_param_dec : type_spec ID
                    {
   if (symTab.find_last_frame ($2))
     {
-      yyerror ("Duplicate identifier declaration (could be an enum, a "
+      yyerror (@$, "Duplicate identifier declaration (could be an enum, a "
                "variable or template parameter) `%s`",
                $2);
       YYERROR;
     }
-  $$ = new TempParamDec ($2, $1);
+  $$ = new TempParamDec (@$, $2, $1);
   symTab.push ((TempParamDec *)$$);
 };
 %%
