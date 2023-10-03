@@ -613,12 +613,8 @@ bool RecursiveASTVisitor<Derived>::TraverseSwitchStmt(SwitchStmt *s) {
   if (!derived().TraverseExpression(s->test()))
     return false;
 
-  bool b = true;
-  for_each(s->cases(), [&](Case *s) {
-    if (b && !derived().TraverseStatement(s))
-      b = false;
-  });
-  if (!b)
+  if (!std::all_of(s->cases().begin(),s->cases().end(),
+        [&](Case *s) { return derived().TraverseStatement(s); }))
     return false;
 
   if (derived().postfixTraversal())

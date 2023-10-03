@@ -84,7 +84,7 @@ while (0)
   Statement *stm;
   List<Statement> *stml;
   Case *c;
-  List<Case> *cl;
+  std::vector<Case *> *cl;
 }
 
 %define parse.error verbose
@@ -867,13 +867,12 @@ if_statement : IF '(' expression ')' statement
 
 switch_statement : SWITCH '(' expression ')' '{' case_list '}'
                  {
-  //Location loc_{ @$.first_line, @$.first_column, @$.last_line,
-//@$.last_column, -1, @$.file_name };
-  $$ = new SwitchStmt (@$, $3, $6);
+  $$ = new SwitchStmt (@$, $3, *$6);
+  delete $6;
 };
 
-case_list : case { $$ = new List<Case> ($1); }
-          | case_list case { $$ = $1->add ($2); };
+case_list : case { $$ = new std::vector<Case *> (); $$->push_back($1); }
+          | case_list case { $$ = $1; $$->push_back ($2); };
 
 case:
     CASE case_label ':' statement_list { $$ = new Case (@$, $2, $4); }

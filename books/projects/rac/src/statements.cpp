@@ -1,7 +1,8 @@
-#include "statements.h"
 #include "functions.h"
 #include "program.h"
+#include "statements.h"
 
+#include <algorithm>
 #include <iomanip>
 
 //***********************************************************************************
@@ -210,7 +211,7 @@ MulVarDec::MulVarDec(Location loc, VarDec *dec1, VarDec *dec2)
 }
 
 MulVarDec::MulVarDec(Location loc, List<VarDec> *d)
-  : SimpleStatement(idOf(this), loc), decs(d) {}
+    : SimpleStatement(idOf(this), loc), decs(d) {}
 
 Sexpression *MulVarDec::ACL2Expr() {
   Plist *result = new Plist({ &s_list });
@@ -296,8 +297,7 @@ Sexpression *TempParamDec::ACL2SymExpr() {
 // class BreakStmt : public SimpleStatement
 // ----------------------------------------
 
-BreakStmt::BreakStmt(Location loc)
-  : SimpleStatement(idOf(this), loc) {}
+BreakStmt::BreakStmt(Location loc) : SimpleStatement(idOf(this), loc) {}
 
 void BreakStmt::displaySimple(std::ostream &os) { os << "break"; }
 
@@ -326,7 +326,7 @@ Sexpression *ReturnStmt::ACL2Expr() {
 // Data member: Expression *expr;
 
 Assertion::Assertion(Location loc, Expression *e)
-  : SimpleStatement(idOf(this), loc), expr(e) {}
+    : SimpleStatement(idOf(this), loc), expr(e) {}
 
 void Assertion::displaySimple(std::ostream &os) {
   os << "assert(";
@@ -345,7 +345,8 @@ Sexpression *Assertion::ACL2Expr() {
 
 // Data members: Expression *lval; const char* op; Expression *rval;
 
-Assignment::Assignment(Location loc, Expression *l, const char *o, Expression *r)
+Assignment::Assignment(Location loc, Expression *l, const char *o,
+                       Expression *r)
     : SimpleStatement(idOf(this), loc), lval(l), op(o), rval(r) {}
 
 void Assignment::displaySimple(std::ostream &os) {
@@ -411,7 +412,8 @@ Sexpression *Assignment::ACL2Expr() {
 
 // Data members: Expression *lval[8]; FunCall *rval;
 
-MultipleAssignment::MultipleAssignment(Location loc, FunCall *r, std::vector<Expression *> e)
+MultipleAssignment::MultipleAssignment(Location loc, FunCall *r,
+                                       std::vector<Expression *> e)
     : SimpleStatement(idOf(this), loc), lval_(e), rval_(r) {}
 
 void MultipleAssignment::displaySimple(std::ostream &os) {
@@ -476,8 +478,7 @@ Sexpression *MultipleAssignment::ACL2Expr() {
 // class NullStmt : public SimpleStatement (null statement)
 // --------------------------------------------------
 
-NullStmt::NullStmt(Location loc)
-  : SimpleStatement(idOf(this), loc) {}
+NullStmt::NullStmt(Location loc) : SimpleStatement(idOf(this), loc) {}
 
 void NullStmt::displaySimple([[maybe_unused]] std::ostream &os) {}
 
@@ -489,14 +490,14 @@ Sexpression *NullStmt::ACL2Expr() { return new Plist({ &s_null }); }
 // Data member: List<Statement> *stmtList;
 
 Block::Block(Location loc, List<Statement> *s)
-  : Statement(idOf(this), loc), stmtList(s) {}
+    : Statement(idOf(this), loc), stmtList(s) {}
 
-Block::Block(Location loc, Statement *s)
-  : Statement(idOf(this), loc) {
+Block::Block(Location loc, Statement *s) : Statement(idOf(this), loc) {
   stmtList = new List<Statement>(s);
 }
 
-Block::Block(Location loc, Statement *s1, Statement *s2) : Statement(idOf(this), loc) {
+Block::Block(Location loc, Statement *s1, Statement *s2)
+    : Statement(idOf(this), loc) {
   stmtList = new List<Statement>(s1, new List<Statement>(s2));
 }
 
@@ -509,9 +510,8 @@ Block::Block(Location loc, Statement *s1, Statement *s2, Statement *s3)
 Block *Block::blockify() { return this; }
 
 Block *Block::blockify(Statement *s) {
-  return new Block(loc_,
-                    stmtList ? stmtList->copy()->add(s)
-                             : new List<Statement>(s));
+  return new Block(loc_, stmtList ? stmtList->copy()->add(s)
+                                  : new List<Statement>(s));
 }
 
 void Block::display(std::ostream &os, unsigned indent) {
@@ -591,8 +591,8 @@ Sexpression *IfStmt::ACL2Expr() {
 // Data members: SimpleStatement *init; Expression *test; Assignment *update;
 // Statement *body;
 
-ForStmt::ForStmt(Location loc, SimpleStatement *v, Expression *t, Assignment *u,
-                 Statement *b)
+ForStmt::ForStmt(Location loc, SimpleStatement *v, Expression *t,
+                 Assignment *u, Statement *b)
     : Statement(idOf(this), loc) {
   init = v;
   test = t;
@@ -650,39 +650,36 @@ void Case::display(std::ostream &os, unsigned indent) {
 
 // Data members: Expression *test; List<Case> *cases;
 
-SwitchStmt::SwitchStmt(Location loc, Expression *t, List<Case> *c)
-    : Statement(idOf(this), loc), test_(t), cases_(BetterList<Case>::_from_raw(c)) {
-}
+SwitchStmt::SwitchStmt(Location loc, Expression *t, std::vector<Case *> c)
+    : Statement(idOf(this), loc), test_(t), cases_(c) {}
 
 void SwitchStmt::display(std::ostream &os, unsigned indent) {
-//  for_each(cases_, [](Case *c) { c->typeCheck(); });
 
   os << "\n"
      << std::setw(indent) << " "
      << "switch (";
   test_->display(os);
   os << ") {";
-  cases_.displayList(os, indent);
+
+  std::for_each(cases_.begin(), cases_.end(),
+                [&](Case *c) { c->display(os, indent); });
+
   os << "\n"
      << std::setw(indent) << " "
      << "}";
 }
 
 Sexpression *SwitchStmt::ACL2Expr() {
-//  for_each(cases_, [](Case *c) { c->typeCheck(); });
 
   List<Sexpression> *result
       = new List<Sexpression>(&s_switch, test_->ACL2Expr());
 
-  List<Case> *clist = cases_._underlying();
   List<Sexpression> *labels = nullptr;
-  Expression *l;
-  List<Statement> *a;
-  List<Sexpression> *s;
+  Expression *l = nullptr;
+  List<Statement> *a = nullptr;
+  List<Sexpression> *s = nullptr;
 
-  while (clist) {
-    Case *c = clist->value;
-
+  std::for_each(cases_.begin(), cases_.end(), [&](Case *c) {
     l = c->label;
     a = c->action;
     if (l) {
@@ -702,9 +699,7 @@ Sexpression *SwitchStmt::ACL2Expr() {
       result->add(Plist::FromList(s));
       labels = nullptr;
     }
-
-    clist = clist->next;
-  }
+  });
 
   if (l)
     result->add(new Plist({ &s_t }));

@@ -157,18 +157,20 @@ bool TypingAction::VisitReturnStmt(ReturnStmt *s) {
 }
 
 bool TypingAction::VisitSwitchStmt(SwitchStmt *s) {
-  for_each(s->cases_, [s, this](Case *c) {
+
+  return std::all_of(s->cases_.begin(), s->cases_.end(), [s, this](Case *c) {
     if (!c->label) {
-      // true
-      return;
+      return true;
     }
 
     const Type *t = c->label->get_type();
     // If it is an enum, t will always be non null.
     if ((t == nullptr || !isa<const EnumType *>(t))
-        && !isa<Constant *>(c->label))
+        && !isa<Constant *>(c->label)) {
       diag_.report(c, c->label,
                    "Case label must be an integer or an enum constant.");
+      return false;
+    }
+    return true;
   });
-  return true;
 }

@@ -27,7 +27,7 @@ public:
   virtual Sexpression *ACL2Expr() = 0;
 
   inline NodesId id() const { return id_; }
-  inline const Location& loc() const { return loc_; }
+  inline const Location &loc() const { return loc_; }
 
 private:
   const NodesId id_;
@@ -49,7 +49,8 @@ public:
   const Type *type;
   Expression *init;
   SymDec(Location loc, const char *n, Type *t, Expression *i = nullptr);
-  SymDec(NodesId id, Location loc, const char *n, Type *t, Expression *i = nullptr);
+  SymDec(NodesId id, Location loc, const char *n, Type *t,
+         Expression *i = nullptr);
 
   const char *getname() const { return sym->getname(); }
   virtual void displaySymDec(std::ostream &os) const;
@@ -75,7 +76,8 @@ public:
 class VarDec : public SymDec {
 public:
   VarDec(Location loc, const char *n, Type *t, Expression *i = nullptr);
-  VarDec(NodesId id, Location loc, const char *n, Type *t, Expression *i = nullptr);
+  VarDec(NodesId id, Location loc, const char *n, Type *t,
+         Expression *i = nullptr);
   void displaySimple(std::ostream &os) override;
   Sexpression *ACL2Expr() override;
   Sexpression *ACL2SymExpr() override;
@@ -217,7 +219,8 @@ public:
   Expression *test;
   Assignment *update;
   Statement *body;
-  ForStmt(Location loc, SimpleStatement *v, Expression *t, Assignment *u, Statement *b);
+  ForStmt(Location loc, SimpleStatement *v, Expression *t, Assignment *u,
+          Statement *b);
   void display(std::ostream &os, unsigned indent = 0) override;
   Sexpression *ACL2Expr() override;
 };
@@ -235,14 +238,14 @@ public:
 class SwitchStmt : public Statement {
 public:
   Expression *test_;
-  BetterList<Case> cases_;
+  std::vector<Case *> cases_;
 
-  SwitchStmt(Location loc, Expression *t, List<Case> *c);
+  SwitchStmt(Location loc, Expression *t, std::vector<Case *> c);
   void display(std::ostream &os, unsigned indent = 0) override;
   Sexpression *ACL2Expr() override;
 
   Expression *test() { return test_; }
-  BetterList<Case> cases() { return cases_; }
+  const std::vector<Case *> &cases() { return cases_; }
 };
 
 #endif // STATEMENTS_H

@@ -7,6 +7,7 @@
 #include "program.h"
 
 int main(int argc, char **argv) {
+
   CommandLine cl;
   auto args = cl.parse(argc, argv);
   if (!args) {
@@ -21,7 +22,9 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  prog.process();
+  if (!prog.process()) {
+    return 1;
+  }
 
   if (args->dump_ast) {
     ASTDumperAction a;
