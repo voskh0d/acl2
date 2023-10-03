@@ -1,7 +1,6 @@
 #ifndef DIAGNOSTICS_H
 #define DIAGNOSTICS_H
 
-#include <cassert>
 #include <iostream>
 #include <string>
 
@@ -38,19 +37,21 @@ public:
 
   void setup(FILE *f) { file_ = f; }
 
-  void report(Expression *context_node, Expression *error_node,
-              const std::string &msg) const;
-  void report(Expression *context_node, Statement *error_node,
-              const std::string &msg) const;
-  void report(Statement *context_node, Statement *error_node,
-              const std::string &msg) const;
-  void report(Statement *context_node, Expression *error_node,
-              const std::string &msg) const;
-  void report(Expression *error_node, const std::string &msg) const;
-  void report(Statement *error_node, const std::string &msg) const;
+  void report_and_abort(const Location &context, const Location &error,
+                        const std::string &msg);
+  void report(const Location &context, const Location &error,
+              const std::string &msg);
+
+  void report_and_abort(const Location &error, const std::string &msg);
+  void report(const Location &error, const std::string &msg);
 
 private:
+  void show_location(const Location &loc);
+  void show_code_at(const Location &context, const Location &error);
+
   FILE *file_ = nullptr;
+  // If it is not the first error, we add a new line between error messages.
+  bool first_error_reported_ = true;
 };
 
 #endif // DIAGNOSTICS_H

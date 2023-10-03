@@ -8,10 +8,7 @@ extern Location yylloc;
 
 extern int yyparse();
 extern FILE *yyin;
-extern FILE *yyout;
-extern Program prog;
 
-extern int yylineno;
-extern char yyfilenm[];
+extern Program prog;
 
 #endif

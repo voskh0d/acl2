@@ -1,71 +1,80 @@
 #include "diagnostics.h"
 #include "visitor.h"
 
-template <typename NodeContext, typename NodeError>
-void show_code_at(NodeContext c, NodeError e, FILE *file) {
+#include <limits>
 
-  // Trick to have constexpr ternary.
-  const Location &loc = [&]() {
-    if constexpr (std::is_same_v<std::nullptr_t, NodeContext>) {
-      return e->loc();
-    } else {
-      return c->loc();
-    }
-  }();
+void DiagnosticHandler::show_code_at(const Location &context,
+                                     const Location &error) {
 
-  const auto &error_loc = e->loc();
-  long cur_pos = loc.f_pos;
+  assert(file_
+         && "DiagnosticHandler::setup should be called before with a valid "
+            "pointer");
+
+  long saved_pos = std::ftell(file_);
+  long cur_pos = context.f_pos - context.first_column;
 
   // Move the cursor to the begin of the area we need to report.
-  assert(fseek(file, loc.f_pos, SEEK_SET) == 0);
+  assert(fseek(file_, cur_pos, SEEK_SET) == 0);
 
   static char *buffer = nullptr;
   size_t size = 0;
 
-  for (int line = loc.first_line; line <= loc.last_line; ++line) {
+  // By default, we show all the context...
+  int first_line_to_display = context.first_line;
+  int last_line_to_display = context.last_line;
+
+  // ... but if it is too long, we only show the error...
+  if (last_line_to_display - first_line_to_display > 5) {
+    first_line_to_display = error.first_line;
+    last_line_to_display = error.last_line;
+  }
+
+  // ... unless if it is also too big, in that case we only the first 5 lines.
+  if (last_line_to_display - first_line_to_display > 5) {
+    last_line_to_display = first_line_to_display + 5;
+  }
+
+  for (int line = first_line_to_display; line <= last_line_to_display;
+       ++line) {
     // Display the code.
-    size = getline(&buffer, &size, file);
+    size = getline(&buffer, &size, file_);
     cur_pos += size;
     std::fprintf(stderr, "% 3d | %s", line, buffer);
 
     // If we are not in the part responsible for the error, skip the rest.
-    if (line < error_loc.first_line || line > error_loc.last_line) {
+    if (line < error.first_line || line > error.last_line) {
       continue;
     }
 
     fputs("    | ", stderr);
 
-    // First we want to display space until we reach the begining of the
-    // issue. We use f_pos to take into account the indentation (wich will not
-    // be display since f_pos takes the begining of a word but first_col count
-    // from the first charater including indentation).
-    const int begin_of_line = cur_pos - size;
-    int i = begin_of_line;
-    for (; i < error_loc.f_pos; ++i) {
-      putc(' ', stderr);
+    int col = 0;
+    if (line == error.first_line) {
+      for (; col < error.first_column; ++col) {
+        putc(' ', stderr);
+      }
     }
-    // i is at the begining of the area we want to highlight.
 
-    // We want to highlight the are between the begining (i) and either the end
-    // of the issue (width + i) or the end of the line.
-    const int width = error_loc.last_column - error_loc.first_column;
-    const int end_of_line = begin_of_line + size;
-    const int stop_at = std::min(i + width, end_of_line);
+    int stop_at;
+    if (line == error.last_line) {
+      stop_at = error.last_column;
+    } else {
+      stop_at = size;
+    }
 
-    for (int j = i; j < stop_at; ++j)
+    for (; col < stop_at; ++col) {
       putc('^', stderr);
+    }
 
     putc('\n', stderr);
   }
 
   std::free(buffer);
+  assert(fseek(file_, saved_pos, SEEK_SET) == 0);
 }
 
-template <typename NodeContext, typename NodeError>
-void report_impl(NodeContext n_context, NodeError n_error,
-                 const std::string &msg, FILE *file) {
+void DiagnosticHandler::show_location(const Location &loc) {
 
-  const auto &loc = n_error->loc();
   std::cerr << loc.file_name << ':';
 
   std::cerr << loc.first_line;
@@ -73,39 +82,38 @@ void report_impl(NodeContext n_context, NodeError n_error,
     std::cerr << '-' << loc.last_line;
 
   std::cerr << " (" << loc.first_column << '-' << loc.last_column << "): ";
+}
+
+void DiagnosticHandler::report(const Location &context, const Location &error,
+                               const std::string &msg) {
+
+  std::cout << std::flush;
+
+  if (!first_error_reported_)
+    std::cerr << '\n';
+  first_error_reported_ = false;
+
+  show_location(error);
+
   std::cerr << msg << '\n';
 
-  show_code_at(n_context, n_error, file);
+  show_code_at(context, error);
+}
+
+void DiagnosticHandler::report_and_abort(const Location &context,
+                                         const Location &error,
+                                         const std::string &msg) {
+
+  report(context, error, msg);
   abort();
 }
 
-void DiagnosticHandler::report(Expression *context_node,
-                               Expression *error_node,
-                               const std::string &msg) const {
-  report_impl(context_node, error_node, msg, file_);
+void DiagnosticHandler::report_and_abort(const Location &error,
+                                         const std::string &msg) {
+
+  report_and_abort(error, error, msg);
 }
 
-void DiagnosticHandler::report(Expression *context_node, Statement *error_node,
-                               const std::string &msg) const {
-  report_impl(context_node, error_node, msg, file_);
-}
-
-void DiagnosticHandler::report(Statement *context_node, Statement *error_node,
-                               const std::string &msg) const {
-  report_impl(context_node, error_node, msg, file_);
-}
-
-void DiagnosticHandler::report(Statement *context_node, Expression *error_node,
-                               const std::string &msg) const {
-  report_impl(context_node, error_node, msg, file_);
-}
-
-void DiagnosticHandler::report(Expression *error_node,
-                               const std::string &msg) const {
-  report_impl(nullptr, error_node, msg, file_);
-}
-
-void DiagnosticHandler::report(Statement *error_node,
-                               const std::string &msg) const {
-  report_impl(nullptr, error_node, msg, file_);
+void DiagnosticHandler::report(const Location &error, const std::string &msg) {
+  report(error, error, msg);
 }

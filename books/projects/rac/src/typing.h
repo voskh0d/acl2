@@ -12,7 +12,7 @@
 // there is no type check yet.
 class TypingAction final : public RecursiveASTVisitor<TypingAction> {
 public:
-  TypingAction(const DiagnosticHandler& diag) : diag_(diag) {}
+  TypingAction(DiagnosticHandler &diag) : diag_(diag) {}
   ~TypingAction() {}
 
   // The type of the current depends on the types of its childs.
@@ -53,7 +53,7 @@ public:
 private:
   using base_t = RecursiveASTVisitor<TypingAction>;
 
-  const DiagnosticHandler& diag_;
+  DiagnosticHandler &diag_;
 
   // The return type of the current function. We assume there are no nested
   // functions.

@@ -69,7 +69,10 @@ FunDef *Program::getFunDef(const std::string &name) {
 }
 
 bool Program::parse(const std::string &file) {
+
   yyin = fopen(file.c_str(), "r");
+  diag_.setup(yyin);
+
   if (yyin == nullptr) {
     std::cerr << "Failed to open file " << file << ": " << strerror(errno)
               << '\n';
@@ -80,8 +83,6 @@ bool Program::parse(const std::string &file) {
   yylloc = Location::from_file(file);
   if (yyparse())
     return false;
-
-  diag_.setup(yyin);
 
   if (isEmpty())
     puts("Warning: no function definitions found,"

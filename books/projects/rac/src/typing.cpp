@@ -167,7 +167,7 @@ bool TypingAction::VisitSwitchStmt(SwitchStmt *s) {
     // If it is an enum, t will always be non null.
     if ((t == nullptr || !isa<const EnumType *>(t))
         && !isa<Constant *>(c->label)) {
-      diag_.report(c, c->label,
+      diag_.report(c->loc(), c->label->loc(),
                    "Case label must be an integer or an enum constant.");
       return false;
     }

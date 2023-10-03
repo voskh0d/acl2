@@ -34,6 +34,9 @@ public:
   // should be empty before calling it.
   bool parse(const std::string &file);
 
+  // Only used in the parser.
+  DiagnosticHandler &diag() { return diag_; }
+
   // Apply all required passes (type check, desugarization, ...) to the
   // program.
   bool process();
