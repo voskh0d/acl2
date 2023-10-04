@@ -18,7 +18,7 @@ public:
   };
 
   // Parse argv directly (the name of the program is still at argv[0]). If an
-  // error if found (like a unknown option std::nullopt) is returned.
+  // error if found (like a unknown option) std::nullopt is returned.
   std::optional<Result> parse(int argc, char **argv) {
 
     // If nothing is provided this is error.
@@ -44,17 +44,23 @@ public:
         res.dump_ast = true;
       } else {
         if (arg.size() >= 1 && arg[0] == '-') {
-          return error("Unknown option `", arg, '`');
+          std::cerr << "Unknown option `" << arg << "`\n";
+          help();
+          return std::nullopt;
         }
         if (res.file && arg != "") {
-          return error("Duplicate file name");
+          std::cerr << "Duplicate file name\n";
+          help();
+          return std::nullopt;
         }
         res.file = { arg };
       }
     }
 
     if ((res.dump_ast || res.mode) && !res.file) {
-      return error("Missing file name");
+      std::cerr << "Missing file name";
+      help();
+      return std::nullopt;
     }
 
     return res;
@@ -76,25 +82,6 @@ public:
   void version() {
     std::cout << "RAC (Restricted Algorithmic C) parser\n"
               << "Built from ACL2 commit: " << git_commit << '\n';
-  }
-
-private:
-  template <typename T>
-  void print_pack(T t) {
-    std::cerr << t;
-  }
-
-  template <typename... Rest, typename T>
-  void print_pack(T t, Rest... r) {
-    std::cerr << t;
-    print_pack(r...);
-  }
-
-  template <typename... Printable>
-  inline std::optional<Result> error(Printable... msg) {
-    print_pack(msg..., '\n');
-    help();
-    return std::nullopt;
   }
 };
 

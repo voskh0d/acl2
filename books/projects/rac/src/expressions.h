@@ -55,7 +55,7 @@ public:
   unsigned ACL2ValWidth();
 
   inline NodesId id() const { return id_; }
-  inline const Location& loc() { return loc_; }
+  inline const Location &loc() { return loc_; }
 
   // Only during the type passs we are allowed to modify the type.
   void set_type(const Type *t) { t_ = t; }
@@ -73,7 +73,7 @@ protected:
 class Constant : public Expression, public Symbol {
 public:
   Constant(NodesId id, Location loc, const char *n);
-  Constant(NodesId id, Location loc, std::string&& n);
+  Constant(NodesId id, Location loc, std::string &&n);
   Constant(NodesId id, Location loc, int n);
   bool isConst() override;
   bool isInteger() override { return true; }
@@ -86,6 +86,8 @@ class Integer final : public Constant {
 public:
   Integer(Location loc, const char *n);
   Integer(Location loc, int n);
+
+  // TODO if it is an uint/int64/uint64 this could overflow.
   int evalConst() override;
   Sexpression *ACL2Expr(bool isBV) override;
 
@@ -112,7 +114,10 @@ class Parenthesis final : public Expression {
 public:
   Expression *expr_;
 
-  Parenthesis(Location loc, Expression *e) : Expression(idOf(this), loc), expr_(e) { assert(e); }
+  Parenthesis(Location loc, Expression *e)
+      : Expression(idOf(this), loc), expr_(e) {
+    assert(e);
+  }
 
   bool isConst() override { return expr_->isConst(); }
   int evalConst() override { return expr_->evalConst(); }
@@ -128,7 +133,9 @@ public:
   virtual Sexpression *ACL2Expr(bool isBV = false) override {
     return expr_->ACL2Expr(isBV);
   }
-  virtual Sexpression *ACL2ArrayExpr() override { return expr_->ACL2ArrayExpr(); }
+  virtual Sexpression *ACL2ArrayExpr() override {
+    return expr_->ACL2ArrayExpr();
+  }
   virtual Sexpression *ACL2Assign(Sexpression *rval) override {
     return expr_->ACL2Assign(rval);
   }
@@ -168,7 +175,8 @@ class TempCall final : public FunCall {
 public:
   Symbol *instanceSym;
   List<Expression> *params;
-  TempCall(Location loc, Template *f, List<Expression> *a, List<Expression> *p);
+  TempCall(Location loc, Template *f, List<Expression> *a,
+           List<Expression> *p);
   void display(std::ostream &os) const override;
   Sexpression *ACL2Expr(bool isBV = false) override;
 };
@@ -230,8 +238,8 @@ private:
 
 class PrefixExpr final : public Expression {
 public:
-enum class Op {
-#define APPLY_BINARY_OP(_, __) 
+  enum class Op {
+#define APPLY_BINARY_OP(_, __)
 #define APPLY_ASSIGN_OP(_, __)
 #define APPLY_UNARY_OP(NAME, __) NAME,
 #include "operators.def"

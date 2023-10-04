@@ -41,12 +41,13 @@ bool TypingAction::TraverseTemplate(Template *e) {
 }
 
 bool TypingAction::VisitInteger(Integer *e) {
-  e->set_type(nullptr);
+  // TODO int vs uint vs int64 vs uint64
+  e->set_type(&intType);
   return true;
 }
 
 bool TypingAction::VisitBoolean(Boolean *e) {
-  e->set_type(nullptr);
+  e->set_type(&boolType);
   return true;
 }
 

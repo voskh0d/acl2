@@ -11,9 +11,7 @@
 //***********************************************************************************
 
 class Expression;
-class SymRef;
 class EnumConstDec;
-class DefinedType;
 
 // Derived classes:
 //
@@ -129,7 +127,9 @@ public:
     return derefType()->ACL2ValWidth();
   }
 
-  Sexpression *ACL2Eval(Sexpression *s) const override { return derefType()->ACL2Eval(s); }
+  Sexpression *ACL2Eval(Sexpression *s) const override {
+    return derefType()->ACL2Eval(s);
+  }
 
   void displayDef(std::ostream &os = std::cout) const {
     // Why do we display only if it is a regtype ? We should shpw all typedef.

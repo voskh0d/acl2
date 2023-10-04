@@ -5,11 +5,12 @@
 #include "statements.h"
 #include "visitor.h"
 
+// Bind each assertion to its parent function (needed to disply where the
+// correct message when the assert fails).
 class MarkAssertionAction final
     : public RecursiveASTVisitor<MarkAssertionAction> {
 public:
-
-  MarkAssertionAction(const DiagnosticHandler&) {}
+  MarkAssertionAction(const DiagnosticHandler &) {}
 
   bool VisitFunDef(FunDef *f) {
     fn = f;

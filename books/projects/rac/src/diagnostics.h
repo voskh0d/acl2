@@ -25,6 +25,8 @@ struct Location {
 
   // TODO replace this by the string view ?
   std::string file_name;
+
+  friend std::ostream &operator<<(std::ostream &os, const Location &loc);
 };
 
 class DiagnosticHandler {
@@ -37,16 +39,19 @@ public:
 
   void setup(FILE *f) { file_ = f; }
 
-  void report_and_abort(const Location &context, const Location &error,
-                        const std::string &msg);
   void report(const Location &context, const Location &error,
               const std::string &msg);
-
-  void report_and_abort(const Location &error, const std::string &msg);
   void report(const Location &error, const std::string &msg);
 
 private:
-  void show_location(const Location &loc);
+  // Display the code at context and highlight the are delimited by error like
+  // that:
+  //
+  //  4 | context context error context
+  //    |                 ^^^^^
+  //
+  // The error location should be inside or equal to the area delimited by
+  // context.
   void show_code_at(const Location &context, const Location &error);
 
   FILE *file_ = nullptr;

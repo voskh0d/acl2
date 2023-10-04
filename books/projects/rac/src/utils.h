@@ -66,98 +66,11 @@ std::vector<T *> collect(List<T> *l) {
   return res;
 }
 
-template <class T>
-class BetterList {
-public:
-  BetterList<T>() : l_(nullptr) {}
-
-  BetterList<T>(T *v, List<T> *n = nullptr) : l_(v, n) {}
-
-  BetterList<T>(T *v1, T *v2) : l_(v1, v2) {}
-
-  bool is_empty() const { return l_ == nullptr; }
-
-  unsigned length() {
-    if (l_)
-      return l_->length();
-    else
-      return 0;
-  }
-
-  List<T> *nthl(unsigned n) {
-    assert(l_);
-    return l_->nthl(n);
-  }
-  T *nth(unsigned n) {
-    assert(l_);
-    return l_->nth(n);
-  }
-  T *find(const char *name) {
-    assert(l_);
-    return l_->find(name);
-  }
-  bool isMember(T *ptr) {
-    assert(l_);
-    return l_->isMember(ptr);
-  }
-  List<T> *add(T *value) { return l_->add(value); }
-  List<T> *push(T *value) {
-    assert(l_);
-    return l_->push(value);
-  }
-  List<T> *pop() {
-    assert(l_);
-    return l_->pop();
-  }
-  List<T> *copy() {
-    assert(l_);
-    return l_->copy();
-  }
-  void displayList(std::ostream &os, unsigned indent = 0) const {
-    assert(l_);
-    l_->displayList(os, indent);
-  }
-  void displayDefs(std::ostream &os) const {
-    assert(l_);
-    l_->displayDefs(os);
-  }
-
-  T *first() {
-    assert(l_);
-    return l_->value;
-  }
-
-  List<T> *_underlying() {
-    assert(l_);
-    return l_;
-  }
-
-  List<T> *_move_underlying() {
-    auto l = static_cast<List<T> *>(nullptr);
-    std::swap(l, l_);
-    return l_;
-  }
-
-  static BetterList<T> _from_raw(List<T> *l) {
-    BetterList<T> b;
-    b.l_ = l;
-    return b;
-  }
-
-private:
-  List<T> *l_;
-};
-
 template <typename T, typename F>
 void for_each(List<T> *list, F f) {
   for (; list; list = list->next) {
     f(list->first());
   }
-}
-
-template <typename T, typename F>
-void for_each(BetterList<T> list, F f) {
-  for_each(list._underlying(), f);
 }
 
 // Length of a list;
@@ -314,7 +227,7 @@ class SymbolStack {
   // more or less efficient (we are traversing the addresses from low to high).
 public:
   void push(T *value) {
-    assert(value && "this stack does not support nullptr ias value");
+    assert(value && "this stack does not support nullptr as value");
     data_.push_front(value);
   }
 
@@ -382,11 +295,9 @@ std::string format(const std::string &format, Args... args) {
   // Compute size of string.
   int size = std::snprintf(nullptr, 0, format.c_str(), args...) + 1;
 
-  if (size <= 0) {
-    throw std::runtime_error("Error during formatting.");
-  }
+  assert(size >= 0 && "Error during formatting");
 
-  std::unique_ptr<char[]> buf(new char[size]);
+  std::unique_ptr<char[]> buf(new char[(size_t)size]);
   std::snprintf(buf.get(), size, format.c_str(), args...);
   return std::string(buf.get(),
                      buf.get() + size - 1); // We don't want the '\0' inside

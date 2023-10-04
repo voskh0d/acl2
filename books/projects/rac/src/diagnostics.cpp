@@ -3,6 +3,19 @@
 
 #include <limits>
 
+std::ostream &operator<<(std::ostream &os, const Location &loc) {
+
+  os << loc.file_name << ':';
+
+  os << loc.first_line;
+  if (loc.first_line != loc.last_line)
+    os << '-' << loc.last_line;
+
+  os << " (" << loc.first_column << '-' << loc.last_column << "):";
+
+  return os;
+}
+
 void DiagnosticHandler::show_code_at(const Location &context,
                                      const Location &error) {
 
@@ -11,6 +24,9 @@ void DiagnosticHandler::show_code_at(const Location &context,
             "pointer");
 
   long saved_pos = std::ftell(file_);
+
+  // f_pos is the begining of the first token of context. We recover the
+  // begining of the line to display the code.
   long cur_pos = context.f_pos - context.first_column;
 
   // Move the cursor to the begin of the area we need to report.
@@ -51,7 +67,7 @@ void DiagnosticHandler::show_code_at(const Location &context,
     int col = 0;
     if (line == error.first_line) {
       for (; col < error.first_column; ++col) {
-        putc(' ', stderr);
+        std::putc(' ', stderr);
       }
     }
 
@@ -63,25 +79,14 @@ void DiagnosticHandler::show_code_at(const Location &context,
     }
 
     for (; col < stop_at; ++col) {
-      putc('^', stderr);
+      std::putc('^', stderr);
     }
 
-    putc('\n', stderr);
+    std::putc('\n', stderr);
   }
 
   std::free(buffer);
-  assert(fseek(file_, saved_pos, SEEK_SET) == 0);
-}
-
-void DiagnosticHandler::show_location(const Location &loc) {
-
-  std::cerr << loc.file_name << ':';
-
-  std::cerr << loc.first_line;
-  if (loc.first_line != loc.last_line)
-    std::cerr << '-' << loc.last_line;
-
-  std::cerr << " (" << loc.first_column << '-' << loc.last_column << "): ";
+  assert(std::fseek(file_, saved_pos, SEEK_SET) == 0);
 }
 
 void DiagnosticHandler::report(const Location &context, const Location &error,
@@ -93,25 +98,9 @@ void DiagnosticHandler::report(const Location &context, const Location &error,
     std::cerr << '\n';
   first_error_reported_ = false;
 
-  show_location(error);
-
-  std::cerr << msg << '\n';
+  std::cerr << error << ' ' << msg << '\n';
 
   show_code_at(context, error);
-}
-
-void DiagnosticHandler::report_and_abort(const Location &context,
-                                         const Location &error,
-                                         const std::string &msg) {
-
-  report(context, error, msg);
-  abort();
-}
-
-void DiagnosticHandler::report_and_abort(const Location &error,
-                                         const std::string &msg) {
-
-  report_and_abort(error, error, msg);
 }
 
 void DiagnosticHandler::report(const Location &error, const std::string &msg) {

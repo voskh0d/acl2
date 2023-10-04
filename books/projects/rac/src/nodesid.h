@@ -8,12 +8,14 @@
 #include "astnodes.def"
 #undef APPLY
 
+// Enumeration representing each AST node type (used for the visitor dispatch).
 enum class NodesId {
 #define APPLY(CLASS, _) CLASS,
 #include "astnodes.def"
 #undef APPLY
 };
 
+// Return the type of a node.
 template <typename NodeType>
 constexpr NodesId idOf(const NodeType *) {
   if constexpr (false) {
