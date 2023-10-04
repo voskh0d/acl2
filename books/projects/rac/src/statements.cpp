@@ -360,6 +360,19 @@ void Assignment::displaySimple(std::ostream &os) {
 }
 
 Sexpression *Assignment::ACL2Expr() {
+
+  if (!strcmp(op, "set_slc")) {
+    const Type *rval_type = rval->get_type();
+    if (!rval_type || !isa<const RegType *>(rval_type)) {
+      assert(!"Second arg of set_slc must have a defined width");
+    }
+
+    unsigned w = always_cast<const RegType *>(rval_type)->width()->evalConst();
+
+    Subrange lval_slc(loc_, lval, index, w);
+    return lval_slc.ACL2Assign(rval->ACL2Expr());
+  }
+
   Expression *expr = rval;
   if (!strcmp(op, "=")) {
     expr = rval;
@@ -385,26 +398,15 @@ Sexpression *Assignment::ACL2Expr() {
     expr = new BinaryExpr(loc_, lval, rval, "^");
   } else if (!strcmp(op, "|=")) {
     expr = new BinaryExpr(loc_, lval, rval, "|");
-  } else if (strcmp(op, "set_slc")) {
+  } else {
     assert(!"Unknown assignment operator");
   }
+
   const Type *lval_type = lval->get_type();
   Sexpression *sexpr
       = lval_type ? lval_type->ACL2Assign(expr) : expr->ACL2Expr();
 
-  if (!strcmp(op, "set_slc")) {
-    const Type *rval_type = rval->get_type();
-    if (!rval_type || !isa<const RegType *>(rval_type)) {
-      assert(!"Second arg of set_slc must have a defined width");
-    }
-
-    unsigned w = always_cast<const RegType *>(rval_type)->width()->evalConst();
-
-    Subrange lval_slc(loc_, lval, index, w);
-    return lval_slc.ACL2Assign(sexpr);
-  } else {
-    return lval->ACL2Assign(sexpr);
-  }
+  return lval->ACL2Assign(sexpr);
 }
 
 // class MultipleAssignment : public SimpleStatement
