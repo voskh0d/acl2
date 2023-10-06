@@ -149,6 +149,11 @@
 - name: hello
   input: ../../../examples/hello.cpp
 
+- name: imul-pc
+  args: ['../../../examples/imul/imul.cpp', '-rac']
+  out_generated: ../../../examples/imul/imul.cpp.pc
+  ref_generated: imul-pc.cpp.ref.pc
+
 - name: variable-mix-upper-lower-case
   bug: true
   description: Invalid code when two identifiers have the same name but one in

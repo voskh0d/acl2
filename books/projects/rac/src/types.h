@@ -40,7 +40,7 @@ public:
   virtual void displayVarName([[maybe_unused]] const char *name,
                               std::ostream &os = std::cout) const {
     // How a variable of this type is displayed in a variable declaration
-    display(os);
+    os << name;
   }
 
   // overridden by ArrayType, StructType, and EnumType

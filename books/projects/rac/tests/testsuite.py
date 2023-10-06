@@ -56,7 +56,7 @@ def load(path, allow_empty):
 
 def test(bin_path, dir_path, testcase, timeout):
 
-    # TODO compatible mode. 
+    # TODO compatible mode.
 
     input = testcase.get("input", testcase.get("name") + ".cpp")
 
@@ -93,7 +93,7 @@ def test(bin_path, dir_path, testcase, timeout):
 
     # If the test should fails, don't test the output: there is none.
     if not "generated_code" in disabled_checks and not testcase.get("has_failed", False):
-        
+
         ref = ""
         try:
             generated_path = testcase.get("ref_generated", testcase.get("name") + ".cpp.ref.ast.lsp")
@@ -102,7 +102,8 @@ def test(bin_path, dir_path, testcase, timeout):
             raise OSError(f"Reference `{generated_path}` not found")
 
         try:
-            out = load(dir_path + input + ".ast.lsp", allow_empty=False)
+            out_path = dir_path + testcase.get("out_generated", input + ".ast.lsp")
+            out = load(out_path, allow_empty=False)
             assert out == ref, f"generated code differs:\n{diff(ref, out)}"
         except OSError as err:
             raise AssertionError("Code not generated")
@@ -110,7 +111,7 @@ def test(bin_path, dir_path, testcase, timeout):
 
 def run_tests(bin_path, category, file, timeout, quiet, show_bugs):
 
-    dir_path = test_dir_path + category + '/' 
+    dir_path = test_dir_path + category + '/'
     with open(dir_path + file, "r") as test_file:
         content = yaml.safe_load(test_file)
 
@@ -133,7 +134,7 @@ def run_tests(bin_path, category, file, timeout, quiet, show_bugs):
                 print(f"{colored('Test description:', 'yellow')} ", descr)
             print(err)
             print('--------------------------------------------------------------------------------')
-        
+
         else:
             if testcase.get("bug", False) and show_bugs:
                 print(f"[{colored('OK', 'magenta')}] (Bug)", testcase["name"], f"(from {category})")
