@@ -1,6 +1,6 @@
-#include "types.h"
 #include "expressions.h"
 #include "statements.h"
+#include "types.h"
 
 #include <algorithm>
 #include <iomanip>
@@ -18,11 +18,55 @@ Type::ACL2Assign(Expression *rval) const { // virtual (overridden by RegType)
 // class PrimType : public Symbol, public Type (Primitive type)
 // ------------------------------------------------------------
 
-PrimType boolType("bool");
-PrimType intType("int");
-PrimType uintType("uint");
-PrimType int64Type("int64", "int");
-PrimType uint64Type("uint64", "uint");
+PrimType boolType = PrimType::Bool();
+PrimType intType = PrimType::Int();
+PrimType uintType = PrimType::Uint();
+PrimType int64Type = PrimType::Int64();
+PrimType uint64Type = PrimType::Uint64();
+
+Type *PrimType::usual_conversions(const PrimType *t1, const PrimType *t2) {
+
+  // Integer promotion.
+  PrimType *t1_promoted = new PrimType(*t1);
+  t1_promoted->integerPromtion();
+
+  PrimType *t2_promoted = new PrimType(*t2);
+  t2_promoted->integerPromtion();
+
+  // If T1 and T2 are the same type, C is that type.
+  // Otherwise, if T1 and T2 are both signed integer types or both unsigned
+  // integer types, C is the type of greater integer conversion rank.
+  if (t1_promoted->signed_ == t2_promoted->signed_) {
+    if (t1_promoted->rank_ >= t2_promoted->rank_) {
+      delete t2_promoted;
+      return t1_promoted;
+    } else {
+      delete t1_promoted;
+      return t2_promoted;
+    }
+  }
+
+  PrimType *unsigned_type = nullptr;
+  PrimType *signed_type = nullptr;
+  if (t1_promoted->signed_) {
+    unsigned_type = t2_promoted;
+    signed_type = t1_promoted;
+  } else {
+    unsigned_type = t1_promoted;
+    signed_type = t2_promoted;
+  }
+
+  // If the integer conversion rank of U is greater than or equal to the
+  // integer conversion rank of S, C is U.
+  if (unsigned_type->rank_ >= signed_type->rank_) {
+    delete signed_type;
+    return unsigned_type;
+  } else {
+    // Otherwise, if S can represent all of the values of U, C is S.
+    delete unsigned_type;
+    return signed_type;
+  }
+}
 
 // class RegType : public Type (Algorithmic C register type)
 // ---------------------------------------------------
@@ -38,17 +82,16 @@ RegType::ACL2Assign(Expression *rval) const { // overridden by FPType
   int width_evaluated = width_->evalConst();
   assert(width_evaluated >= 0);
 
+  // TODO *rval_type == *this
   if (rval_type == this || (w && w <= (unsigned)width_evaluated)) {
     return rval->ACL2Expr(true);
   } else {
     assert(width_evaluated);
 
     Sexpression *bv_val
-        = new Plist({
-            &s_bits,
-            rval->ACL2Expr(true),
-            new Integer(rval->loc(), width_evaluated - 1),
-            Integer::zero_v(rval->loc())});
+        = new Plist({ &s_bits, rval->ACL2Expr(true),
+                      new Integer(rval->loc(), width_evaluated - 1),
+                      Integer::zero_v(rval->loc()) });
 
     return bv_val;
   }
@@ -57,26 +100,26 @@ RegType::ACL2Assign(Expression *rval) const { // overridden by FPType
 // class UintType : public RegType
 // -------------------------------
 
-void UintType::display(std::ostream &os) const {
-  os << "sc_uint<";
-  width()->display(os);
-  os << ">";
+IntType *IntType::FromPrimType(const PrimType *t) {
+  return new IntType(
+      new Integer(Location::dummy(), static_cast<int>(t->rank_)), t->signed_);
 }
 
-unsigned UintType::ACL2ValWidth() const { return width()->evalConst(); }
-
-// class IntType : public RegType
-// ------------------------------
-
 void IntType::display(std::ostream &os) const {
-  os << "sc_int<";
+  os << (isSigned_ ? "sc_int<" : "sc_uint<");
   width()->display(os);
   os << ">";
 }
 
 Sexpression *IntType::ACL2Eval(Sexpression *s) const {
-  return new Plist({ &s_si, s, new Integer(Location::dummy(), width()->evalConst()) });
+  if (isSigned_)
+    return new Plist(
+        { &s_si, s, new Integer(Location::dummy(), width()->evalConst()) });
+  else
+    return s;
 }
+
+unsigned IntType::ACL2ValWidth() const { return width()->evalConst(); }
 
 // class FPType :public RegType
 // ----------------------------
@@ -92,20 +135,13 @@ Sexpression *FPType::ACL2Assign(Expression *rval) const {
   } else {
     Sexpression *s = rval->ACL2Expr();
     int wVal = width()->evalConst(), iwVal = iwidth->evalConst();
-    s = new Plist({
-        &s_times,
-        s,
-        new Plist({
-            &s_expt,
-            Integer::two_v(rval->loc()),
-            new Integer(rval->loc(), wVal - iwVal) }) });
+    s = new Plist({ &s_times, s,
+                    new Plist({ &s_expt, Integer::two_v(rval->loc()),
+                                new Integer(rval->loc(), wVal - iwVal) }) });
     if (isa<const FPType *>(rval->get_type()) || wVal < iwVal)
       s = new Plist({ &s_fl, s });
-    return new Plist({
-        &s_bits,
-        s,
-        new Integer(rval->loc(), wVal - 1),
-        Integer::zero_v(rval->loc())});
+    return new Plist({ &s_bits, s, new Integer(rval->loc(), wVal - 1),
+                       Integer::zero_v(rval->loc()) });
   }
 }
 
@@ -123,15 +159,11 @@ void UfixedType::display(std::ostream &os) const {
 }
 
 Sexpression *UfixedType::ACL2Eval(Sexpression *s) const {
-  return new Plist({
-      &s_divide,
-      s,
-      new Plist({
-          &s_expt,
-          Integer::two_v(Location::dummy()),
-          new Integer(
-              Location::dummy(),
-              width()->evalConst() - iwidth->evalConst()) }) });
+  return new Plist({ &s_divide, s,
+                     new Plist({ &s_expt, Integer::two_v(Location::dummy()),
+                                 new Integer(Location::dummy(),
+                                             width()->evalConst()
+                                                 - iwidth->evalConst()) }) });
 }
 
 // class FixedType : public RegType
@@ -150,13 +182,12 @@ void FixedType::display(std::ostream &os) const {
 }
 
 Sexpression *FixedType::ACL2Eval(Sexpression *s) const {
-  Sexpression *numerator
-      = new Plist({ &s_si, s, new Integer(Location::dummy(), width()->evalConst()) });
+  Sexpression *numerator = new Plist(
+      { &s_si, s, new Integer(Location::dummy(), width()->evalConst()) });
   Sexpression *denominator
-    = new Plist({
-        &s_expt,
-        Integer::two_v(Location::dummy()),
-        new Integer(Location::dummy(), width()->evalConst() - iwidth->evalConst()) });
+      = new Plist({ &s_expt, Integer::two_v(Location::dummy()),
+                    new Integer(Location::dummy(),
+                                width()->evalConst() - iwidth->evalConst()) });
   return new Plist({ &s_divide, numerator, denominator });
 }
 
@@ -264,9 +295,8 @@ EnumType::EnumType(std::vector<EnumConstDec *> v) : Type(), vals_(v) {
 
 Sexpression *EnumType::ACL2Expr() {
   Plist *result = new Plist();
-  std::for_each(vals_.begin(), vals_.end(), [result](EnumConstDec *e) {
-    result->add(e->ACL2Expr());
-  });
+  std::for_each(vals_.begin(), vals_.end(),
+                [result](EnumConstDec *e) { result->add(e->ACL2Expr()); });
   return result;
 }
 

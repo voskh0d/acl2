@@ -241,7 +241,7 @@ register_type
 {
   if ($3->isConst () && $3->isInteger () && $3->evalConst () >= 0)
     {
-      $$ = new UintType ($3);
+      $$ = new IntType ($3, false);
     }
   else
     {
@@ -253,7 +253,7 @@ register_type
 {
   if ($3->isConst () && $3->isInteger () && $3->evalConst () >= 0)
     {
-      $$ = new IntType ($3);
+      $$ = new IntType ($3, true);
     }
   else
     {
@@ -380,7 +380,7 @@ symbol_ref : ID
     }
   else
     {
-      prog.diag().report (@$, format("Unknown symbol `%s`\n", $1));
+      prog.diag().report (@$, format("Unknown symbol `%s`", $1));
       YYERROR;
     }
 }

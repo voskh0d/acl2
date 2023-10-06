@@ -18,8 +18,7 @@ class EnumConstDec;
 //   PrimType           (primitive type: uintType, intType, boolType)
 //   DefinedType        (introduced by typedef)
 //   RegType            (Algorithmic C register type)
-//   UintType           (unsigned limited integer register)
-//   IntType            (signed limited integer register)
+//   IntType            (limited integer register)
 //   FPType             (fixed-point register
 //   UfixedType         (unsigned fixed-point register
 //   FixedType          (signed fixed-point register
@@ -56,7 +55,7 @@ public:
   // Convert rval to an S-expression to be assigned to an object of this
   virtual Sexpression *ACL2Assign(Expression *rval) const;
 
-  // overridden by UintType
+  // overridden by IntType
   virtual unsigned ACL2ValWidth() const {
     // TODO: shady, we should probably have something to express unbounded,
     // unknown and zero (imagine a case were translate an unknown size value
@@ -76,10 +75,32 @@ public:
   }
 };
 
-class PrimType : public Symbol, public Type {
+class PrimType final : public Symbol, public Type {
+
 public:
-  PrimType(const char *s, const char *m = nullptr)
-      : Symbol(s), RACname_(m ? std::optional(std::string(m)) : std::nullopt) {
+  enum class Rank {
+    Bool = 1,
+    Int = 32,
+    Long = 64,
+  };
+
+  PrimType(const char *name, const char *m, Rank r, bool s)
+      : Symbol(name),
+        RACname_(m ? std::optional(std::string(m)) : std::nullopt), rank_(r),
+        signed_(s) {}
+
+  static PrimType Bool() {
+    return PrimType("bool", nullptr, Rank::Bool, false);
+  }
+  static PrimType Int() { return PrimType("int", nullptr, Rank::Int, true); }
+  static PrimType Uint() {
+    return PrimType("uint", nullptr, Rank::Int, false);
+  }
+  static PrimType Int64() {
+    return PrimType("int64", "int", Rank::Long, true);
+  }
+  static PrimType Uint64() {
+    return PrimType("uint64", "uint", Rank::Long, false);
   }
 
   void display(std::ostream &os) const override {
@@ -90,8 +111,20 @@ public:
     }
   }
 
-private:
+  // Integer promotion: all the type below int are transformed to an int.
+  void integerPromtion() {
+    if (rank_ < Rank::Int) {
+      rank_ = Rank::Int;
+    }
+  }
+
+  // https://en.cppreference.com/w/cpp/language/usual_arithmetic_conversions
+  // Return a new type.
+  static Type *usual_conversions(const PrimType *t1, const PrimType *t2);
+
   const std::optional<std::string> RACname_;
+  Rank rank_;
+  bool signed_;
 };
 
 extern PrimType boolType;
@@ -167,23 +200,21 @@ private:
   Expression *width_;
 };
 
-class UintType : public RegType {
+class IntType final : public RegType {
 public:
-  UintType(Expression *w) : RegType(w) {}
+  IntType(Expression *w, bool s) : RegType(w), isSigned_(s) {}
 
-  void display(std::ostream &os = std::cout) const override;
-  unsigned ACL2ValWidth() const override;
+  // Return an ac_int of the same sign and width as t.
+  static IntType *FromPrimType(const PrimType *t);
 
-  bool isSigned() const override { return false; }
-};
-
-class IntType : public RegType {
-public:
-  IntType(Expression *w) : RegType(w) {}
   void display(std::ostream &os = std::cout) const override;
   Sexpression *ACL2Eval(Sexpression *s) const override;
+  unsigned ACL2ValWidth() const override;
 
-  bool isSigned() const override { return true; }
+  bool isSigned() const override { return isSigned_; }
+
+private:
+  bool isSigned_;
 };
 
 class FPType : public RegType {
@@ -280,8 +311,7 @@ private:
 };
 
 inline bool isIntegerType(const Type *t) {
-  return dynamic_cast<const PrimType *>(t) || dynamic_cast<const UintType *>(t)
-         || dynamic_cast<const IntType *>(t)
+  return dynamic_cast<const PrimType *>(t) || dynamic_cast<const IntType *>(t)
          || dynamic_cast<const EnumType *>(t);
 }
 

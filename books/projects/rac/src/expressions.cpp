@@ -70,19 +70,20 @@ Sexpression *Constant::ACL2Expr([[maybe_unused]] bool isBV) { return this; }
 // class Integer : public Constant
 // -------------------------------
 
-Integer::Integer(Location loc, const char *n) : Constant(idOf(this), loc, n) {}
-
-Integer::Integer(Location loc, int n) : Constant(idOf(this), loc, n) {}
-
-int Integer::evalConst() {
+Integer::Integer(Location loc, const char *n) : Constant(idOf(this), loc, n) {
   if (!strncmp(getname(), "0x", 2)) {
-    return strtol(getname() + 2, nullptr, 16);
+    val_ = strtol(getname() + 2, nullptr, 16);
   } else if (!strncmp(getname(), "-0x", 3)) {
-    return -strtol(getname() + 3, nullptr, 16);
+    val_ = -strtol(getname() + 3, nullptr, 16);
   } else {
-    return atoi(getname());
+    val_ = atoi(getname());
   }
 }
+
+Integer::Integer(Location loc, int n)
+    : Constant(idOf(this), loc, n), val_(n) {}
+
+int Integer::evalConst() { return val_; }
 
 Sexpression *Integer::ACL2Expr([[maybe_unused]] bool isBV) {
   if (!strncmp(getname(), "0x", 2)) {
@@ -616,6 +617,26 @@ std::ostream &operator<<(std::ostream &os, BinaryExpr::Op op) {
   default:
     UNREACHABLE();
   }
+}
+
+bool BinaryExpr::isOpShift(Op o) {
+  return o == BinaryExpr::Op::RShift || o == BinaryExpr::Op::LShift;
+}
+
+bool BinaryExpr::isOpArithmetic(Op o) {
+  return o >= BinaryExpr::Op::Plus && o <= BinaryExpr::Op::Mod;
+}
+
+bool BinaryExpr::isOpBitwise(Op o) {
+  return o >= BinaryExpr::Op::BitAnd && o <= BinaryExpr::Op::BitOr;
+}
+
+bool BinaryExpr::isOpCompare(Op o) {
+  return o >= BinaryExpr::Op::Less && o <= BinaryExpr::Op::NotEqual;
+}
+
+bool BinaryExpr::isOpLogical(Op o) {
+  return o == BinaryExpr::Op::And || o == BinaryExpr::Op::Or;
 }
 
 bool BinaryExpr::isInteger() {

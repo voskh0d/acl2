@@ -4,7 +4,7 @@
 - name: set-elem
 
 - name: set-invalid-width
-  description: Segfault instead of detecting the invalid width
+  description: Should detect the invalid width
   bug: true
   disabled-checks:
     - stderr

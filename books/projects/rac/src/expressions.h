@@ -81,6 +81,7 @@ public:
   Sexpression *ACL2Expr(bool isBV = false) override;
 };
 
+// For now, we does not support unsigned literal.
 class Integer final : public Constant {
   // type: primType
 public:
@@ -94,6 +95,8 @@ public:
   static Integer *zero_v(Location loc) { return new Integer(loc, "0"); }
   static Integer *one_v(Location loc) { return new Integer(loc, "1"); }
   static Integer *two_v(Location loc) { return new Integer(loc, "2"); }
+
+  long val_;
 };
 
 class Boolean final : public Constant {
@@ -297,6 +300,12 @@ public:
   bool isInteger() override;
   void display(std::ostream &os) const override;
   Sexpression *ACL2Expr(bool isBV = false) override;
+
+  static bool isOpShift(Op o);
+  static bool isOpArithmetic(Op o);
+  static bool isOpBitwise(Op o);
+  static bool isOpCompare(Op o);
+  static bool isOpLogical(Op o);
 
 private:
   static Op parseOp(const char *o);

@@ -1,7 +1,9 @@
 - name: int-arith
 
 - name: int-arith-invalid
-
+  has_failed: true
+  exit_code: 1
+ 
 - name: int-arith-assign
 
 - name: priority

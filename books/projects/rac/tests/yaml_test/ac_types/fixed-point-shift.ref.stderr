@@ -1,0 +1,7 @@
+fixed-point-shift.cpp:7 (9-15): warning: Fixed point not well supported yet
+  7 |   return x << 2;
+    |          ^^^^^^
+
+fixed-point-shift.cpp:12 (9-15): warning: Fixed point not well supported yet
+ 12 |   return x >> 2;
+    |          ^^^^^^
