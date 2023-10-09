@@ -1,4 +1,13 @@
 commit=$(git describe --always --dirty --match 'NOT A TAG')
+if [ $? != 0 ]
+then
+  if [ -f version.h ]
+  then
+    exit 0
+  else
+    commit="Uknown version (not in a git repository)"
+  fi
+fi
 
 echo "static char const *const git_commit = \"$commit\";" > version.h.tmp;
 

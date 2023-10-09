@@ -1,24 +1,67 @@
-all : install
+# Set g++ as default, unless the CC environment variable is already set.
+ifeq ($(origin CC),default)
+CC = g++
+endif
 
-parse: diagnostics.cpp diagnostics.h visitor.hxx version.h argparse.h parser.ll parser.yy parser.h expressions.cpp functions.cpp types.cpp main.cpp expressions.h  functions.h  parser.h  program.h  statements.h  types.h  utils.h visitor.h astdumper.h astnodes.def typing.cpp typing.h sexpressions.h sexpressions.cpp program.h program.cpp
-	bison -d -v -o parser.tab.cpp parser.yy
-	flex -o lex.yy.cpp parser.ll
-	g++ -Wall -Wextra -std=c++17 -O3 -g -o parse diagnostics.cpp functions.cpp expressions.cpp statements.cpp parser.tab.cpp lex.yy.cpp types.cpp typing.cpp main.cpp sexpressions.cpp program.cpp
+# Preprocessor, compiler and liker flags. Those lines does not overwrite the
+# environment variable, it only append more to them.
+CPPFLAGS +=
+CXXFLAGS += -Wall -Wextra -std=c++17
+LDFLAGS +=
 
-debug: diagnostics.cpp diagnostics.h visitor.hxx version.h argparse.h parser.ll parser.yy parser.h expressions.cpp functions.cpp types.cpp main.cpp expressions.h  functions.h  parser.h  program.h  statements.h  types.h  utils.h visitor.h astdumper.h astnodes.def typing.cpp typing.h sexpressions.h sexpressions.cpp program.h program.cpp
-	bison -d -v -o parser.tab.cpp parser.yy
-	flex -o lex.yy.cpp parser.ll
-	g++ -DDEBUG -Wall -Wextra -std=c++17 -O0 -g -o parse diagnostics.cpp functions.cpp expressions.cpp statements.cpp parser.tab.cpp lex.yy.cpp types.cpp typing.cpp main.cpp sexpressions.cpp program.cpp
+SRCS=diagnostics.cpp expressions.cpp functions.cpp lex.yy.cpp main.cpp parser.tab.cpp program.cpp sexpressions.cpp statements.cpp types.cpp typing.cpp
 
+OBJS := $(SRCS:%.cpp=%.o)
+
+# Compile and generate dependencies (stored under .deps).
+DEPDIR := .deps
+DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
+
+COMPILE.cpp = $(CC) $(DEPFLAGS) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c
+
+%.o: %.cpp
+%.o: %.cpp $(DEPDIR)/%.d | $(DEPDIR)
+	$(COMPILE.cpp) $(OUTPUT_OPTION) $<
+
+$(DEPDIR): ; @mkdir -p $@
+
+DEPFILES := $(SRCS:%.cpp=$(DEPDIR)/%.d)
+$(DEPFILES):
+include $(wildcard $(DEPFILES))
+
+# Generate the version header.
 version.h:
 	sh -e generate_version.sh
+
+# Run bison and flex.
+parser.tab.cpp: parser.yy
+	bison -d -v -o parser.tab.cpp parser.yy
+
+lex.yy.cpp: parser.ll
+	flex -o lex.yy.cpp parser.ll
+
+# By default, build and install everything.
+all : install
+
+# Build the binary.
+parse: version.h ${OBJS}
+	${CC} -o parse $(LDFLAGS) ${OBJS}
+
+# Configure the releaes (no debug log and highest optiomization level) and
+# debug.
+release: CPPFLAGS += -O3
+release: parse
+
+debug: CPPFLAGS += -DDEBUG
+debug: CXXFLAGS += -O0 -g
+debug: parse
 
 #We should execute this rule every time, since it depends on some environment
 #variables.
 rac:
 	printf "#!/bin/bash\n\nRAC=${RAC}\nACL2=${ACL2}" | cat - rac-skel > rac
 
-install: parse rac
+install: release rac
 	install -m 775 parse ${RAC}/bin
 	install -m 775 rac ${RAC}/bin
 	rm rac parse
@@ -28,6 +71,6 @@ clean:
 	rm -f -r parse.dSym
 
 veryclean : clean
-	rm -f rac parse
+	rm -rf rac parse .deps
 
-.PHONY : all clean veryclean install rac version.h
+.PHONY : all clean veryclean install rac version.h release debug
