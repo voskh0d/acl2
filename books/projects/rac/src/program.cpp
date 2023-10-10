@@ -93,23 +93,12 @@ bool Program::parse(const std::string &file) {
 
 bool Program::process() {
 
-#ifdef DEBUG
-#define RUNPASS(ACTION, NAME)                                                 \
-  std::cerr << "Start " NAME "...\n";                                         \
-  {                                                                           \
-    ACTION a(diag_);                                                          \
-    if (!runAction(&a))                                                       \
-      return false;                                                           \
-  }                                                                           \
-  std::cerr << NAME " done !\n";
-#else
 #define RUNPASS(ACTION, NAME)                                                 \
   {                                                                           \
     ACTION a(diag_);                                                          \
     if (!runAction(&a))                                                       \
       return false;                                                           \
   }
-#endif
 
   RUNPASS(TypingAction, "Typing");
   RUNPASS(MarkAssertionAction, "Marking assertions");

@@ -55,19 +55,19 @@ void DiagnosticHandler::show_code_at(const Location &context,
     // Display the code.
     size = getline(&buffer, &size, file_);
     cur_pos += size;
-    std::fprintf(stderr, "% 3d | %s", line, buffer);
+    std::cerr << format("% 3d | %s", line, buffer);
 
     // If we are not in the part responsible for the error, skip the rest.
     if (line < error.first_line || line > error.last_line) {
       continue;
     }
 
-    fputs("    | ", stderr);
+    std::cerr << "    | ";
 
     int col = 0;
     if (line == error.first_line) {
       for (; col < error.first_column; ++col) {
-        std::putc(' ', stderr);
+        std::cerr << ' ';
       }
     }
 
@@ -79,10 +79,10 @@ void DiagnosticHandler::show_code_at(const Location &context,
     }
 
     for (; col < stop_at; ++col) {
-      std::putc('^', stderr);
+      std::cerr << '^';
     }
 
-    std::putc('\n', stderr);
+    std::cerr << '\n';
   }
 
   std::free(buffer);
