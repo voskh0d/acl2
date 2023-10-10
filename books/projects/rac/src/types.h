@@ -19,9 +19,7 @@ class EnumConstDec;
 //   DefinedType        (introduced by typedef)
 //   RegType            (Algorithmic C register type)
 //   IntType            (limited integer register)
-//   FPType             (fixed-point register
-//   UfixedType         (unsigned fixed-point register
-//   FixedType          (signed fixed-point register
+//   FixedPointType     (fixed-point register
 //   ArrayType          (array type)
 //   StructType         (struct type) EnumType (enumeration type)
 //   MvType             (multiple value type)
@@ -73,6 +71,8 @@ public:
     // For any other type, just return s.
     return s;
   }
+
+  virtual bool isEqual(const Type *other) const = 0;
 };
 
 class PrimType final : public Symbol, public Type {
@@ -117,6 +117,8 @@ public:
       rank_ = Rank::Int;
     }
   }
+
+  bool isEqual(const Type *other) const override;
 
   // https://en.cppreference.com/w/cpp/language/usual_arithmetic_conversions
   // Return a new type.
@@ -165,7 +167,7 @@ public:
   }
 
   void displayDef(std::ostream &os = std::cout) const {
-    // Why do we display only if it is a regtype ? We should shpw all typedef.
+    // Why do we display only if it is a regtype ? We should show all typedefs.
     //    if (!(isa<const RegType *>( def_))) {
     def_->makeDef(getname(), os);
     //    }
@@ -182,67 +184,61 @@ public:
     return t;
   }
 
+  // TODO
+  bool isEqual(const Type *other) const override {
+    return derefType()->isEqual(other);
+  }
+
 private:
   Type *def_;
 };
 
 class RegType : public Type {
 public:
-  RegType(Expression *w) : width_(w) {}
-
-  Expression *width() const { return width_; }
-
-  Sexpression *ACL2Assign(Expression *rval) const override;
-
+  virtual Expression *width() const = 0;
   virtual bool isSigned() const = 0;
-
-private:
-  Expression *width_;
 };
 
 class IntType final : public RegType {
 public:
-  IntType(Expression *w, bool s) : RegType(w), isSigned_(s) {}
+  IntType(Expression *w, bool s) : width_(w), isSigned_(s) {}
 
   // Return an ac_int of the same sign and width as t.
   static IntType *FromPrimType(const PrimType *t);
 
   void display(std::ostream &os = std::cout) const override;
   Sexpression *ACL2Eval(Sexpression *s) const override;
+  Sexpression *ACL2Assign(Expression *rval) const override;
+
   unsigned ACL2ValWidth() const override;
 
   bool isSigned() const override { return isSigned_; }
+  Expression *width() const override { return width_; }
+
+  bool isEqual(const Type *other) const override;
 
 private:
+  Expression *width_;
   bool isSigned_;
 };
 
-class FPType : public RegType {
+class FixedPointType : public RegType {
 public:
-  Expression *iwidth;
-  FPType(Expression *w, Expression *iw);
+  FixedPointType(Expression *w, Expression *iw, bool isSigned);
+
   Sexpression *ACL2Assign(Expression *rval) const override;
-};
-
-class UfixedType : public FPType {
-public:
-  UfixedType(Expression *w, Expression *iw);
-  void display(std::ostream &os = std::cout) const override;
   Sexpression *ACL2Eval(Sexpression *s) const override;
-
-  // TODO remove
-  bool isSigned() const override { return false; }
-};
-
-class FixedType : public FPType {
-public:
-  bool isSigned();
-  FixedType(Expression *w, Expression *iw);
   void display(std::ostream &os = std::cout) const override;
-  Sexpression *ACL2Eval(Sexpression *s) const override;
 
-  // TODO remove
-  bool isSigned() const override { return true; }
+  Expression *width() const override { return width_; }
+  bool isSigned() const override { return isSigned_; }
+
+  bool isEqual(const Type *other) const override;
+
+private:
+  Expression *width_;
+  Expression *iwidth_;
+  bool isSigned_;
 };
 
 class ArrayType : public Type {
@@ -259,6 +255,8 @@ public:
   void displayVarName(const char *name,
                       std::ostream &os = std::cout) const override;
   void makeDef(const char *name, std::ostream &os) const override;
+
+  bool isEqual(const Type *other) const override;
 };
 
 class StructField {
@@ -273,6 +271,7 @@ public:
 class StructType : public Type {
 public:
   StructType(std::vector<StructField *> f);
+
   void displayFields(std::ostream &os) const;
   void display(std::ostream &os) const override;
   void makeDef(const char *name, std::ostream &os = std::cout) const override;
@@ -281,6 +280,10 @@ public:
 
   const StructField *getField(const std::string &name) const;
 
+  bool isEqual(const Type *) const override {
+    UNREACHABLE(); // TODO
+  }
+
 private:
   std::vector<StructField *> fields_;
 };
@@ -288,11 +291,18 @@ private:
 class EnumType : public Type {
 public:
   EnumType(std::vector<EnumConstDec *> v);
+
   void displayConsts(std::ostream &os) const;
   void display(std::ostream &os) const override;
   void makeDef(const char *name, std::ostream &os = std::cout) const override;
+
   Sexpression *ACL2Expr();
+
   Sexpression *getEnumVal(Symbol *s) const;
+
+  bool isEqual(const Type *) const override {
+    UNREACHABLE(); // TODO
+  }
 
 private:
   std::vector<EnumConstDec *> vals_;
@@ -305,6 +315,10 @@ public:
 
   unsigned size() const { return types_.size(); }
   const Type *get(unsigned n) { return types_[n]; }
+
+  bool isEqual(const Type *) const override {
+    UNREACHABLE(); // TODO
+  }
 
 private:
   std::vector<Type *> types_;

@@ -24,6 +24,14 @@ PrimType uintType = PrimType::Uint();
 PrimType int64Type = PrimType::Int64();
 PrimType uint64Type = PrimType::Uint64();
 
+bool PrimType::isEqual(const Type *other) const {
+  if (auto o = dynamic_cast<const PrimType *>(other)) {
+    return rank_ == o->rank_ && signed_ == o->signed_;
+  } else {
+    return false;
+  }
+}
+
 Type *PrimType::usual_conversions(const PrimType *t1, const PrimType *t2) {
 
   // Integer promotion.
@@ -68,35 +76,6 @@ Type *PrimType::usual_conversions(const PrimType *t1, const PrimType *t2) {
   }
 }
 
-// class RegType : public Type (Algorithmic C register type)
-// ---------------------------------------------------
-
-// Data member:  Expression *width
-
-Sexpression *
-RegType::ACL2Assign(Expression *rval) const { // overridden by FPType
-
-  const RegType *rval_type = dynamic_cast<const RegType *>(rval->get_type());
-  unsigned w = rval->ACL2ValWidth();
-
-  int width_evaluated = width_->evalConst();
-  assert(width_evaluated >= 0);
-
-  // TODO *rval_type == *this
-  if (rval_type == this || (w && w <= (unsigned)width_evaluated)) {
-    return rval->ACL2Expr(true);
-  } else {
-    assert(width_evaluated);
-
-    Sexpression *bv_val
-        = new Plist({ &s_bits, rval->ACL2Expr(true),
-                      new Integer(rval->loc(), width_evaluated - 1),
-                      Integer::zero_v(rval->loc()) });
-
-    return bv_val;
-  }
-}
-
 // class UintType : public RegType
 // -------------------------------
 
@@ -121,74 +100,100 @@ Sexpression *IntType::ACL2Eval(Sexpression *s) const {
 
 unsigned IntType::ACL2ValWidth() const { return width()->evalConst(); }
 
-// class FPType :public RegType
+Sexpression *IntType::ACL2Assign(Expression *rval) const {
+
+  const RegType *rval_type = dynamic_cast<const RegType *>(rval->get_type());
+  unsigned w = rval->ACL2ValWidth();
+
+  int width_evaluated = width()->evalConst();
+  assert(width_evaluated >= 0);
+
+  // TODO *rval_type == *this
+  if (rval_type == this || (w && w <= (unsigned)width_evaluated)) {
+    return rval->ACL2Expr(true);
+  } else {
+    assert(width_evaluated);
+
+    Sexpression *bv_val
+        = new Plist({ &s_bits, rval->ACL2Expr(true),
+                      new Integer(rval->loc(), width_evaluated - 1),
+                      Integer::zero_v(rval->loc()) });
+
+    return bv_val;
+  }
+}
+
+bool IntType::isEqual(const Type *other) const {
+  if (auto o = dynamic_cast<const IntType *>(other)) {
+    return width_->evalConst() == o->width_->evalConst()
+           && isSigned_ == o->isSigned_;
+  } else {
+    return false;
+  }
+}
+
+// class FixedPointType :public RegType
 // ----------------------------
 
-// Data member:  Expression *iwidth
+FixedPointType::FixedPointType(Expression *w, Expression *iw, bool isSigned)
+    : width_(w), iwidth_(iw), isSigned_(isSigned) {}
 
-FPType::FPType(Expression *w, Expression *iw) : RegType(w) { iwidth = iw; }
+Sexpression *FixedPointType::ACL2Assign(Expression *rval) const {
 
-Sexpression *FPType::ACL2Assign(Expression *rval) const {
   const Type *t = rval->get_type();
+
   if (t == this) {
     return rval->ACL2Expr(true);
   } else {
     Sexpression *s = rval->ACL2Expr();
-    int wVal = width()->evalConst(), iwVal = iwidth->evalConst();
+
+    int wVal = width()->evalConst();
+    int iwVal = iwidth_->evalConst();
+
     s = new Plist({ &s_times, s,
                     new Plist({ &s_expt, Integer::two_v(rval->loc()),
                                 new Integer(rval->loc(), wVal - iwVal) }) });
-    if (isa<const FPType *>(rval->get_type()) || wVal < iwVal)
+
+    if (isa<const FixedPointType *>(rval->get_type()) || wVal < iwVal)
       s = new Plist({ &s_fl, s });
     return new Plist({ &s_bits, s, new Integer(rval->loc(), wVal - 1),
                        Integer::zero_v(rval->loc()) });
   }
 }
 
-// class UfixedType : public FPType
-// ---------------------------------
+Sexpression *FixedPointType::ACL2Eval(Sexpression *s) const {
 
-UfixedType::UfixedType(Expression *w, Expression *iw) : FPType(w, iw) {}
+  Sexpression *numerator;
+  if (isSigned_) {
+    numerator = new Plist(
+        { &s_si, s, new Integer(Location::dummy(), width()->evalConst()) });
+  } else {
+    numerator = s;
+  }
 
-void UfixedType::display(std::ostream &os) const {
-  os << "sc_ufixed<";
+  Sexpression *denominator = new Plist(
+      { &s_expt, Integer::two_v(Location::dummy()),
+        new Integer(Location::dummy(),
+                    width()->evalConst() - iwidth_->evalConst()) });
+
+  return new Plist({ &s_divide, numerator, denominator });
+}
+
+void FixedPointType::display(std::ostream &os) const {
+  os << (isSigned_ ? "sc_fixed" : "sc_ufixed<");
   width()->display(os);
   os << ", ";
-  iwidth->display(os);
+  iwidth_->display(os);
   os << ">";
 }
 
-Sexpression *UfixedType::ACL2Eval(Sexpression *s) const {
-  return new Plist({ &s_divide, s,
-                     new Plist({ &s_expt, Integer::two_v(Location::dummy()),
-                                 new Integer(Location::dummy(),
-                                             width()->evalConst()
-                                                 - iwidth->evalConst()) }) });
-}
-
-// class FixedType : public RegType
-// --------------------------------
-
-FixedType::FixedType(Expression *w, Expression *iw) : FPType(w, iw) {}
-
-bool FixedType::isSigned() { return true; }
-
-void FixedType::display(std::ostream &os) const {
-  os << "sc_fixed<";
-  width()->display(os);
-  os << ", ";
-  iwidth->display(os);
-  os << '>';
-}
-
-Sexpression *FixedType::ACL2Eval(Sexpression *s) const {
-  Sexpression *numerator = new Plist(
-      { &s_si, s, new Integer(Location::dummy(), width()->evalConst()) });
-  Sexpression *denominator
-      = new Plist({ &s_expt, Integer::two_v(Location::dummy()),
-                    new Integer(Location::dummy(),
-                                width()->evalConst() - iwidth->evalConst()) });
-  return new Plist({ &s_divide, numerator, denominator });
+bool FixedPointType::isEqual(const Type *other) const {
+  if (auto o = dynamic_cast<const FixedPointType *>(other)) {
+    return width_->evalConst() == o->width_->evalConst()
+           && isSigned_ == o->isSigned_;
+  } else {
+    return false;
+  }
 }
 
 // class ArrayType : public Type
@@ -230,6 +235,15 @@ void ArrayType::makeDef(const char *name, std::ostream &os) const {
     dims = dims->next;
   }
   os << ";";
+}
+
+bool ArrayType::isEqual(const Type *other) const {
+  if (auto o = dynamic_cast<const ArrayType *>(other)) {
+    return dim->evalConst() == o->dim->evalConst()
+           && baseType->isEqual(o->baseType);
+  } else {
+    return false;
+  }
 }
 
 // class StructField

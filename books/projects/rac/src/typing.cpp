@@ -156,7 +156,7 @@ bool TypingAction::VisitPrefixExpr(PrefixExpr *e) {
     // TODO
   }
 
-  if (isa<const FPType *>(expr_type)) {
+  if (isa<const FixedPointType *>(expr_type)) {
     diag_.report(e->loc(), "warning: Fixed point not well supported yet");
     return true;
   }
@@ -281,7 +281,7 @@ bool TypingAction::VisitBinaryExpr(BinaryExpr *e) {
     return true;
   }
 
-  if (isa<const FPType *>(t1) || isa<const FPType *>(t2)) {
+  if (isa<const FixedPointType *>(t1) || isa<const FixedPointType *>(t2)) {
     diag_.report(e->loc(), "warning: Fixed point not well supported yet");
     return true;
   }

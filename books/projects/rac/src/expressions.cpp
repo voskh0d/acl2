@@ -654,10 +654,11 @@ Sexpression *BinaryExpr::ACL2Expr(bool isBV) {
   Sexpression *sexpr1 = expr1->ACL2Expr();
   Sexpression *sexpr2 = expr2->ACL2Expr();
 
-  if (isa<const FPType *>(expr1->get_type()) && op == Op::LShift) {
+  if (isa<const FixedPointType *>(expr1->get_type()) && op == Op::LShift) {
     return new Plist({ &s_times, sexpr1,
                        new Plist({ &s_expt, Integer::two_v(loc_), sexpr2 }) });
-  } else if (isa<const FPType *>(expr1->get_type()) && op == Op::RShift) {
+  } else if (isa<const FixedPointType *>(expr1->get_type())
+             && op == Op::RShift) {
     return new Plist({ &s_divide, sexpr1,
                        new Plist({ &s_expt, Integer::two_v(loc_), sexpr2 }) });
   }

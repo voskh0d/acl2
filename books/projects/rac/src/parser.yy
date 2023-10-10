@@ -216,7 +216,7 @@ register_type
   if ($3->isConst () && $3->isInteger ()
       && ($3->evalConst () >= 0) & $5->isConst () && $5->isInteger ())
     {
-      $$ = new FixedType ($3, $5);
+      $$ = new FixedPointType ($3, $5, true);
     }
   else
     {
@@ -229,7 +229,7 @@ register_type
   if ($3->isConst () && $3->isInteger ()
       && ($3->evalConst () >= 0) & $5->isConst () && $5->isInteger ())
     {
-      $$ = new UfixedType ($3, $5);
+      $$ = new FixedPointType ($3, $5, false);
     }
   else
     {
