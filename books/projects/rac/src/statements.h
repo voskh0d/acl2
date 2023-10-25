@@ -13,7 +13,6 @@
 
 class Block;
 class FunCall;
-class TempCall;
 
 class Statement {
 public:
@@ -173,6 +172,8 @@ public:
 
   void displaySimple(std::ostream &os) override;
   Sexpression *ACL2Expr() override;
+
+  void desugar();
 };
 
 class MultipleAssignment : public SimpleStatement {

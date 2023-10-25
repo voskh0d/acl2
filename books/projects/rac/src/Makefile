@@ -11,6 +11,28 @@ LDFLAGS +=
 
 SRCS=diagnostics.cpp expressions.cpp functions.cpp lex.yy.cpp main.cpp parser.tab.cpp program.cpp sexpressions.cpp statements.cpp types.cpp typing.cpp
 
+# By default, build and install everything.
+all : install
+
+install: release rac
+	install -m 775 parse ${RAC}/bin
+	install -m 775 rac ${RAC}/bin
+	rm rac parse
+
+#We should execute this rule every time, since it depends on some environment
+#variables.
+rac:
+	printf "#!/bin/bash\n\nRAC=${RAC}\nACL2=${ACL2}" | cat - rac-skel > rac
+
+# Configure the releaes (no debug log and highest optiomization level) and
+# debug.
+release: CPPFLAGS += -O3
+release: parse
+
+debug: CPPFLAGS += -DDEBUG
+debug: CXXFLAGS += -O0 -g
+debug: parse
+
 OBJS := $(SRCS:%.cpp=%.o)
 
 # Compile and generate dependencies (stored under .deps).
@@ -40,31 +62,9 @@ parser.tab.cpp: parser.yy
 lex.yy.cpp: parser.ll
 	flex -o lex.yy.cpp parser.ll
 
-# By default, build and install everything.
-all : install
-
 # Build the binary.
 parse: version.h ${OBJS}
 	${CC} -o parse $(LDFLAGS) ${OBJS}
-
-# Configure the releaes (no debug log and highest optiomization level) and
-# debug.
-release: CPPFLAGS += -O3
-release: parse
-
-debug: CPPFLAGS += -DDEBUG
-debug: CXXFLAGS += -O0 -g
-debug: parse
-
-#We should execute this rule every time, since it depends on some environment
-#variables.
-rac:
-	printf "#!/bin/bash\n\nRAC=${RAC}\nACL2=${ACL2}" | cat - rac-skel > rac
-
-install: release rac
-	install -m 775 parse ${RAC}/bin
-	install -m 775 rac ${RAC}/bin
-	rm rac parse
 
 clean:
 	rm -f rac parser.tab.c parser.tab.h parser.output lex.yy.c parser.c

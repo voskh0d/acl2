@@ -1,13 +1,13 @@
 %{
-#include "program.h"
-#include "parser.h"
-
-#include <stdio.h>
-
 #include "expressions.h"
 #include "functions.h"
+#include "parser.h"
+#include "program.h"
 #include "statements.h"
 #include "types.h"
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wfree-nonheap-object"
 
 int yylex ();
 
@@ -19,9 +19,9 @@ void yyerror (const char *s)
 }
 
 Program prog;
-  List<Builtin> builtins (new Builtin (Location::dummy(), "abs", &intType,
+List<Builtin> builtins (new Builtin (Location::dummy(), "abs", &intType,
     new List<VarDec>(new VarDec(Location::dummy(), "", &intType))));
-  SymbolStack<SymDec> symTab;
+SymbolStack<SymDec> symTab;
 
 #define YYLLOC_DEFAULT(Cur, Rhs, N)                                           \
 do                                                                            \
@@ -153,7 +153,10 @@ program_element : type_dec ';'
 {
   if (!prog.registerFunDef($1))
     {
-      prog.diag().report (@$, "Duplicate function definition");
+      auto loc = static_cast<FunDef *>($1)->get_decl_loc();
+      auto previous_loc = prog.getFunDef($1->getname())->get_decl_loc();
+      prog.diag().report(loc, loc, "Duplicate function definition",
+                        previous_loc, "defined here:");
       YYERROR;
     }
 };
@@ -164,16 +167,16 @@ program_element : type_dec ';'
 
 type_dec : typedef_dec | STRUCT ID struct_type
          {
-  $$ = new DefinedType ($2, $3);
+  $$ = new DefinedType (@$, $2, $3);
 }
-| ENUM ID enum_type { $$ = new DefinedType ($2, $3); };
+| ENUM ID enum_type { $$ = new DefinedType (@$, $2, $3); };
 
-typedef_dec : TYPEDEF typedef_type ID { $$ = new DefinedType ($3, $2); }
+typedef_dec : TYPEDEF typedef_type ID { $$ = new DefinedType (@$, $3, $2); }
             | typedef_dec '[' arithmetic_expression ']'
 {
   if ($3->isConst () && $3->evalConst () > 0)
     {
-      $$ = new DefinedType($1->getname(), new ArrayType ($3, $1->getdef ()));
+      $$ = new DefinedType(@$, $1->getname(), new ArrayType (@$, $3, $1->getdef ()));
     }
   else
     {
@@ -216,7 +219,7 @@ register_type
   if ($3->isConst () && $3->isInteger ()
       && ($3->evalConst () >= 0) & $5->isConst () && $5->isInteger ())
     {
-      $$ = new FixedPointType ($3, $5, true);
+      $$ = new FixedPointType (@$, $3, $5, true);
     }
   else
     {
@@ -229,7 +232,7 @@ register_type
   if ($3->isConst () && $3->isInteger ()
       && ($3->evalConst () >= 0) & $5->isConst () && $5->isInteger ())
     {
-      $$ = new FixedPointType ($3, $5, false);
+      $$ = new FixedPointType (@$, $3, $5, false);
     }
   else
     {
@@ -241,7 +244,7 @@ register_type
 {
   if ($3->isConst () && $3->isInteger () && $3->evalConst () >= 0)
     {
-      $$ = new IntType ($3, false);
+      $$ = new IntType (@$, $3, false);
     }
   else
     {
@@ -253,7 +256,7 @@ register_type
 {
   if ($3->isConst () && $3->isInteger () && $3->evalConst () >= 0)
     {
-      $$ = new IntType ($3, true);
+      $$ = new IntType (@$, $3, true);
     }
   else
     {
@@ -268,7 +271,7 @@ array_param_type : ARRAY '<' type_spec ',' arithmetic_expression '>'
                  {
   if ($5->isConst () && $5->evalConst () > 0)
     {
-      $$ = new ArrayType ($5, $3);
+      $$ = new ArrayType (@$, $5, $3);
     }
   else
     {
@@ -277,14 +280,14 @@ array_param_type : ARRAY '<' type_spec ',' arithmetic_expression '>'
     }
 };
 
-struct_type : '{' struct_field_list '}' { $$ = new StructType (*$2); };
+struct_type : '{' struct_field_list '}' { $$ = new StructType (@$, *$2); };
 
 struct_field_list : struct_field { $$ = new std::vector<StructField *> ({$1}); }
                   | struct_field_list struct_field { $1->push_back($2); $$ = $1; };
 
 struct_field : type_spec ID ';' { $$ = new StructField ($1, $2); };
 
-enum_type : '{' enum_const_dec_list '}' { $$ = new EnumType (*$2); };
+enum_type : '{' enum_const_dec_list '}' { $$ = new EnumType (@$, *$2); };
 
 enum_const_dec_list : enum_const_dec { $$ = new std::vector<EnumConstDec *> ({$1}); }
                     | enum_const_dec_list ',' enum_const_dec
@@ -321,31 +324,31 @@ enum_const_dec : ID
 
 mv_type : TUPLE '<' type_spec ',' type_spec '>'
         {
-  $$ = new MvType ({ $3, $5 });
+  $$ = new MvType (@$, { $3, $5 });
 }
 | TUPLE '<' type_spec ',' type_spec ',' type_spec '>'
 {
-  $$ = new MvType ({ $3, $5, $7 });
+  $$ = new MvType (@$, { $3, $5, $7 });
 }
 | TUPLE '<' type_spec ',' type_spec ',' type_spec ',' type_spec '>'
 {
-  $$ = new MvType ({ $3, $5, $7, $9 });
+  $$ = new MvType (@$, { $3, $5, $7, $9 });
 }
 | TUPLE '<' type_spec ',' type_spec ',' type_spec ',' type_spec ',' type_spec '>'
 {
-  $$ = new MvType ({ $3, $5, $7, $9, $11 });
+  $$ = new MvType (@$, { $3, $5, $7, $9, $11 });
 }
 | TUPLE '<' type_spec ',' type_spec ',' type_spec ',' type_spec ',' type_spec ',' type_spec '>'
 {
-  $$ = new MvType ({ $3, $5, $7, $9, $11, $13 });
+  $$ = new MvType (@$, { $3, $5, $7, $9, $11, $13 });
 }
 | TUPLE '<' type_spec ',' type_spec ',' type_spec ',' type_spec ',' type_spec ',' type_spec ',' type_spec '>'
 {
-  $$ = new MvType ({ $3, $5, $7, $9, $11, $13, $15 });
+  $$ = new MvType (@$, { $3, $5, $7, $9, $11, $13, $15 });
 }
 | TUPLE '<' type_spec ',' type_spec ',' type_spec ',' type_spec ',' type_spec ',' type_spec ',' type_spec ',' type_spec '>'
 {
-  $$ = new MvType ({ $3, $5, $7, $9, $11, $13, $15, $17 });
+  $$ = new MvType (@$, { $3, $5, $7, $9, $11, $13, $15, $17 });
 };
 
 //*************************************************************************************
@@ -625,13 +628,13 @@ untyped_var_dec : ID
     }
   if (symTab.find_last_frame ($1))
     {
-      prog.diag().report(@$, 
+      prog.diag().report(@$,
         format("Duplicate identifier declaration (could be an enum, a "
                "variable or template parameter) `%s`",
                $1));
       YYERROR;
     }
-  $$ = new VarDec (@$, $1, new ArrayType ($3, nullptr));
+  $$ = new VarDec (@$, $1, new ArrayType (@$, $3, nullptr));
   symTab.push ((VarDec *)$$);
 }
 | ID '[' arithmetic_expression ']' '=' array_or_struct_init
@@ -644,13 +647,13 @@ untyped_var_dec : ID
     }
   if (symTab.find_last_frame ($1))
     {
-      prog.diag().report(@$, 
+      prog.diag().report(@$,
         format("Duplicate identifier declaration (could be an enum, a "
                "variable or template parameter) `%s`",
                $1));
       YYERROR;
     }
-  $$ = new VarDec (@$, $1, new ArrayType ($3, nullptr), $6);
+  $$ = new VarDec (@$, $1, new ArrayType (@$, $3, nullptr), $6);
   symTab.push ((VarDec *)$$);
 };
 
@@ -719,7 +722,7 @@ untyped_const_dec : ID '=' expression
                $1));
       YYERROR;
     }
-  $$ = new ConstDec (@$, $1, new ArrayType ($3, nullptr), $6);
+  $$ = new ConstDec (@$, $1, new ArrayType (@$, $3, nullptr), $6);
   symTab.push ((ConstDec *)$$);
 };
 
@@ -787,11 +790,17 @@ return_statement : RETURN { $$ = new ReturnStmt (@$, nullptr); }
 assignment : expression assign_op expression
 {
   $$ = new Assignment (@$, $1, $2, $3);
+  static_cast<Assignment *>($$)->desugar();
 }
-| expression inc_op { $$ = new Assignment (@$, $1, $2, nullptr); }
+| expression inc_op
+{
+  $$ = new Assignment (@$, $1, $2, nullptr);
+  static_cast<Assignment *>($$)->desugar();
+}
 | postfix_expression '.' SET_SLC '(' expression ',' expression ')'
 {
   $$ = new Assignment (@$, $1, $7, $5);
+  static_cast<Assignment *>($$)->desugar();
 };
 
 assign_op : '=' | RSHFT_ASSIGN | LSHFT_ASSIGN | ADD_ASSIGN | SUB_ASSIGN
@@ -939,3 +948,5 @@ template_param_dec : type_spec ID
   symTab.push ((TempParamDec *)$$);
 };
 %%
+
+#pragma GCC diagnostic pop

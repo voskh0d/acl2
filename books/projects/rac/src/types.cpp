@@ -4,15 +4,48 @@
 
 #include <algorithm>
 #include <iomanip>
+#include <sstream>
 
 //***********************************************************************************
 // class Type
 //***********************************************************************************
 
+std::string Type::to_string() const {
+  std::stringstream ss;
+
+  //  // TODO
+  //  auto cur = origin_;
+  //  while (std::holds_alternative<const DefinedType *>(cur)) {
+  //    auto dt = std::get<const DefinedType *>(cur);
+  //    ss << dt->getname() << " aka ";
+  //    cur = dt->origin_;
+  //  }
+
+  display(ss);
+  return ss.str();
+}
+
 Sexpression *
 Type::ACL2Assign(Expression *rval) const { // virtual (overridden by RegType)
   // Convert rval to an S-expression to be assigned to an object of this type.
   return rval->ACL2Expr();
+}
+
+void Type::displayVarType(std::ostream &os) const {
+  // How this type is displayed in a variable declaration
+  display(os);
+}
+
+void Type::displayVarName(const char *name, std::ostream &os) const {
+  os << name;
+}
+
+// overridden by ArrayType, StructType, and EnumType
+void Type::makeDef([[maybe_unused]] const char *name, std::ostream &os) const {
+  // How this type is displayed in a type definition.
+  os << "\ntypedef ";
+  display(os);
+  os << " " << name << ";";
 }
 
 // class PrimType : public Symbol, public Type (Primitive type)
@@ -24,7 +57,20 @@ PrimType uintType = PrimType::Uint();
 PrimType int64Type = PrimType::Int64();
 PrimType uint64Type = PrimType::Uint64();
 
+Sexpression *PrimType::ACL2Assign(Expression *rval) const {
+
+  const Type *rval_type = rval->get_type();
+  //  assert(isa<const IntType *>(rval_type) || isa<const PrimType
+  //  *>(rval_type));
+  return numeric_cast(rval->ACL2Expr(true), { rval_type }, this);
+}
+
 bool PrimType::isEqual(const Type *other) const {
+
+  if (auto o = dynamic_cast<const DefinedType *>(other)) {
+    other = o->derefType();
+  }
+
   if (auto o = dynamic_cast<const PrimType *>(other)) {
     return rank_ == o->rank_ && signed_ == o->signed_;
   } else {
@@ -76,12 +122,31 @@ Type *PrimType::usual_conversions(const PrimType *t1, const PrimType *t2) {
   }
 }
 
-// class UintType : public RegType
+bool PrimType::canBeImplicitlyCastTo(const Type *target) const {
+
+  // We can convert to any size, even if it is a narrowing conversion.
+  if (isa<const PrimType *>(target)) {
+    return true;
+  }
+
+  // TODO what are the constraint for u/int -> intType.
+  // We can convert only if the register in large enough.
+  if (isa<const IntType *>(target)) {
+    return true;
+    //    return static_cast<int>(rank_) <= int_type->width()->evalConst();
+    //           && signed_ == int_type->isSigned();
+  }
+
+  return false;
+}
+
+// class IntType : public RegType
 // -------------------------------
 
 IntType *IntType::FromPrimType(const PrimType *t) {
   return new IntType(
-      new Integer(Location::dummy(), static_cast<int>(t->rank_)), t->signed_);
+      t->loc(), new Integer(Location::dummy(), static_cast<int>(t->rank_)),
+      t->signed_);
 }
 
 void IntType::display(std::ostream &os) const {
@@ -102,28 +167,18 @@ unsigned IntType::ACL2ValWidth() const { return width()->evalConst(); }
 
 Sexpression *IntType::ACL2Assign(Expression *rval) const {
 
-  const RegType *rval_type = dynamic_cast<const RegType *>(rval->get_type());
-  unsigned w = rval->ACL2ValWidth();
-
-  int width_evaluated = width()->evalConst();
-  assert(width_evaluated >= 0);
-
-  // TODO *rval_type == *this
-  if (rval_type == this || (w && w <= (unsigned)width_evaluated)) {
-    return rval->ACL2Expr(true);
-  } else {
-    assert(width_evaluated);
-
-    Sexpression *bv_val
-        = new Plist({ &s_bits, rval->ACL2Expr(true),
-                      new Integer(rval->loc(), width_evaluated - 1),
-                      Integer::zero_v(rval->loc()) });
-
-    return bv_val;
-  }
+  const Type *rval_type = rval->get_type();
+  //  assert(isa<const IntType *>(rval_type) || isa<const PrimType
+  //  *>(rval_type));
+  return numeric_cast(rval->ACL2Expr(true), { rval_type }, this);
 }
 
 bool IntType::isEqual(const Type *other) const {
+
+  if (auto o = dynamic_cast<const DefinedType *>(other)) {
+    other = o->derefType();
+  }
+
   if (auto o = dynamic_cast<const IntType *>(other)) {
     return width_->evalConst() == o->width_->evalConst()
            && isSigned_ == o->isSigned_;
@@ -132,11 +187,22 @@ bool IntType::isEqual(const Type *other) const {
   }
 }
 
+// Type integer register type according to ac_datatypes_ref section 2.3.7.
+// The AC library only defines long long and unsigned long long operator but
+// since they can be casted to any smaller types, we assume this is possible.
+bool IntType::canBeImplicitlyCastTo(const Type *target) const {
+  if (isa<const PrimType *>(target)) {
+    return width_->evalConst() <= 64;
+  }
+  return isa<const RegType *>(target);
+}
+
 // class FixedPointType :public RegType
 // ----------------------------
 
-FixedPointType::FixedPointType(Expression *w, Expression *iw, bool isSigned)
-    : width_(w), iwidth_(iw), isSigned_(isSigned) {}
+FixedPointType::FixedPointType(origin_t loc, Expression *w, Expression *iw,
+                               bool isSigned)
+    : RegType(loc), width_(w), iwidth_(iw), isSigned_(isSigned) {}
 
 Sexpression *FixedPointType::ACL2Assign(Expression *rval) const {
 
@@ -188,6 +254,11 @@ void FixedPointType::display(std::ostream &os) const {
 }
 
 bool FixedPointType::isEqual(const Type *other) const {
+
+  if (auto o = dynamic_cast<const DefinedType *>(other)) {
+    other = o->derefType();
+  }
+
   if (auto o = dynamic_cast<const FixedPointType *>(other)) {
     return width_->evalConst() == o->width_->evalConst()
            && isSigned_ == o->isSigned_;
@@ -238,6 +309,11 @@ void ArrayType::makeDef(const char *name, std::ostream &os) const {
 }
 
 bool ArrayType::isEqual(const Type *other) const {
+
+  if (auto o = dynamic_cast<const DefinedType *>(other)) {
+    other = o->derefType();
+  }
+
   if (auto o = dynamic_cast<const ArrayType *>(other)) {
     return dim->evalConst() == o->dim->evalConst()
            && baseType->isEqual(o->baseType);
@@ -265,7 +341,8 @@ void StructField::display(std::ostream &os, unsigned indent) const {
 
 // Data member:  List<StructField> *fields;
 
-StructType::StructType(std::vector<StructField *> f) : Type(), fields_(f) {}
+StructType::StructType(origin_t loc, std::vector<StructField *> f)
+    : Type(loc), fields_(f) {}
 
 void StructType::displayFields(std::ostream &os) const {
   os << "{";
@@ -297,12 +374,36 @@ const StructField *StructType::getField(const std::string &name) const {
   return *it;
 }
 
+bool StructType::isEqual(const Type *other) const {
+
+  if (auto o = dynamic_cast<const DefinedType *>(other)) {
+    other = o->derefType();
+  }
+
+  if (auto o = dynamic_cast<const StructType *>(other)) {
+    if (fields_.size() != o->fields_.size()) {
+      return false;
+    }
+
+    for (unsigned i = 0; i < fields_.size(); ++i) {
+      if (fields_[i] != o->fields_[i]) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  return false;
+}
+
 // class EnumType : public Type
 // ----------------------------
 
 // Data member:  List<EnumConstDec> *vals;
 
-EnumType::EnumType(std::vector<EnumConstDec *> v) : Type(), vals_(v) {
+EnumType::EnumType(origin_t loc, std::vector<EnumConstDec *> v)
+    : Type(loc), vals_(v) {
   std::for_each(vals_.begin(), vals_.end(),
                 [this](EnumConstDec *e) { e->type = this; });
 }
@@ -351,6 +452,29 @@ void EnumType::makeDef(const char *name, std::ostream &os) const {
   os << ";";
 }
 
+bool EnumType::isEqual(const Type *other) const {
+
+  if (auto o = dynamic_cast<const DefinedType *>(other)) {
+    other = o->derefType();
+  }
+
+  if (auto o = dynamic_cast<const EnumType *>(other)) {
+    if (vals_.size() != o->vals_.size()) {
+      return false;
+    }
+
+    for (unsigned i = 0; i < vals_.size(); ++i) {
+      // TODO this is wrong (ptr ==)
+      if (vals_[i] != o->vals_[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  return false;
+}
+
 // class MvType : public Type (multiple-value type)
 // -------------------------------------------
 
@@ -372,4 +496,88 @@ void MvType::display(std::ostream &os) const {
     first = false;
   }
   os << ">";
+}
+
+bool MvType::isEqual(const Type *other) const {
+
+  if (auto o = dynamic_cast<const DefinedType *>(other)) {
+    other = o->derefType();
+  }
+
+  if (auto o = dynamic_cast<const MvType *>(other)) {
+    if (types_.size() != o->types_.size()) {
+      return false;
+    }
+
+    for (unsigned i = 0; i < types_.size(); ++i) {
+      if (!types_[i]->isEqual(o->types_[i])) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  return false;
+}
+
+Sexpression *numeric_cast(Sexpression *sexpr, std::optional<const Type *> src,
+                          const Type *dst) {
+
+  if (auto pt = dynamic_cast<const PrimType *>(dst)) {
+    if (pt->rank_ == PrimType::Rank::Bool) {
+
+      // If the source is also a bool, return sexpr.
+      if (src) {
+        if (auto ppt = dynamic_cast<const PrimType *>(*src)) {
+          if (ppt->rank_ == PrimType::Rank::Bool) {
+            return sexpr;
+          }
+        }
+      }
+
+      // Else we add this conversion to ensure that the value is alway 1 or 0.
+      return new Plist({ &s_if1, sexpr, &s_true, &s_false });
+    }
+  }
+
+  unsigned w_dst = dst->ACL2ValWidth();
+  bool s_dst = isSigned(dst);
+
+  // TODO
+  auto loc = Location::dummy();
+
+  if (src) {
+    unsigned w_src = (*src)->ACL2ValWidth();
+    bool s_src = isSigned(*src);
+
+    Sexpression *res = sexpr;
+
+    // Not bits needed.
+    if (w_src <= w_dst) {
+
+      // unsigned to signed conversion. If the destination is strictly smaller
+      // than the source, the full unsigned value can fit and we will never
+      // have an overflow, so si are not needed.
+      if (s_dst && !s_src && w_src == w_dst) {
+        res = new Plist({ &s_si, res, new Integer(loc, w_dst) });
+      }
+      // unsigned to signed conversion.
+      else if (!s_dst && s_src) {
+        res = new Plist({ &s_si, res, new Integer(loc, w_src) });
+      }
+
+      return res;
+    }
+  }
+
+  // Bits alway does an signed to unsigned conversion, so we only need to add
+  // a si if the destination is signed.
+  Sexpression *res = new Plist(
+      { &s_bits, sexpr, new Integer(loc, w_dst - 1), Integer::zero_v(loc) });
+
+  if (s_dst) {
+    res = new Plist({ &s_si, res, new Integer(loc, w_dst) });
+  }
+
+  return res;
 }

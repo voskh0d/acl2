@@ -11,13 +11,7 @@
 // Expressions
 //***********************************************************************************
 
-class Statement;
-class SymRef;
 class SymDec;
-class Constant;
-class Type;
-class StructField;
-class MvType;
 
 class Expression {
 public:
@@ -77,19 +71,18 @@ public:
   Constant(NodesId id, Location loc, int n);
   bool isConst() override;
   bool isInteger() override { return true; }
-  void display(std::ostream &os) const override;
   Sexpression *ACL2Expr(bool isBV = false) override;
 };
 
 // For now, we does not support unsigned literal.
 class Integer final : public Constant {
-  // type: primType
 public:
   Integer(Location loc, const char *n);
   Integer(Location loc, int n);
 
   // TODO if it is an uint/int64/uint64 this could overflow.
   int evalConst() override;
+  void display(std::ostream &os) const override;
   Sexpression *ACL2Expr(bool isBV) override;
 
   static Integer *zero_v(Location loc) { return new Integer(loc, "0"); }
@@ -104,6 +97,7 @@ class Boolean final : public Constant {
 public:
   Boolean(Location loc, bool value);
   int evalConst() override;
+  void display(std::ostream &os) const override;
   Sexpression *ACL2Expr(bool isBV = false) override;
 
   static Boolean *true_v(Location loc) { return new Boolean(loc, true); }
@@ -265,6 +259,7 @@ public:
 };
 
 std::ostream &operator<<(std::ostream &os, PrefixExpr::Op op);
+std::string to_string(PrefixExpr::Op op);
 
 class CastExpr final : public Expression {
 public:
@@ -312,6 +307,7 @@ private:
 };
 
 std::ostream &operator<<(std::ostream &os, BinaryExpr::Op op);
+std::string to_string(BinaryExpr::Op op);
 
 class CondExpr final : public Expression {
 public:

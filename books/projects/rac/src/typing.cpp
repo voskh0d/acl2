@@ -1,13 +1,16 @@
 #include "expressions.h"
+#include "returnfalse.h"
 #include "types.h"
 #include "typing.h"
 
 #include <limits>
 
+// Expressions:
+
 bool TypingAction::TraverseExpression(Expression *e) {
 
   if (!base_t::TraverseExpression(e))
-    return false;
+    return error();
 
   if (e) {
     e->set_type(deref(e->get_type()));
@@ -22,7 +25,7 @@ bool TypingAction::TraverseFunDef(FunDef *e) {
   type_of_scope = e->returnType;
 
   if (!base_t::TraverseFunDef(e))
-    return false;
+    return error();
 
   type_of_scope = nullptr;
 
@@ -35,7 +38,7 @@ bool TypingAction::TraverseTemplate(Template *e) {
   type_of_scope = e->returnType;
 
   if (!base_t::TraverseTemplate(e))
-    return false;
+    return error();
 
   type_of_scope = nullptr;
 
@@ -45,7 +48,7 @@ bool TypingAction::TraverseTemplate(Template *e) {
 bool TypingAction::VisitInteger(Integer *e) {
   // TODO for now, we does not support unsigned literal.
   if (e->val_ > std::numeric_limits<int>::max()
-      || e->val_ > std::numeric_limits<int>::min())
+      || e->val_ < std::numeric_limits<int>::min())
     e->set_type(&int64Type);
   else
     e->set_type(&intType);
@@ -63,7 +66,7 @@ bool TypingAction::VisitParenthesis(Parenthesis *e) {
 }
 
 bool TypingAction::VisitSymRef(SymRef *e) {
-  e->set_type(e->symDec->type);
+  e->set_type(deref(e->symDec->type));
   return true;
 }
 
@@ -84,9 +87,9 @@ bool TypingAction::VisitInitializer(Initializer *e) {
 }
 
 bool TypingAction::VisitArrayRef(ArrayRef *e) {
-  if (isa<const ArrayType *>(e->array->get_type())) {
-    e->set_type(
-        always_cast<const ArrayType *>(e->array->get_type())->getBaseType());
+  if (auto array_type
+      = dynamic_cast<const ArrayType *>(e->array->get_type())) {
+    e->set_type(deref(array_type->getBaseType()));
   } else {
     e->set_type(&boolType);
   }
@@ -101,9 +104,14 @@ bool TypingAction::VisitStructRef(StructRef *e) {
 
 bool TypingAction::VisitSubrange(Subrange *e) {
 
-  Integer *width = new Integer(e->loc(), e->width());
-  const RegType *t = always_cast<const RegType *>(e->base->get_type());
-  e->set_type(new IntType(width, t->isSigned()));
+  if (const RegType *t = dynamic_cast<const RegType *>(e->base->get_type())) {
+    Integer *width = new Integer(e->loc(), e->width());
+    e->set_type(new IntType(e->loc(), width, t->isSigned()));
+  } else {
+    diag_.report(e->loc(), e->base->loc(),
+                 format("Base (of type %s) is not a register",
+                        e->base->get_type()->to_string().c_str()));
+  }
 
   return true;
 }
@@ -140,10 +148,12 @@ bool TypingAction::VisitPrefixExpr(PrefixExpr *e) {
       break;
     case PrefixExpr::Op::UnaryMinus:
       e->set_type(new IntType(
-          new Integer(e->loc(), t->width()->evalConst() + 1), t->isSigned()));
+          e->loc(), new Integer(e->loc(), t->width()->evalConst() + 1),
+          t->isSigned()));
       break;
     case PrefixExpr::Op::BitNot:
       e->set_type(new IntType(
+          e->loc(),
           new Integer(e->loc(), t->isSigned() ? t->width()->evalConst()
                                               : t->width()->evalConst() + 1),
           t->isSigned()));
@@ -153,24 +163,24 @@ bool TypingAction::VisitPrefixExpr(PrefixExpr *e) {
       break;
     }
     return true;
-    // TODO
   }
 
+  // TODO
   if (isa<const FixedPointType *>(expr_type)) {
     diag_.report(e->loc(), "warning: Fixed point not well supported yet");
     return true;
   }
 
   // No overload found.
-  std::stringstream ss;
-  ss << e->op;
-
   diag_.report(
       e->loc(), e->expr->loc(),
-      format("Cannot apply `%s` to an argument which is not a primitive type"
-             "(int, int64, uint, uint64, bool) or a register type.",
-             ss.str().c_str()));
-  return false;
+      format("Cannot apply `%s` to an argument of type `%s` which is not a "
+             "register type or a primitive type, aka int, int64, uint, "
+             "uint64, bool.",
+             to_string(e->op).c_str(), expr_type->to_string().c_str()));
+
+  e->set_type(new ErrorType());
+  return error();
 }
 
 bool TypingAction::VisitCastExpr(CastExpr *e) {
@@ -204,10 +214,10 @@ bool TypingAction::VisitBinaryExpr(BinaryExpr *e) {
 
     if (BinaryExpr::isOpShift(e->op)) {
       e->set_type(t1_promoted);
-      //      delete t2_promoted;
+      delete t2_promoted;
     } else if (BinaryExpr::isOpArithmetic(e->op)
                || BinaryExpr::isOpBitwise(e->op)) {
-      e->set_type(PrimType::usual_conversions(t1_promoted, t1_promoted));
+      e->set_type(PrimType::usual_conversions(t1_promoted, t2_promoted));
     } else if (BinaryExpr::isOpCompare(e->op)
                || BinaryExpr::isOpLogical(e->op)) {
       e->set_type(&boolType);
@@ -227,11 +237,13 @@ bool TypingAction::VisitBinaryExpr(BinaryExpr *e) {
     } else if (auto pt = dynamic_cast<const PrimType *>(t1)) {
       t1_promoted = IntType::FromPrimType(pt);
     } else {
-      // TODO more precise.
       diag_.report(e->loc(), e->expr1->loc(),
-                   "Incompatible type, rhs is a ac_int<...> but lhs in not "
-                   "convertible to a ac_int");
-      return false;
+                   format("Invalid type: left operand is a `%s` but right "
+                          "(%s) is not convertible to a register type.",
+                          t2->to_string().c_str(), t1->to_string().c_str()));
+
+      e->set_type(new ErrorType());
+      return error();
     }
 
     // Same with e2.
@@ -241,11 +253,13 @@ bool TypingAction::VisitBinaryExpr(BinaryExpr *e) {
     } else if (auto pt = dynamic_cast<const PrimType *>(t2)) {
       t2_promoted = IntType::FromPrimType(pt);
     } else {
-      // TODO more precise.
-      diag_.report(e->loc(), e->expr1->loc(),
-                   "Incompatible type, lhs is a ac_int<...> but rhs in not "
-                   "convertible to a ac_int");
-      return false;
+      diag_.report(e->loc(), e->expr2->loc(),
+                   format("Invalid type: right operand is a `%s` but left "
+                          "(%s) is not convertible to a register type.",
+                          t1->to_string().c_str(), t2->to_string().c_str()));
+
+      e->set_type(new ErrorType());
+      return error();
     }
 
     int w1 = t1_promoted->width()->evalConst();
@@ -277,7 +291,7 @@ bool TypingAction::VisitBinaryExpr(BinaryExpr *e) {
     } else {
       UNREACHABLE();
     }
-    e->set_type(new IntType(new Integer(e->loc(), w_res), s_res));
+    e->set_type(new IntType(e->loc(), new Integer(e->loc(), w_res), s_res));
     return true;
   }
 
@@ -287,53 +301,140 @@ bool TypingAction::VisitBinaryExpr(BinaryExpr *e) {
   }
 
   // No overload found.
-  std::stringstream ss;
-  ss << e->op;
-
   diag_.report(
       e->loc(), e->loc(),
       format("Cannot apply `%s` to an argument which is not a primitive type"
              "(int, int64, uint, uint64, bool) or a register type.",
-             ss.str().c_str()));
+             to_string(e->op).c_str()));
 
-  return false;
+  e->set_type(new ErrorType());
+  return error();
 }
 
 bool TypingAction::VisitCondExpr(CondExpr *e) {
-  e->set_type(nullptr);
+
+  // TODO instead, check if convertible to bool.
+  if (!e->test->get_type()->isEqual(&boolType)) {
+    diag_.report(e->loc(), e->test->loc(),
+                 format("Expected a boolean, got `%s`.",
+                        e->test->get_type()->to_string().c_str()));
+
+    e->set_type(new ErrorType());
+    return error();
+  }
+
+  if (!e->expr1->get_type()->isEqual(e->expr2->get_type())) {
+    diag_.report(e->loc(),
+                 format("Left and right do not share same type (left is `%s` "
+                        "and right `%s`).",
+                        e->expr1->get_type()->to_string().c_str(),
+                        e->expr2->get_type()->to_string().c_str()));
+
+    e->set_type(new ErrorType());
+    return error();
+  }
+
+  e->set_type(e->expr1->get_type());
+
   return true;
 }
 
 bool TypingAction::VisitMultipleValue(MultipleValue *e) {
-  e->set_type(nullptr);
-  return true;
+
+  if (e->expr.size() != e->type->size()) {
+    diag_.report(
+        e->loc(),
+        format("Expected %d argument(s) (from its type: `%s`), got `%d`.",
+               e->type->size(), e->type->to_string().c_str(), e->expr.size()));
+    e->set_type(new ErrorType());
+    return error();
+  }
+
+  bool has_failed = false;
+  unsigned size = e->expr.size();
+  for (unsigned i = 0; i < size; ++i) {
+
+    const Type *expected = e->type->get(i);
+    const Type *actual = e->expr[i]->get_type();
+
+    if (!expected->isEqual(actual)) {
+
+      diag_.report(e->loc(), e->expr[i]->loc(),
+                   format("Expected `%s` (from `%s` at index %d), got `%s`",
+                          expected->to_string().c_str(),
+                          e->type->to_string().c_str(), i,
+                          actual->to_string().c_str()));
+
+      has_failed = true;
+    }
+  }
+
+  e->set_type(e->type);
+
+  e->set_type(new ErrorType());
+  return has_failed ? error() : true;
 }
 
-bool TypingAction::VisitSymDec(SymDec *s) {
-  s->type = deref(s->type);
-  return true;
-}
+// bool TypingAction::VisitSymDec(SymDec *s) {
+//  s->type = deref(s->type);
+//  return true;
+//}
+
+// Statements:
 
 bool TypingAction::VisitReturnStmt(ReturnStmt *s) {
+
   s->returnType = deref(type_of_scope);
-  assert(s->returnType);
+
+  assert(s->returnType && "Not in a scope or no type for the scope");
+
+  bool is_same_type = s->returnType->isEqual(s->value->get_type());
+
+  assert(s->value->get_type() && "Value not typed ?!");
+
+  bool can_be_cast
+      = s->value->get_type()->canBeImplicitlyCastTo(s->returnType);
+
+  // TODO implicit cast (most of the case use it)
+  if (!is_same_type && !can_be_cast) {
+    diag_.report(s->loc(), s->value->loc(),
+                 format("Invalid return type: expected `%s` got `%s`",
+                        s->returnType->to_string().c_str(),
+                        s->value->get_type()->to_string().c_str()));
+    return error();
+  }
+
   return true;
 }
 
 bool TypingAction::VisitSwitchStmt(SwitchStmt *s) {
 
+  const Type *t = s->test_->get_type();
+
+  bool canBeCastToInt = t->canBeImplicitlyCastTo(&uint64Type)
+                        || t->canBeImplicitlyCastTo(&int64Type);
+
+  if (!isa<const PrimType *>(t) && !canBeCastToInt) {
+    diag_.report(
+        s->loc(), s->test_->loc(),
+        format("Expected a primtive type, got `%s`", t->to_string().c_str()));
+
+    return error();
+  }
+
   return std::all_of(s->cases_.begin(), s->cases_.end(), [this](Case *c) {
+    // Default case.
     if (!c->label) {
       return true;
     }
 
+    // A label is either an enum value or a constant primtive.
     const Type *t = c->label->get_type();
-    // If it is an enum, t will always be non null.
-    if ((t == nullptr || !isa<const EnumType *>(t))
-        && !isa<Constant *>(c->label)) {
+    if (!(isa<const PrimType *>(t) && isa<Constant *>(c->label))
+        && !isa<const EnumType *>(t)) {
       diag_.report(c->loc(), c->label->loc(),
                    "Case label must be an integer or an enum constant.");
-      return false;
+      return error();
     }
     return true;
   });

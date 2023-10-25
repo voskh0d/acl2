@@ -37,6 +37,18 @@ public:
                        unsigned indent = 0);
   virtual void displayACL2Expr(std::ostream &os);
 
+  Location get_decl_loc() const {
+
+    Location body_loc = body->loc();
+    // TODO: remove the '{'.
+    Location l = loc();
+    l.last_line = body_loc.first_line;
+    l.last_column = body_loc.first_column;
+    l.f_pos_end = body_loc.f_pos;
+
+    return l;
+  }
+
 private:
   void displayPrototype(std::ostream &os, const char *prefix, unsigned indent);
 };

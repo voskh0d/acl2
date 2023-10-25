@@ -45,7 +45,7 @@ public:
   bool VisitMultipleValue(MultipleValue *e);
 
   // Only dereference type.
-  bool VisitSymDec(SymDec *s);
+  //  bool VisitSymDec(SymDec *s);
   // Type and dereference the type of return.
   bool VisitReturnStmt(ReturnStmt *s);
   bool VisitSwitchStmt(SwitchStmt *s);

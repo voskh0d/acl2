@@ -51,10 +51,12 @@
 - name: multiline-comment
 
 - name: unterminated-comment
-  description: Unterminated comment not detected
   args: ['unterminated-comment.cpp']
   has_failed: true
   exit_code: 1
+
+- name: error-bypass
+  env: {RAC_BYPASS_ERROR: 'true'}
 
 # Those tests are directly taken the RAC specification as decribed in the
 # Chapter 15 of Formal verification of floating-point hardware design

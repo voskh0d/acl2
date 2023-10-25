@@ -5,6 +5,7 @@
 #include "types.h"
 
 #include "assertion.h"
+#include "returnfalse.h"
 #include "typing.h"
 
 #include <algorithm>
@@ -93,15 +94,15 @@ bool Program::parse(const std::string &file) {
 
 bool Program::process() {
 
-#define RUNPASS(ACTION, NAME)                                                 \
+#define RUNPASS(ACTION)                                                       \
   {                                                                           \
     ACTION a(diag_);                                                          \
     if (!runAction(&a))                                                       \
-      return false;                                                           \
+      return error();                                                         \
   }
 
-  RUNPASS(TypingAction, "Typing");
-  RUNPASS(MarkAssertionAction, "Marking assertions");
+  RUNPASS(TypingAction);
+  RUNPASS(MarkAssertionAction);
 
   return true;
 }

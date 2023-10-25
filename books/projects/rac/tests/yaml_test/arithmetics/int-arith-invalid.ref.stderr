@@ -1,3 +1,19 @@
-int-arith-invalid.cpp:6 (41-47): Cannot apply `&&` to an argument which is not a primitive type(int, int64, uint, uint64, bool) or a register type.
-  6 | int foo(int a, array<int, 3> b) { return a && b; }
-    |                                          ^^^^^^
+int-arith-invalid.cpp:8 (52-58): Cannot apply `&&` to an argument which is not a primitive type(int, int64, uint, uint64, bool) or a register type.
+  8 | int binary_invalid(int a, array<int, 3> b) { return a && b; }
+    |                                                     ^^^^^^
+
+int-arith-invalid.cpp:12 (10-11): Cannot apply `-` to an argument of type `int[3]` which is not a register type or a primitive type, aka int, int64, uint, uint64, bool.
+ 12 |   return -a;
+    |           ^
+
+int-arith-invalid.cpp:18 (10-11): Invalid type: right operand is a `sc_uint<3>` but left (int[3]) is not convertible to a register type.
+ 18 |   x = x + a;
+    |           ^
+
+int-arith-invalid.cpp:26 (6-18): Left and right do not share same type (left is `sc_uint<3>` and right `int[3]`).
+ 26 |   x = true ? x : a;
+    |       ^^^^^^^^^^^^
+
+int-arith-invalid.cpp:34 (10-11): Cannot apply `-` to an argument of type `int[3]` which is not a register type or a primitive type, aka int, int64, uint, uint64, bool.
+ 34 |   return -a;
+    |           ^

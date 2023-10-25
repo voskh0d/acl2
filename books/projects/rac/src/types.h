@@ -3,8 +3,10 @@
 
 #include "sexpressions.h"
 
+#include <algorithm>
 #include <iostream>
 #include <optional>
+#include <variant>
 
 //***********************************************************************************
 // Types
@@ -12,6 +14,7 @@
 
 class Expression;
 class EnumConstDec;
+class DefinedType;
 
 // Derived classes:
 //
@@ -23,31 +26,27 @@ class EnumConstDec;
 //   ArrayType          (array type)
 //   StructType         (struct type) EnumType (enumeration type)
 //   MvType             (multiple value type)
+//   ErrorType          (type used to recover from typing error)
 class Type {
 
 public:
+  using origin_t = std::variant<const DefinedType *, Location>;
+
+  Type(origin_t loc) : origin_(loc) {}
+
+  // Display the type (but not it is not the C++ representation).
   virtual void display(std::ostream &os = std::cout) const = 0;
+  std::string to_string() const;
 
-  virtual void displayVarType(std::ostream &os = std::cout) const {
-    // How this type is displayed in a variable declaration
-    display(os);
-  }
+  // Display a (or multiple) variable definition.
+  virtual void displayVarType(std::ostream &os = std::cout) const;
+  virtual void displayVarName(const char *name,
+                              std::ostream &os = std::cout) const;
 
-  // overridden by ArrayType
-  virtual void displayVarName([[maybe_unused]] const char *name,
-                              std::ostream &os = std::cout) const {
-    // How a variable of this type is displayed in a variable declaration
-    os << name;
-  }
-
-  // overridden by ArrayType, StructType, and EnumType
+  // Display a type defintion (either a typedef for primitive types, array
+  // enum or struct definition).
   virtual void makeDef([[maybe_unused]] const char *name,
-                       std::ostream &os = std::cout) const {
-    // How this type is displayed in a type definition.
-    os << "\ntypedef ";
-    display(os);
-    os << " " << name << ";";
-  }
+                       std::ostream &os = std::cout) const;
 
   // overridden by RegType
   // Convert rval to an S-expression to be assigned to an object of this
@@ -73,6 +72,12 @@ public:
   }
 
   virtual bool isEqual(const Type *other) const = 0;
+  virtual bool canBeImplicitlyCastTo(const Type *target) const = 0;
+
+  origin_t &loc() { return origin_; }
+  const origin_t &loc() const { return origin_; }
+
+  origin_t origin_;
 };
 
 class PrimType final : public Symbol, public Type {
@@ -84,24 +89,28 @@ public:
     Long = 64,
   };
 
-  PrimType(const char *name, const char *m, Rank r, bool s)
-      : Symbol(name),
+  PrimType(origin_t loc, const char *name, const char *m, Rank r, bool s)
+      : Symbol(name), Type(loc),
         RACname_(m ? std::optional(std::string(m)) : std::nullopt), rank_(r),
         signed_(s) {}
 
   static PrimType Bool() {
-    return PrimType("bool", nullptr, Rank::Bool, false);
+    return PrimType(Location::dummy(), "bool", nullptr, Rank::Bool, false);
   }
-  static PrimType Int() { return PrimType("int", nullptr, Rank::Int, true); }
+  static PrimType Int() {
+    return PrimType(Location::dummy(), "int", nullptr, Rank::Int, true);
+  }
   static PrimType Uint() {
-    return PrimType("uint", nullptr, Rank::Int, false);
+    return PrimType(Location::dummy(), "uint", nullptr, Rank::Int, false);
   }
   static PrimType Int64() {
-    return PrimType("int64", "int", Rank::Long, true);
+    return PrimType(Location::dummy(), "int64", "int", Rank::Long, true);
   }
   static PrimType Uint64() {
-    return PrimType("uint64", "uint", Rank::Long, false);
+    return PrimType(Location::dummy(), "uint64", "uint", Rank::Long, false);
   }
+
+  Sexpression *ACL2Assign(Expression *rval) const override;
 
   void display(std::ostream &os) const override {
     if (RACname_) {
@@ -118,7 +127,12 @@ public:
     }
   }
 
+  unsigned ACL2ValWidth() const override {
+    return static_cast<unsigned>(rank_);
+  }
+
   bool isEqual(const Type *other) const override;
+  bool canBeImplicitlyCastTo(const Type *target) const override;
 
   // https://en.cppreference.com/w/cpp/language/usual_arithmetic_conversions
   // Return a new type.
@@ -137,17 +151,18 @@ extern PrimType uint64Type;
 
 class DefinedType : public Symbol, public Type {
 public:
-  DefinedType(const char *s, Type *t) : Symbol(s), def_(t) {}
+  DefinedType(origin_t loc, const char *s, Type *t)
+      : Symbol(s), Type(loc), def_(t) {}
 
   void display(std::ostream &os) const override { Symbol::display(os); }
 
   void displayVarType(std::ostream &os = std::cout) const override {
-    derefType()->displayVarType(os);
+    os << getname();
   }
 
   void displayVarName(const char *name,
                       std::ostream &os = std::cout) const override {
-    derefType()->displayVarName(name, os);
+    os << name;
   }
 
   void makeDef(const char *name, std::ostream &os = std::cout) const override {
@@ -176,10 +191,14 @@ public:
   Type *getdef() { return def_; }
   const Type *getdef() const { return def_; }
 
-  const Type *derefType() const {
+  Type *derefType() const {
+
     Type *t = def_;
+    t->origin_ = this;
+
     while (auto *dt = dynamic_cast<DefinedType *>(t)) {
       t = dt->getdef();
+      t->origin_ = dt;
     }
     return t;
   }
@@ -188,6 +207,9 @@ public:
   bool isEqual(const Type *other) const override {
     return derefType()->isEqual(other);
   }
+  bool canBeImplicitlyCastTo(const Type *target) const override {
+    return derefType()->canBeImplicitlyCastTo(target);
+  }
 
 private:
   Type *def_;
@@ -195,13 +217,15 @@ private:
 
 class RegType : public Type {
 public:
+  RegType(origin_t loc) : Type(loc) {}
   virtual Expression *width() const = 0;
   virtual bool isSigned() const = 0;
 };
 
 class IntType final : public RegType {
 public:
-  IntType(Expression *w, bool s) : width_(w), isSigned_(s) {}
+  IntType(origin_t loc, Expression *w, bool s)
+      : RegType(loc), width_(w), isSigned_(s) {}
 
   // Return an ac_int of the same sign and width as t.
   static IntType *FromPrimType(const PrimType *t);
@@ -216,6 +240,7 @@ public:
   Expression *width() const override { return width_; }
 
   bool isEqual(const Type *other) const override;
+  bool canBeImplicitlyCastTo(const Type *target) const override;
 
 private:
   Expression *width_;
@@ -224,7 +249,7 @@ private:
 
 class FixedPointType : public RegType {
 public:
-  FixedPointType(Expression *w, Expression *iw, bool isSigned);
+  FixedPointType(origin_t loc, Expression *w, Expression *iw, bool isSigned);
 
   Sexpression *ACL2Assign(Expression *rval) const override;
   Sexpression *ACL2Eval(Sexpression *s) const override;
@@ -234,6 +259,11 @@ public:
   bool isSigned() const override { return isSigned_; }
 
   bool isEqual(const Type *other) const override;
+
+  bool canBeImplicitlyCastTo([
+      [maybe_unused]] const Type *target) const override {
+    return false;
+  }
 
 private:
   Expression *width_;
@@ -246,7 +276,8 @@ public:
   Type *baseType;
   Expression *dim;
 
-  ArrayType(Expression *d, Type *t) : baseType(t), dim(d) {}
+  ArrayType(origin_t loc, Expression *d, Type *t)
+      : Type(loc), baseType(t), dim(d) {}
 
   const Type *getBaseType() const { return baseType; }
 
@@ -257,6 +288,11 @@ public:
   void makeDef(const char *name, std::ostream &os) const override;
 
   bool isEqual(const Type *other) const override;
+
+  bool canBeImplicitlyCastTo([
+      [maybe_unused]] const Type *target) const override {
+    return false;
+  }
 };
 
 class StructField {
@@ -266,11 +302,16 @@ public:
   StructField(Type *t, char *n);
   const char *getname() const { return sym->getname(); }
   void display(std::ostream &os, unsigned indent = 0) const;
+
+  bool operator==(const StructField &other) const {
+    return strcmp(sym->getname(), other.getname())
+           && type->isEqual(other.type);
+  }
 };
 
 class StructType : public Type {
 public:
-  StructType(std::vector<StructField *> f);
+  StructType(origin_t loc, std::vector<StructField *> f);
 
   void displayFields(std::ostream &os) const;
   void display(std::ostream &os) const override;
@@ -280,8 +321,11 @@ public:
 
   const StructField *getField(const std::string &name) const;
 
-  bool isEqual(const Type *) const override {
-    UNREACHABLE(); // TODO
+  bool isEqual(const Type *) const override;
+
+  bool canBeImplicitlyCastTo([
+      [maybe_unused]] const Type *target) const override {
+    return false;
   }
 
 private:
@@ -290,7 +334,7 @@ private:
 
 class EnumType : public Type {
 public:
-  EnumType(std::vector<EnumConstDec *> v);
+  EnumType(origin_t loc, std::vector<EnumConstDec *> v);
 
   void displayConsts(std::ostream &os) const;
   void display(std::ostream &os) const override;
@@ -300,9 +344,11 @@ public:
 
   Sexpression *getEnumVal(Symbol *s) const;
 
-  bool isEqual(const Type *) const override {
-    UNREACHABLE(); // TODO
+  bool canBeImplicitlyCastTo(const Type *target) const override {
+    return isa<const PrimType *>(target);
   }
+
+  bool isEqual(const Type *) const override;
 
 private:
   std::vector<EnumConstDec *> vals_;
@@ -310,23 +356,100 @@ private:
 
 class MvType : public Type {
 public:
-  MvType(std::initializer_list<Type *> &&t) : types_(t) {}
+  MvType(origin_t loc, std::initializer_list<Type *> &&t)
+      : Type(loc), types_(t) {
+
+    //    std::transform(types_.begin(), types_.end(), types_.begin(), [](Type
+    //    *t) {
+    //      if (auto tt = dynamic_cast<DefinedType *>(t)) {
+    //        return tt->derefType();
+    //      } else {
+    //        return t;
+    //      }
+    //    });
+  }
+
   void display(std::ostream &os) const override;
 
   unsigned size() const { return types_.size(); }
   const Type *get(unsigned n) { return types_[n]; }
 
-  bool isEqual(const Type *) const override {
-    UNREACHABLE(); // TODO
+  bool isEqual(const Type *other) const override;
+
+  bool canBeImplicitlyCastTo([
+      [maybe_unused]] const Type *target) const override {
+    return false;
   }
 
 private:
   std::vector<Type *> types_;
 };
 
+// Type used to recover from error during the type pass.
+class ErrorType final : public Type {
+public:
+  ErrorType() : Type(Location::dummy()) {}
+
+  void display(std::ostream &os = std::cout) const override {
+    os << "error_type";
+  }
+  void displayVarType(std::ostream &os = std::cout) const override {
+    Type::displayVarType(os);
+  }
+  void displayVarName(const char *name,
+                      std::ostream &os = std::cout) const override {
+    Type::displayVarName(name, os);
+  }
+
+  void makeDef([[maybe_unused]] const char *name,
+               std::ostream &os = std::cout) const override {
+    Type::makeDef(name, os);
+  }
+
+  Sexpression *ACL2Assign(Expression *rval) const override {
+    return Type::ACL2Assign(rval);
+  }
+
+  unsigned ACL2ValWidth() const override { return Type::ACL2ValWidth(); }
+
+  Sexpression *ACL2Eval(Sexpression *s) const override {
+    return Type::ACL2Eval(s);
+  }
+
+  bool isEqual([[maybe_unused]] const Type *other) const override {
+    return true;
+  }
+  bool canBeImplicitlyCastTo([
+      [maybe_unused]] const Type *target) const override {
+    return true;
+  }
+};
+
 inline bool isIntegerType(const Type *t) {
   return dynamic_cast<const PrimType *>(t) || dynamic_cast<const IntType *>(t)
          || dynamic_cast<const EnumType *>(t);
 }
+
+// TODO remove this is awful.
+inline bool isSigned(const Type *t) {
+
+  if (auto rt = dynamic_cast<const RegType *>(t)) {
+    return rt->isSigned();
+  }
+
+  if (auto pt = dynamic_cast<const PrimType *>(t)) {
+    return pt->signed_;
+  }
+
+  // An enum is just an int.
+  if (dynamic_cast<const EnumType *>(t)) {
+    return true;
+  }
+
+  return false;
+}
+
+Sexpression *numeric_cast(Sexpression *sexpr, std::optional<const Type *> src,
+                          const Type *dst);
 
 #endif // TYPES_H

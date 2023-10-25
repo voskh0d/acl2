@@ -1,10 +1,9 @@
 - name: basic-types
 - name: literals
 - name: basic-types-upcast
-- name: basic-types-downcast
-  description: The cast are not translated.
 
-  bug: true
+- name: basic-types-downcast
+
 - name: c-cast
 - name: functional-cast
 
@@ -35,17 +34,8 @@
   exit_code: 1
 
 - name: std-tupple-init-not-enought-args
-  description: >
-               Here the initialization is not valid: we should provide 2 values
-               for the two types given. For now, only an assert during code
-               generation is failing but we should have an error message earlier.
   has_failed: true
-  exit_code: -6
-  disabled-checks:
-    - generated_code
-    - stderr
-    - stdout
-  bug: true
+  exit_code: 1
 
 - name: typedef-basic
 - name: typedef-ac
@@ -109,12 +99,3 @@
 - name: initializer-list
 
 - name: overflow
-  bug: true
-  description: C++ arithmetic can overflow but Lisp cannot. This can breaks the
-               equivalence between the two. Therefore, we should always be very
-               careful when doing operation that can overflow and for the C++
-               test we should compile with -fsanitize=undefined (for signed
-               overlow, invalid shift, out of bound access). Since the AC
-               headers has not been updated, this will produce some error at
-               runtime but we can ignore them, they will not influence the
-               C++/Lisp translation.

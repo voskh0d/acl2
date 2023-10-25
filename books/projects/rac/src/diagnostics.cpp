@@ -45,7 +45,8 @@ void DiagnosticHandler::show_code_at(const Location &context,
     last_line_to_display = error.last_line;
   }
 
-  // ... unless if it is also too big, in that case we only the first 5 lines.
+  // ... unless if it is also too big, in that case we only show the first 5
+  // lines.
   if (last_line_to_display - first_line_to_display > 5) {
     last_line_to_display = first_line_to_display + 5;
   }
@@ -105,4 +106,13 @@ void DiagnosticHandler::report(const Location &context, const Location &error,
 
 void DiagnosticHandler::report(const Location &error, const std::string &msg) {
   report(error, error, msg);
+}
+
+void DiagnosticHandler::report(const Location &context, const Location &error,
+                               const std::string &msg,
+                               const Location &note_loc,
+                               const std::string &note_msg) {
+  report(context, error, msg);
+  std::cerr << "note: " << note_msg << '\n';
+  show_code_at(note_loc, Location::dummy());
 }

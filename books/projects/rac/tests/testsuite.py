@@ -11,7 +11,7 @@ import sys
 
 test_dir_path = 'yaml_test/'
 
-def run_parser(bin_path, working_dir, input, timeout):
+def run_parser(bin_path, working_dir, input, timeout, env):
 
     # Remove potential old generated code.
     sp.run(['rm', '-f', input + '.ast.lsp'], cwd=working_dir)
@@ -21,7 +21,7 @@ def run_parser(bin_path, working_dir, input, timeout):
     assert cpp.returncode == 0, 'Preprocessor failed:\n' + cpp.stderr
 
     return sp.run(['../../../' / bin_path, input, '-acl2'], capture_output=True, text=True,
-            timeout=timeout, cwd=working_dir)
+            timeout=timeout, cwd=working_dir, env=env)
 
 def run_parser_raw(bin_path, working_dir, args, timeout):
     return sp.run([bin_path, *args],
@@ -62,8 +62,10 @@ def test(bin_path, dir_path, testcase, timeout):
 
     out = None
     args = testcase.get("args")
+    env = testcase.get("env", {})
+
     if args is None:
-        out = run_parser(bin_path, dir_path, input, timeout)
+        out = run_parser(bin_path, dir_path, input, timeout, env)
     else:
         out = run_parser_raw(bin_path, dir_path, args, timeout)
 

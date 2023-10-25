@@ -40,6 +40,9 @@ public:
   void setup(FILE *f) { file_ = f; }
 
   void report(const Location &context, const Location &error,
+              const std::string &msg, const Location &note_loc,
+              const std::string &note_msg);
+  void report(const Location &context, const Location &error,
               const std::string &msg);
   void report(const Location &error, const std::string &msg);
 

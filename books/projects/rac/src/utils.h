@@ -20,26 +20,27 @@ public:
   T *value;
   List<T> *next;
 
-  List<T>(T *v, List<T> *n = nullptr) {
+  // clang-format off
+  List(T *v, List<T> *n = nullptr) {
     value = v;
     next = n;
   }
-  List<T>(T *v1, T *v2) {
+  List(T *v1, T *v2) {
     value = v1;
     next = new List<T>(v2);
   }
 
-  static List<T> *empty() { return nullptr; }
+  static List *empty() { return nullptr; }
 
   unsigned length();
-  List<T> *nthl(unsigned n);
+  List *nthl(unsigned n);
   T *nth(unsigned n);
   T *find(const char *name);
   bool isMember(T *ptr);
-  List<T> *add(T *value);
-  List<T> *push(T *value);
-  List<T> *pop();
-  List<T> *copy();
+  List *add(T *value);
+  List *push(T *value);
+  List *pop();
+  List *copy();
   void displayList(std::ostream &os, unsigned indent = 0) const;
   void displayDefs(std::ostream &os) const;
 
@@ -206,9 +207,9 @@ class BigList {
   List<T> *back_;
 
 public:
-  BigList<T>(T *v) : front_(new List<T>(v)), back_(front_) {}
+  BigList(T *v) : front_(new List<T>(v)), back_(front_) {}
 
-  BigList<T> *add(T *v) {
+  BigList *add(T *v) {
     back_->next = new List<T>(v);
     back_ = back_->next;
     return this;

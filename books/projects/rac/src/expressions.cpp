@@ -3,6 +3,10 @@
 #include "statements.h"
 
 #include <iomanip>
+#include <sstream>
+
+// TODO remove (only for debug)
+#include "parser.h"
 
 //***********************************************************************************
 // class Expression
@@ -63,8 +67,6 @@ Constant::Constant(NodesId id, Location loc, int n)
 
 bool Constant::isConst() { return true; }
 
-void Constant::display(std::ostream &os) const { os << getname(); }
-
 Sexpression *Constant::ACL2Expr([[maybe_unused]] bool isBV) { return this; }
 
 // class Integer : public Constant
@@ -84,6 +86,8 @@ Integer::Integer(Location loc, int n)
     : Constant(idOf(this), loc, n), val_(n) {}
 
 int Integer::evalConst() { return val_; }
+
+void Integer::display(std::ostream &os) const { os << getname(); }
 
 Sexpression *Integer::ACL2Expr([[maybe_unused]] bool isBV) {
   if (!strncmp(getname(), "0x", 2)) {
@@ -107,6 +111,10 @@ Boolean::Boolean(Location loc, bool value)
     : Constant(idOf(this), loc, std::to_string(value)), value_(value) {}
 
 int Boolean::evalConst() { return value_; }
+
+void Boolean::display(std::ostream &os) const {
+  os << (value_ ? "true" : "false");
+}
 
 Sexpression *Boolean::ACL2Expr([[maybe_unused]] bool isBV) {
   return new Plist({ value_ ? &s_true : &s_false });
@@ -401,8 +409,10 @@ Subrange::Subrange(Location loc, Expression *b, Expression *l, unsigned w)
     : Expression(idOf(this), loc), base(b), low(l), width_(w) {
   if (l->isConst())
     high = new Integer(loc_, l->evalConst() + w - 1);
-  else
+  else {
     high = new BinaryExpr(loc_, l, new Integer(loc_, w - 1), strdup("+"));
+    high->set_type(&intType); // TODO
+  }
 }
 
 void Subrange::display(std::ostream &os) const {
@@ -434,6 +444,7 @@ Sexpression *Subrange::ACL2Expr([[maybe_unused]] bool isBV) {
 }
 
 Sexpression *Subrange::ACL2Assign(Sexpression *rval) {
+
   Sexpression *b = base->ACL2Expr(true);
   Sexpression *hi = high->ACL2Expr();
   Sexpression *lo = low->ACL2Expr();
@@ -501,6 +512,12 @@ std::ostream &operator<<(std::ostream &os, PrefixExpr::Op op) {
   default:
     UNREACHABLE();
   }
+}
+
+std::string to_string(PrefixExpr::Op op) {
+  std::stringstream ss;
+  ss << op;
+  return ss.str();
 }
 
 void PrefixExpr::display(std::ostream &os) const {
@@ -619,6 +636,12 @@ std::ostream &operator<<(std::ostream &os, BinaryExpr::Op op) {
   }
 }
 
+std::string to_string(BinaryExpr::Op op) {
+  std::stringstream ss;
+  ss << op;
+  return ss.str();
+}
+
 bool BinaryExpr::isOpShift(Op o) {
   return o == BinaryExpr::Op::RShift || o == BinaryExpr::Op::LShift;
 }
@@ -650,6 +673,7 @@ void BinaryExpr::display(std::ostream &os) const {
 }
 
 Sexpression *BinaryExpr::ACL2Expr(bool isBV) {
+
   Symbol *ptr = nullptr;
   Sexpression *sexpr1 = expr1->ACL2Expr();
   Sexpression *sexpr2 = expr2->ACL2Expr();
@@ -663,19 +687,30 @@ Sexpression *BinaryExpr::ACL2Expr(bool isBV) {
                        new Plist({ &s_expt, Integer::two_v(loc_), sexpr2 }) });
   }
 
+  bool need_narrowing = true;
+
   switch (op) {
   case Op::Plus:
     ptr = &s_plus;
+    // AC types are guranted to fit in their result type.
+    need_narrowing = !isa<const RegType *>(get_type());
     break;
   case Op::Minus:
     ptr = &s_minus;
+    // AC types are guranted to fit in their result type.
+    need_narrowing = !isa<const RegType *>(get_type());
     break;
   case Op::Times:
     ptr = &s_times;
+    // AC types are guranted to fit in their result type.
+    need_narrowing = !isa<const RegType *>(get_type());
     break;
   case Op::Divide:
+    // TODO
     return new Plist({ &s_fl, new Plist({ &s_slash, sexpr1, sexpr2 }) });
   case Op::Mod:
+    // AC types are guranted to fit in their result type.
+    need_narrowing = !isa<const RegType *>(get_type());
     ptr = &s_rem;
     break;
   case Op::LShift:
@@ -687,49 +722,73 @@ Sexpression *BinaryExpr::ACL2Expr(bool isBV) {
     break;
   case Op::BitAnd:
     ptr = &s_logand;
+    // The result is the same size as the biggest input.
+    need_narrowing = false;
     break;
   case Op::BitXor:
     ptr = &s_logxor;
+    // The result is the same size as the biggest input.
+    need_narrowing = false;
     break;
   case Op::BitOr:
     ptr = &s_logior;
+    // The result is the same size as the biggest input.
+    need_narrowing = false;
     break;
   case Op::Less:
     ptr = &s_logless;
+    // The result is always 0 or 1.
+    need_narrowing = false;
     break;
   case Op::Greater:
     ptr = &s_loggreater;
+    // The result is always 0 or 1.
+    need_narrowing = false;
     break;
   case Op::LessEqual:
     ptr = &s_logleq;
+    // The result is always 0 or 1.
+    need_narrowing = false;
     break;
   case Op::GreaterEqual:
     ptr = &s_loggeq;
+    // The result is always 0 or 1.
+    need_narrowing = false;
     break;
   case Op::Equal:
     ptr = &s_logeq;
+    // The result is always 0 or 1.
+    need_narrowing = false;
     break;
   case Op::NotEqual:
     ptr = &s_logneq;
+    // The result is always 0 or 1.
+    need_narrowing = false;
     break;
   case Op::And:
     ptr = &s_logand1;
+    // The result is always 0 or 1.
+    need_narrowing = false;
     break;
   case Op::Or:
     ptr = &s_logior1;
+    // The result is always 0 or 1.
+    need_narrowing = false;
     break;
-  default:
-    UNREACHABLE();
   }
 
-  if (get_type()
-      && (ptr == &s_logand || ptr == &s_logior || ptr == &s_logxor)) {
-    Plist *bv
-        = new Plist({ ptr, expr1->ACL2Expr(true), expr2->ACL2Expr(true) });
-    return isBV ? bv : get_type()->ACL2Eval(bv);
-  } else {
-    return new Plist({ ptr, sexpr1, sexpr2 });
+  if (!get_type()) {
+    prog.diag().report(this->loc(),
+                       format("untyped %s", to_string(op).c_str()));
   }
+
+  Sexpression *val = new Plist({ ptr, sexpr1, sexpr2 });
+
+  if (need_narrowing) {
+    val = numeric_cast(val, {}, get_type());
+  }
+
+  return isBV ? val : get_type()->ACL2Eval(val);
 }
 
 // class CondExpr : public Expression (conditional expression)
@@ -772,11 +831,6 @@ MultipleValue::MultipleValue(Location loc, MvType *t, List<Expression> *e)
     expr.push_back(e->value);
     e = e->pop();
   }
-
-  assert(expr.size() >= 2
-         && "It does not make sense to have a mv with 1 or 0 elem");
-  assert(type->size() == expr.size()
-         && "We should have as many types as values");
 }
 
 void MultipleValue::display(std::ostream &os) const {
@@ -788,6 +842,7 @@ void MultipleValue::display(std::ostream &os) const {
       os << ", ";
     }
     e->display(os);
+    first = false;
   }
   os << ">";
 }

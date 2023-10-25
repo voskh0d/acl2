@@ -147,8 +147,14 @@ VarDec::VarDec(NodesId id, Location loc, const char *n, Type *t, Expression *i)
 void VarDec::displaySimple(std::ostream &os) { displaySymDec(os); }
 
 Sexpression *VarDec::ACL2Expr() {
+
+  const Type *t = type;
+  if (auto dt = dynamic_cast<const DefinedType *>(t)) {
+    t = dt->derefType();
+  }
+
   Sexpression *val;
-  if (isa<const ArrayType *>(type)) {
+  if (isa<const ArrayType *>(t)) {
     if (!init) {
       val = new Plist();
     } else if (isROM()) {
@@ -156,16 +162,16 @@ Sexpression *VarDec::ACL2Expr() {
     } else {
       val = init->ACL2ArrayExpr();
     }
-  } else if (isa<const StructType *>(type)) {
+  } else if (isa<const StructType *>(t)) {
     if (!init) {
       val = new Plist();
     } else if (Initializer *i = dynamic_cast<Initializer *>(init)) {
-      val = i->ACL2StructExpr(always_cast<const StructType *>(type)->fields());
+      val = i->ACL2StructExpr(always_cast<const StructType *>(t)->fields());
     } else {
       val = init->ACL2ArrayExpr();
     }
   } else if (init) {
-    val = type->ACL2Assign(init);
+    val = t->ACL2Assign(init);
   } else {
     val = Integer::zero_v(loc_);
   }
@@ -350,63 +356,98 @@ Assignment::Assignment(Location loc, Expression *l, const char *o,
     : SimpleStatement(idOf(this), loc), lval(l), op(o), rval(r) {}
 
 void Assignment::displaySimple(std::ostream &os) {
-  lval->display(os);
-  if (rval) {
-    os << " " << op << " ";
+
+  if (!strcmp(op, "set_slc")) {
+
+    const Type *rval_type = rval->get_type();
+    if (!isa<const RegType *>(rval_type)) {
+      prog.diag().report(this->loc(), rval->loc(), "here");
+      std::cerr << rval_type->to_string();
+      assert(!"Second arg of set_slc must have a defined width");
+    }
+    unsigned w = always_cast<const RegType *>(rval_type)->width()->evalConst();
+    Subrange lval_slc(loc_, lval, index, w);
+    lval_slc.display(os);
+
+    os << " = ";
+
     rval->display(os);
-  } else {
+    return;
+  }
+
+  lval->display(os);
+
+  if (!strcmp(op, "++") || !strcmp(op, "--")) {
     os << op;
+  } else if (strcmp(op, "=")) {
+    os << ' ' << op << ' ';
+    always_cast<BinaryExpr *>(rval)->expr2->display(os);
+  } else {
+    os << ' ' << op << ' ';
+    rval->display(os);
   }
 }
 
 Sexpression *Assignment::ACL2Expr() {
 
   if (!strcmp(op, "set_slc")) {
+
     const Type *rval_type = rval->get_type();
-    if (!rval_type || !isa<const RegType *>(rval_type)) {
+    if (!isa<const RegType *>(rval_type)) {
       assert(!"Second arg of set_slc must have a defined width");
     }
 
     unsigned w = always_cast<const RegType *>(rval_type)->width()->evalConst();
 
-    Subrange lval_slc(loc_, lval, index, w);
-    return lval_slc.ACL2Assign(rval->ACL2Expr());
+    auto lval_slc = new Subrange(loc_, lval, index, w);
+
+    auto width = new Integer(Location::dummy(), w);
+
+    // TODO not sure about the false.
+    auto t = new IntType(Location::dummy(), width, false);
+    lval_slc->set_type(t);
+
+    return lval_slc->ACL2Assign(rval->ACL2Expr());
   }
 
-  Expression *expr = rval;
-  if (!strcmp(op, "=")) {
-    expr = rval;
+  // TODO shady why are we doing assing twice ?
+  const Type *lval_type = lval->get_type();
+  Sexpression *sexpr
+      = lval_type ? lval_type->ACL2Assign(rval) : rval->ACL2Expr();
+
+  return lval->ACL2Assign(sexpr);
+}
+
+void Assignment::desugar() {
+
+  if (!strcmp(op, "=") || !strcmp(op, "set_slc")) {
+    // Do nothing.
+    return;
   } else if (!strcmp(op, "++")) {
-    expr = new BinaryExpr(loc_, lval, Integer::one_v(loc_), "+");
+    rval = new BinaryExpr(loc_, lval, Integer::one_v(loc_), "+");
   } else if (!strcmp(op, "--")) {
-    expr = new BinaryExpr(loc_, lval, Integer::one_v(loc_), "-");
+    rval = new BinaryExpr(loc_, lval, Integer::one_v(loc_), "-");
   } else if (!strcmp(op, ">>=")) {
-    expr = new BinaryExpr(loc_, lval, rval, ">>");
+    rval = new BinaryExpr(loc_, lval, rval, ">>");
   } else if (!strcmp(op, "<<=")) {
-    expr = new BinaryExpr(loc_, lval, rval, "<<");
+    rval = new BinaryExpr(loc_, lval, rval, "<<");
   } else if (!strcmp(op, "+=")) {
-    expr = new BinaryExpr(loc_, lval, rval, "+");
+    rval = new BinaryExpr(loc_, lval, rval, "+");
   } else if (!strcmp(op, "-=")) {
-    expr = new BinaryExpr(loc_, lval, rval, "-");
+    rval = new BinaryExpr(loc_, lval, rval, "-");
   } else if (!strcmp(op, "*=")) {
-    expr = new BinaryExpr(loc_, lval, rval, "*");
+    rval = new BinaryExpr(loc_, lval, rval, "*");
   } else if (!strcmp(op, "%=")) {
-    expr = new BinaryExpr(loc_, lval, rval, "%");
+    rval = new BinaryExpr(loc_, lval, rval, "%");
   } else if (!strcmp(op, "&=")) {
-    expr = new BinaryExpr(loc_, lval, rval, "&");
+    rval = new BinaryExpr(loc_, lval, rval, "&");
   } else if (!strcmp(op, "^=")) {
-    expr = new BinaryExpr(loc_, lval, rval, "^");
+    rval = new BinaryExpr(loc_, lval, rval, "^");
   } else if (!strcmp(op, "|=")) {
-    expr = new BinaryExpr(loc_, lval, rval, "|");
+    rval = new BinaryExpr(loc_, lval, rval, "|");
   } else {
     assert(!"Unknown assignment operator");
   }
-
-  const Type *lval_type = lval->get_type();
-  Sexpression *sexpr
-      = lval_type ? lval_type->ACL2Assign(expr) : expr->ACL2Expr();
-
-  return lval->ACL2Assign(sexpr);
 }
 
 // class MultipleAssignment : public SimpleStatement
