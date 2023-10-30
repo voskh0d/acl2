@@ -104,10 +104,10 @@ public:
     return PrimType(Location::dummy(), "uint", nullptr, Rank::Int, false);
   }
   static PrimType Int64() {
-    return PrimType(Location::dummy(), "int64", "int", Rank::Long, true);
+    return PrimType(Location::dummy(), "int64", "int64", Rank::Long, true);
   }
   static PrimType Uint64() {
-    return PrimType(Location::dummy(), "uint64", "uint", Rank::Long, false);
+    return PrimType(Location::dummy(), "uint64", "uint64", Rank::Long, false);
   }
 
   Sexpression *ACL2Assign(Expression *rval) const override;
@@ -136,7 +136,8 @@ public:
 
   // https://en.cppreference.com/w/cpp/language/usual_arithmetic_conversions
   // Return a new type.
-  static Type *usual_conversions(const PrimType *t1, const PrimType *t2);
+  static Type *usual_conversions(const PrimType *t1, const PrimType *t2,
+                                 bool integer_promotion = true);
 
   const std::optional<std::string> RACname_;
   Rank rank_;

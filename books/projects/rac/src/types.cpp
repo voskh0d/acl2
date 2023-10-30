@@ -13,7 +13,7 @@
 std::string Type::to_string() const {
   std::stringstream ss;
 
-  //  // TODO
+  //  //  TODO
   //  auto cur = origin_;
   //  while (std::holds_alternative<const DefinedType *>(cur)) {
   //    auto dt = std::get<const DefinedType *>(cur);
@@ -62,7 +62,7 @@ Sexpression *PrimType::ACL2Assign(Expression *rval) const {
   const Type *rval_type = rval->get_type();
   //  assert(isa<const IntType *>(rval_type) || isa<const PrimType
   //  *>(rval_type));
-  return numeric_cast(rval->ACL2Expr(true), { rval_type }, this);
+  return numeric_cast(rval->ACL2Expr(), { rval_type }, this);
 }
 
 bool PrimType::isEqual(const Type *other) const {
@@ -78,14 +78,19 @@ bool PrimType::isEqual(const Type *other) const {
   }
 }
 
-Type *PrimType::usual_conversions(const PrimType *t1, const PrimType *t2) {
+Type *PrimType::usual_conversions(const PrimType *t1, const PrimType *t2,
+                                  bool integer_promotion) {
 
   // Integer promotion.
   PrimType *t1_promoted = new PrimType(*t1);
-  t1_promoted->integerPromtion();
+  if (integer_promotion) {
+    t1_promoted->integerPromtion();
+  }
 
   PrimType *t2_promoted = new PrimType(*t2);
-  t2_promoted->integerPromtion();
+  if (integer_promotion) {
+    t2_promoted->integerPromtion();
+  }
 
   // If T1 and T2 are the same type, C is that type.
   // Otherwise, if T1 and T2 are both signed integer types or both unsigned
@@ -170,7 +175,7 @@ Sexpression *IntType::ACL2Assign(Expression *rval) const {
   const Type *rval_type = rval->get_type();
   //  assert(isa<const IntType *>(rval_type) || isa<const PrimType
   //  *>(rval_type));
-  return numeric_cast(rval->ACL2Expr(true), { rval_type }, this);
+  return numeric_cast(rval->ACL2Expr(), { rval_type }, this);
 }
 
 bool IntType::isEqual(const Type *other) const {
@@ -209,7 +214,7 @@ Sexpression *FixedPointType::ACL2Assign(Expression *rval) const {
   const Type *t = rval->get_type();
 
   if (t == this) {
-    return rval->ACL2Expr(true);
+    return rval->ACL2Expr();
   } else {
     Sexpression *s = rval->ACL2Expr();
 
@@ -523,6 +528,9 @@ bool MvType::isEqual(const Type *other) const {
 Sexpression *numeric_cast(Sexpression *sexpr, std::optional<const Type *> src,
                           const Type *dst) {
 
+  // TODO
+  auto loc = Location::dummy();
+
   if (auto pt = dynamic_cast<const PrimType *>(dst)) {
     if (pt->rank_ == PrimType::Rank::Bool) {
 
@@ -536,46 +544,72 @@ Sexpression *numeric_cast(Sexpression *sexpr, std::optional<const Type *> src,
       }
 
       // Else we add this conversion to ensure that the value is alway 1 or 0.
-      return new Plist({ &s_if1, sexpr, &s_true, &s_false });
+      return new Plist(
+          { &s_if1, sexpr, new Plist({ &s_true }), new Plist({ &s_false }) });
     }
   }
 
   unsigned w_dst = dst->ACL2ValWidth();
   bool s_dst = isSigned(dst);
 
-  // TODO
-  auto loc = Location::dummy();
+  // A bits block is needed in two cases:
+  //
+  //  * when dealing with unbounded value (like when generating the result of
+  //  an arithmetic expression). In that case, src is nullopt.
+  //
+  //  * to perform narrowing conversion (either signed or unsigned).
+  //
+  //  * to perform a signed -> unsigned conversion.
+  //
+  //                 | w_src > w_dst | w_src = w_dst | w_src < w_dst
+  // ================+===============+===============+===============
+  // ~s_src & ~s_dst |    (bits x)   |       x       |       x
+  // ----------------+---------------+---------------+---------------
+  // s_src & ~s_dst  |    (bits x)   |    (bits x)   |    (bits x)
+  // ----------------+---------------+---------------+---------------
+  // ~s_src & s_dst  | (si (bits x)) |     (si x)    |       x
+  // ----------------+---------------+---------------+---------------
+  // s_src & s_dst   | (si (bits x)) |       x       |       x
+  // ----------------+---------------+---------------+---------------
+  //
+  bool needs_bits = [&]() {
+    // Unbounded value.
+    if (!src) {
+      return true;
+    }
 
-  if (src) {
     unsigned w_src = (*src)->ACL2ValWidth();
     bool s_src = isSigned(*src);
+    // Narrowing or signed to unsigned conversion.
+    return w_src > w_dst || (s_src && !s_dst);
+  }();
 
-    Sexpression *res = sexpr;
-
-    // Not bits needed.
-    if (w_src <= w_dst) {
-
-      // unsigned to signed conversion. If the destination is strictly smaller
-      // than the source, the full unsigned value can fit and we will never
-      // have an overflow, so si are not needed.
-      if (s_dst && !s_src && w_src == w_dst) {
-        res = new Plist({ &s_si, res, new Integer(loc, w_dst) });
-      }
-      // unsigned to signed conversion.
-      else if (!s_dst && s_src) {
-        res = new Plist({ &s_si, res, new Integer(loc, w_src) });
-      }
-
-      return res;
-    }
-  }
+  Sexpression *res = sexpr;
 
   // Bits alway does an signed to unsigned conversion, so we only need to add
   // a si if the destination is signed.
-  Sexpression *res = new Plist(
-      { &s_bits, sexpr, new Integer(loc, w_dst - 1), Integer::zero_v(loc) });
+  if (needs_bits) {
+    res = new Plist(
+        { &s_bits, sexpr, new Integer(loc, w_dst - 1), Integer::zero_v(loc) });
+  }
 
-  if (s_dst) {
+  // Two cases where we need si:
+  //  * we are after a bits
+  //  * the source is unsigned
+  bool needs_si = [&]() {
+    if (!s_dst) {
+      return false;
+    }
+    if (needs_bits) {
+      return true;
+    }
+    unsigned w_src = (*src)->ACL2ValWidth();
+    bool s_src = isSigned(*src);
+    // If w_dst > w_src then all the positive value of src can fit inside dst.
+    return !s_src && w_dst == w_src;
+  }();
+
+  if (needs_si) {
     res = new Plist({ &s_si, res, new Integer(loc, w_dst) });
   }
 

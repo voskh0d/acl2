@@ -67,16 +67,16 @@ Constant::Constant(NodesId id, Location loc, int n)
 
 bool Constant::isConst() { return true; }
 
-Sexpression *Constant::ACL2Expr([[maybe_unused]] bool isBV) { return this; }
+Sexpression *Constant::ACL2Expr() { return this; }
 
 // class Integer : public Constant
 // -------------------------------
 
 Integer::Integer(Location loc, const char *n) : Constant(idOf(this), loc, n) {
   if (!strncmp(getname(), "0x", 2)) {
-    val_ = strtol(getname() + 2, nullptr, 16);
+    val_ = strtoll(getname() + 2, nullptr, 16);
   } else if (!strncmp(getname(), "-0x", 3)) {
-    val_ = -strtol(getname() + 3, nullptr, 16);
+    val_ = -strtoll(getname() + 3, nullptr, 16);
   } else {
     val_ = atoi(getname());
   }
@@ -89,7 +89,7 @@ int Integer::evalConst() { return val_; }
 
 void Integer::display(std::ostream &os) const { os << getname(); }
 
-Sexpression *Integer::ACL2Expr([[maybe_unused]] bool isBV) {
+Sexpression *Integer::ACL2Expr() {
   if (!strncmp(getname(), "0x", 2)) {
     std::string new_name(getname());
     new_name[0] = '#';
@@ -116,7 +116,7 @@ void Boolean::display(std::ostream &os) const {
   os << (value_ ? "true" : "false");
 }
 
-Sexpression *Boolean::ACL2Expr([[maybe_unused]] bool isBV) {
+Sexpression *Boolean::ACL2Expr() {
   return new Plist({ value_ ? &s_true : &s_false });
 }
 
@@ -146,9 +146,9 @@ bool SymRef::isInteger() { return isIntegerType(get_type()); }
 
 void SymRef::display(std::ostream &os) const { symDec->sym->display(os); }
 
-Sexpression *SymRef::ACL2Expr(bool isBV) {
+Sexpression *SymRef::ACL2Expr() {
   Sexpression *s = symDec->ACL2SymExpr();
-  return isBV ? s : get_type()->ACL2Eval(s);
+  return s;
 }
 
 Sexpression *SymRef::ACL2Assign(Sexpression *rval) {
@@ -188,7 +188,7 @@ void FunCall::display(std::ostream &os) const {
   os << ")";
 }
 
-Sexpression *FunCall::ACL2Expr(bool isBV) {
+Sexpression *FunCall::ACL2Expr() {
   Plist *result = new Plist({ new Symbol(func->getname()) });
   List<VarDec> *p = func->params;
   List<Expression> *a = args;
@@ -197,7 +197,7 @@ Sexpression *FunCall::ACL2Expr(bool isBV) {
     a = a->next;
     p = p->next;
   }
-  return isBV ? result : get_type()->ACL2Eval(result);
+  return result;
 }
 
 // class TempCall : public Expression (function template Data)
@@ -232,9 +232,9 @@ void TempCall::display(std::ostream &os) const {
   os << ")";
 }
 
-Sexpression *TempCall::ACL2Expr(bool isBV) {
+Sexpression *TempCall::ACL2Expr() {
   dynamic_cast<Template *>(func)->bindParams(params);
-  Plist *result = dynamic_cast<Plist *>(FunCall::ACL2Expr(isBV));
+  Plist *result = dynamic_cast<Plist *>(FunCall::ACL2Expr());
   result->list->value = instanceSym;
   return result;
 }
@@ -261,7 +261,7 @@ void Initializer::display(std::ostream &os) const {
   os << "}";
 }
 
-Sexpression *Initializer::ACL2Expr([[maybe_unused]] bool isBV) {
+Sexpression *Initializer::ACL2Expr() {
   BigList<Sexpression> *result
       = new BigList<Sexpression>((Sexpression *)(vals->value->ACL2Expr()));
   List<Constant> *ptr = vals->next;
@@ -323,7 +323,7 @@ void ArrayRef::display(std::ostream &os) const {
   os << "]";
 }
 
-Sexpression *ArrayRef::ACL2Expr(bool isBV) {
+Sexpression *ArrayRef::ACL2Expr() {
   if (isa<const ArrayType *>(array->get_type())) {
     Sexpression *s = nullptr;
     SymRef *ref = dynamic_cast<SymRef *>(array);
@@ -337,10 +337,21 @@ Sexpression *ArrayRef::ACL2Expr(bool isBV) {
     } else {
       s = new Plist({ &s_ag, index->ACL2Expr(), array->ACL2Expr() });
     }
-    return isBV ? s : get_type()->ACL2Eval(s);
+    return s;
   } else {
-    Sexpression *b = array->ACL2Expr(true);
+
+    Sexpression *b = array->ACL2Expr();
     Sexpression *i = index->ACL2Expr();
+
+    // If the register is signed, get its 2-complement representation.
+    const RegType *t = always_cast<const RegType *>(array->get_type());
+
+    if (t->isSigned()) {
+      unsigned n = t->width()->evalConst();
+      b = new Plist(
+          { &s_bits, b, new Integer(loc_, n - 1), Integer::zero_v(loc_) });
+    }
+
     return new Plist({ &s_bitn, b, i });
   }
 }
@@ -350,15 +361,27 @@ Sexpression *ArrayRef::ACL2Assign(Sexpression *rval) {
     return array->ACL2Assign(
         new Plist({ &s_as, index->ACL2Expr(), rval, array->ACL2Expr() }));
   } else {
-    Sexpression *b = array->ACL2Expr(true);
+    Sexpression *b = array->ACL2Expr();
     Sexpression *i = index->ACL2Expr();
 
-    unsigned n = always_cast<const RegType *>(array->get_type())
-                     ->width()
-                     ->evalConst();
-    Integer *s = new Integer(loc_, n);
+    const RegType *t = always_cast<const RegType *>(array->get_type());
+    unsigned n = t->width()->evalConst();
 
-    return array->ACL2Assign(new Plist({ &s_setbitn, b, s, i, rval }));
+    // If the register is signed, get its 2-complement representation.
+    if (t->isSigned()) {
+      b = new Plist(
+          { &s_bits, b, new Integer(loc_, n - 1), Integer::zero_v(loc_) });
+    }
+
+    Integer *s = new Integer(loc_, n);
+    Sexpression *val = new Plist({ &s_setbitn, b, s, i, rval });
+
+    // If the register is signed, recover the signed value.
+    if (t->isSigned()) {
+      val = new Plist({ &s_si, val, new Integer(loc_, n) });
+    }
+
+    return array->ACL2Assign(val);
   }
 }
 
@@ -380,7 +403,7 @@ void StructRef::display(std::ostream &os) const {
   os << "." << field;
 }
 
-Sexpression *StructRef::ACL2Expr(bool isBV) {
+Sexpression *StructRef::ACL2Expr() {
   Symbol *sym = always_cast<const StructType *>(base->get_type())
                     ->getField(field)
                     ->sym;
@@ -388,7 +411,7 @@ Sexpression *StructRef::ACL2Expr(bool isBV) {
   Sexpression *s
       = new Plist({ &s_ag, new Plist({ &s_quote, sym }), base->ACL2Expr() });
 
-  return isBV ? s : get_type()->ACL2Eval(s);
+  return s;
 }
 
 Sexpression *StructRef::ACL2Assign(Sexpression *rval) {
@@ -424,20 +447,17 @@ void Subrange::display(std::ostream &os) const {
   os << "]";
 }
 
-Sexpression *Subrange::ACL2Expr([[maybe_unused]] bool isBV) {
-  Sexpression *b = base->ACL2Expr(true); // here
+Sexpression *Subrange::ACL2Expr() {
+  Sexpression *b = base->ACL2Expr();
   Sexpression *hi = high->ACL2Expr();
   Sexpression *lo = low->ACL2Expr();
 
   Sexpression *bv_val = new Plist({ &s_bits, b, hi, lo });
 
-  if (const RegType *t = dynamic_cast<const RegType *>(base->get_type())) {
+  const RegType *t = always_cast<const RegType *>(base->get_type());
 
-    if (t->isSigned()) {
-      return new Plist({ &s_si, bv_val, new Integer(loc_, width_) });
-    } else {
-      return bv_val;
-    }
+  if (t->isSigned()) {
+    return new Plist({ &s_si, bv_val, new Integer(loc_, width_) });
   } else {
     return bv_val;
   }
@@ -445,15 +465,28 @@ Sexpression *Subrange::ACL2Expr([[maybe_unused]] bool isBV) {
 
 Sexpression *Subrange::ACL2Assign(Sexpression *rval) {
 
-  Sexpression *b = base->ACL2Expr(true);
+  Sexpression *b = base->ACL2Expr();
   Sexpression *hi = high->ACL2Expr();
   Sexpression *lo = low->ACL2Expr();
 
-  unsigned n
-      = always_cast<const RegType *>(base->get_type())->width()->evalConst();
+  const RegType *t = always_cast<const RegType *>(base->get_type());
+  unsigned n = t->width()->evalConst();
+
+  // If the register is signed, get its 2-complement representation.
+  if (t->isSigned()) {
+    b = new Plist(
+        { &s_bits, b, new Integer(loc_, n - 1), Integer::zero_v(loc_) });
+  }
 
   Integer *s = new Integer(loc_, n);
-  return base->ACL2Assign(new Plist({ &s_setbits, b, s, hi, lo, rval }));
+  Sexpression *val = new Plist({ &s_setbits, b, s, hi, lo, rval });
+
+  // If the register is signed, recover the signed value.
+  if (t->isSigned()) {
+    val = new Plist({ &s_si, val, new Integer(loc_, n) });
+  }
+
+  return base->ACL2Assign(val);
 }
 
 // class PrefixExpr : public Expression
@@ -525,7 +558,7 @@ void PrefixExpr::display(std::ostream &os) const {
   expr->display(os);
 }
 
-Sexpression *PrefixExpr::ACL2Expr(bool isBV) {
+Sexpression *PrefixExpr::ACL2Expr() {
   Sexpression *s = expr->ACL2Expr();
   if (op == Op::UnaryPlus) {
     return s;
@@ -534,20 +567,9 @@ Sexpression *PrefixExpr::ACL2Expr(bool isBV) {
   } else if (op == Op::Not) {
     return new Plist({ &s_lognot1, s });
   } else if (op == Op::BitNot) {
-    const Type *t = get_type();
-    if (t) {
-      Plist *bv = new Plist({ &s_lognot, expr->ACL2Expr(true) });
-      if (isBV && isa<const RegType *>(t)) {
-        unsigned w = always_cast<const RegType *>(t)->width()->evalConst();
-        return new Plist(
-            { &s_bits, bv, new Integer(loc_, w - 1), Integer::zero_v(loc_) });
-      } else {
-        return t->ACL2Eval(bv);
-        //?? return bv;
-      }
-    } else {
-      return new Plist({ &s_lognot, s });
-    }
+
+    Plist *val = new Plist({ &s_lognot, expr->ACL2Expr() });
+    return numeric_cast(val, {}, get_type());
   } else
     UNREACHABLE();
 }
@@ -571,9 +593,7 @@ bool CastExpr::isInteger() { return expr->isInteger(); }
 
 void CastExpr::display(std::ostream &os) const { expr->display(os); }
 
-Sexpression *CastExpr::ACL2Expr([[maybe_unused]] bool isBV) {
-  return type->ACL2Assign(expr);
-}
+Sexpression *CastExpr::ACL2Expr() { return type->ACL2Assign(expr); }
 
 // class BinaryExpr : public Expression
 // ------------------------------------
@@ -672,7 +692,7 @@ void BinaryExpr::display(std::ostream &os) const {
   expr2->display(os);
 }
 
-Sexpression *BinaryExpr::ACL2Expr(bool isBV) {
+Sexpression *BinaryExpr::ACL2Expr() {
 
   Symbol *ptr = nullptr;
   Sexpression *sexpr1 = expr1->ACL2Expr();
@@ -788,7 +808,7 @@ Sexpression *BinaryExpr::ACL2Expr(bool isBV) {
     val = numeric_cast(val, {}, get_type());
   }
 
-  return isBV ? val : get_type()->ACL2Eval(val);
+  return val;
 }
 
 // class CondExpr : public Expression (conditional expression)
@@ -813,7 +833,7 @@ void CondExpr::display(std::ostream &os) const {
   expr2->display(os);
 }
 
-Sexpression *CondExpr::ACL2Expr([[maybe_unused]] bool isBV) {
+Sexpression *CondExpr::ACL2Expr() {
   return new Plist(
       { &s_if1, test->ACL2Expr(), expr1->ACL2Expr(), expr2->ACL2Expr() });
 }
@@ -847,7 +867,7 @@ void MultipleValue::display(std::ostream &os) const {
   os << ">";
 }
 
-Sexpression *MultipleValue::ACL2Expr([[maybe_unused]] bool isBV) {
+Sexpression *MultipleValue::ACL2Expr() {
 
   Plist *result = new Plist({ &s_mv });
 

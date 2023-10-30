@@ -47,11 +47,35 @@ bool TypingAction::TraverseTemplate(Template *e) {
 
 bool TypingAction::VisitInteger(Integer *e) {
   // TODO for now, we does not support unsigned literal.
-  if (e->val_ > std::numeric_limits<int>::max()
-      || e->val_ < std::numeric_limits<int>::min())
-    e->set_type(&int64Type);
-  else
-    e->set_type(&intType);
+
+  // The type of the integer literal is the first type in which the value can
+  // fit. If the literal is written in decimal, then it is always signed.
+  // https://en.cppreference.com/w/cpp/language/integer_literal
+  if (e->format() == Integer::Format::Decimal) {
+    if (e->val_ <= std::numeric_limits<int>::max()
+        && e->val_ >= std::numeric_limits<int>::min())
+      e->set_type(&intType);
+    else
+      e->set_type(&int64Type);
+  } else {
+    if (e->val_ <= std::numeric_limits<int>::max()
+        && e->val_ >= std::numeric_limits<int>::min()) {
+      e->set_type(&intType);
+    } else if (e->val_ <= std::numeric_limits<unsigned>::max()
+               && e->val_ >= std::numeric_limits<unsigned>::min()) {
+      e->set_type(&uintType);
+    } else if (e->val_ < std::numeric_limits<long>::max()
+               && e->val_ >= std::numeric_limits<long>::min()) {
+      e->set_type(&int64Type);
+    } else if (static_cast<unsigned long>(e->val_)
+                   < std::numeric_limits<unsigned long>::max()
+               && static_cast<unsigned long>(e->val_)
+                      >= std::numeric_limits<unsigned long>::min()) {
+      e->set_type(&uint64Type);
+    } else {
+      UNREACHABLE();
+    }
+  }
   return true;
 }
 
@@ -273,7 +297,10 @@ bool TypingAction::VisitBinaryExpr(BinaryExpr *e) {
     if (BinaryExpr::isOpShift(e->op)) {
       w_res = w1;
       s_res = s1;
-    } else if (BinaryExpr::isOpBitwise(e->op) || e->op == BinaryExpr::Op::Plus
+    } else if (BinaryExpr::isOpBitwise(e->op)) {
+      w_res = std::max(w1 + (!s1 && s2), w2 + (!s2 && s1));
+      s_res = (e->op == BinaryExpr::Op::Minus) ? true : s1 || s2;
+    } else if (e->op == BinaryExpr::Op::Plus
                || e->op == BinaryExpr::Op::Minus) {
       w_res = std::max(w1 + (!s1 && s2), w2 + (!s2 && s1)) + 1;
       s_res = (e->op == BinaryExpr::Op::Minus) ? true : s1 || s2;
@@ -321,6 +348,14 @@ bool TypingAction::VisitCondExpr(CondExpr *e) {
 
     e->set_type(new ErrorType());
     return error();
+  }
+
+  // TODO they don't need to be exacly equal, for ex int and long works
+  if (auto t1 = dynamic_cast<const PrimType *>(e->expr1->get_type())) {
+    if (auto t2 = dynamic_cast<const PrimType *>(e->expr2->get_type())) {
+      e->set_type(PrimType::usual_conversions(t1, t2, false));
+      return true;
+    }
   }
 
   if (!e->expr1->get_type()->isEqual(e->expr2->get_type())) {

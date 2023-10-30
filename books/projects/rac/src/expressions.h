@@ -26,23 +26,8 @@ public:
 
   virtual void display(std::ostream &os) const = 0;
 
-  // The following method converts an expression to an S-expression.  The
-  // argument isBV is relevant only for a typed expression of a register type
-  // In this case, if isBV is true, then the resulting S-expression should
-  // represent the value of the bit vector contents of the register, and
-  // otherwise it should represent the value of that bit vector as interpreted
-  // according to the type. The argument isBV is set the following cases:
-  //
-  // (1) The expression is being assigned to a register of the same type;
-  //
-  // (2) The expression is being assigned to an integer register and the
-  // expression is an unsigned integer register of width not exceeding that of
-  // the target;
-  //
-  // (3) The resulting S-expression is to be the first argument of bitn, bits,
-  // setbitn, or setbits. (4) The expression is an argument of a logical
-  // expression of a register type.
-  virtual Sexpression *ACL2Expr(bool isBV = false) = 0;
+  // The following method converts an expression to an S-expression.
+  virtual Sexpression *ACL2Expr() = 0;
   virtual Sexpression *ACL2ArrayExpr();
   virtual Sexpression *ACL2Assign(Sexpression *rval);
 
@@ -71,7 +56,7 @@ public:
   Constant(NodesId id, Location loc, int n);
   bool isConst() override;
   bool isInteger() override { return true; }
-  Sexpression *ACL2Expr(bool isBV = false) override;
+  Sexpression *ACL2Expr() override;
 };
 
 // For now, we does not support unsigned literal.
@@ -83,12 +68,24 @@ public:
   // TODO if it is an uint/int64/uint64 this could overflow.
   int evalConst() override;
   void display(std::ostream &os) const override;
-  Sexpression *ACL2Expr(bool isBV) override;
+  Sexpression *ACL2Expr() override;
 
   static Integer *zero_v(Location loc) { return new Integer(loc, "0"); }
   static Integer *one_v(Location loc) { return new Integer(loc, "1"); }
   static Integer *two_v(Location loc) { return new Integer(loc, "2"); }
 
+  enum Format { Decimal, Hexadecimal };
+  Format format() const {
+    if (!strncmp(getname(), "0x", 2)) {
+      return Format::Hexadecimal;
+    } else if (!strncmp(getname(), "-0x", 3)) {
+      return Format::Hexadecimal;
+    } else {
+      return Format::Decimal;
+    }
+  }
+
+  // TODO: unsgined long to store the absolute value and bool to store sign
   long val_;
 };
 
@@ -98,7 +95,7 @@ public:
   Boolean(Location loc, bool value);
   int evalConst() override;
   void display(std::ostream &os) const override;
-  Sexpression *ACL2Expr(bool isBV = false) override;
+  Sexpression *ACL2Expr() override;
 
   static Boolean *true_v(Location loc) { return new Boolean(loc, true); }
   static Boolean *false_v(Location loc) { return new Boolean(loc, false); }
@@ -127,9 +124,7 @@ public:
     os << ')';
   }
 
-  virtual Sexpression *ACL2Expr(bool isBV = false) override {
-    return expr_->ACL2Expr(isBV);
-  }
+  virtual Sexpression *ACL2Expr() override { return expr_->ACL2Expr(); }
   virtual Sexpression *ACL2ArrayExpr() override {
     return expr_->ACL2ArrayExpr();
   }
@@ -147,7 +142,7 @@ public:
   virtual int evalConst() override;
   bool isInteger() override;
   void display(std::ostream &os) const override;
-  Sexpression *ACL2Expr(bool isBV = false) override;
+  Sexpression *ACL2Expr() override;
   Sexpression *ACL2Assign(Sexpression *rval) override;
 };
 
@@ -163,7 +158,7 @@ public:
 
   bool isInteger() override;
   void display(std::ostream &os) const override;
-  Sexpression *ACL2Expr(bool isBV = false) override;
+  Sexpression *ACL2Expr() override;
 };
 
 class Template;
@@ -175,7 +170,7 @@ public:
   TempCall(Location loc, Template *f, List<Expression> *a,
            List<Expression> *p);
   void display(std::ostream &os) const override;
-  Sexpression *ACL2Expr(bool isBV = false) override;
+  Sexpression *ACL2Expr() override;
 };
 
 class Initializer final : public Expression {
@@ -183,7 +178,7 @@ public:
   List<Constant> *vals;
   Initializer(Location loc, List<Constant> *v);
   void display(std::ostream &os) const override;
-  Sexpression *ACL2Expr(bool isBV = false) override;
+  Sexpression *ACL2Expr() override;
   Sexpression *ACL2ArrayExpr() override;
 
   Sexpression *ACL2StructExpr(const std::vector<StructField *> &fields);
@@ -198,7 +193,7 @@ public:
   bool isInteger() override;
   void display(std::ostream &os) const override;
 
-  Sexpression *ACL2Expr(bool isBV = false) override;
+  Sexpression *ACL2Expr() override;
   Sexpression *ACL2Assign(Sexpression *rval) override;
 };
 
@@ -209,7 +204,7 @@ public:
   StructRef(Location loc, Expression *s, char *f);
   bool isInteger() override;
   void display(std::ostream &os) const override;
-  Sexpression *ACL2Expr(bool isBV = false) override;
+  Sexpression *ACL2Expr() override;
   Sexpression *ACL2Assign(Sexpression *rval) override;
 };
 
@@ -226,7 +221,7 @@ public:
   bool isInteger() override { return true; }
   void display(std::ostream &os) const override;
 
-  Sexpression *ACL2Expr(bool isBV = false) override;
+  Sexpression *ACL2Expr() override;
   Sexpression *ACL2Assign(Sexpression *rval) override;
 
 private:
@@ -255,7 +250,7 @@ public:
   int evalConst() override;
   bool isInteger() override;
   void display(std::ostream &os) const override;
-  Sexpression *ACL2Expr(bool isBV = false) override;
+  Sexpression *ACL2Expr() override;
 };
 
 std::ostream &operator<<(std::ostream &os, PrefixExpr::Op op);
@@ -270,7 +265,7 @@ public:
   int evalConst() override;
   bool isInteger() override;
   void display(std::ostream &os) const override;
-  Sexpression *ACL2Expr(bool isBV = false) override;
+  Sexpression *ACL2Expr() override;
 };
 
 class BinaryExpr final : public Expression {
@@ -294,7 +289,7 @@ public:
   int evalConst() override;
   bool isInteger() override;
   void display(std::ostream &os) const override;
-  Sexpression *ACL2Expr(bool isBV = false) override;
+  Sexpression *ACL2Expr() override;
 
   static bool isOpShift(Op o);
   static bool isOpArithmetic(Op o);
@@ -317,7 +312,7 @@ public:
   CondExpr(Location loc, Expression *e1, Expression *e2, Expression *t);
   bool isInteger() override;
   void display(std::ostream &os) const override;
-  Sexpression *ACL2Expr(bool isBV = false) override;
+  Sexpression *ACL2Expr() override;
 };
 
 class MultipleValue final : public Expression {
@@ -330,7 +325,7 @@ public:
   MultipleValue(Location loc, MvType *t, List<Expression> *e);
 
   void display(std::ostream &os) const override;
-  Sexpression *ACL2Expr(bool isBV = false) override;
+  Sexpression *ACL2Expr() override;
 };
 
 #endif // EXPRESSIONS_H
