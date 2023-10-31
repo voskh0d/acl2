@@ -151,6 +151,10 @@
                lower case and the other in upper case, Lisp is not sensible to
                case so the RAC parser should not be case sensible.
 
+- name: variable-mix-upper-lower-case-2
+  has_failed: true
+  exit_code: 1
+
 - name: variable-redeclaration
   has_failed: true
   exit_code: 1

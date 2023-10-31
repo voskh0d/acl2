@@ -90,29 +90,23 @@ void DiagnosticHandler::show_code_at(const Location &context,
   assert(std::fseek(file_, saved_pos, SEEK_SET) == 0);
 }
 
-void DiagnosticHandler::report(const Location &context, const Location &error,
-                               const std::string &msg) {
+void DiagnosticHandler::Diagnostic::report() {
 
   std::cout << std::flush;
 
-  if (!first_error_reported_)
+  if (!dh_.first_error_reported_)
     std::cerr << '\n';
-  first_error_reported_ = false;
+  dh_.first_error_reported_ = false;
 
-  std::cerr << error << ' ' << msg << '\n';
+  std::cerr << error_loc_ << ' ' << error_msg_ << '\n';
 
-  show_code_at(context, error);
-}
+  dh_.show_code_at(context_.value_or(error_loc_), error_loc_);
 
-void DiagnosticHandler::report(const Location &error, const std::string &msg) {
-  report(error, error, msg);
-}
+  if (note_msg_) {
+    std::cerr << "note: " << note_msg_->get() << '\n';
+  }
 
-void DiagnosticHandler::report(const Location &context, const Location &error,
-                               const std::string &msg,
-                               const Location &note_loc,
-                               const std::string &note_msg) {
-  report(context, error, msg);
-  std::cerr << "note: " << note_msg << '\n';
-  show_code_at(note_loc, Location::dummy());
+  if (note_loc_) {
+    dh_.show_code_at(note_loc_->get(), Location::dummy());
+  }
 }

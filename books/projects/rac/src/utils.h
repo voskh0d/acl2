@@ -218,61 +218,26 @@ public:
   List<T> *front() { return front_; }
 };
 
-// Stacks:
-
-template <typename T>
-class SymbolStack {
-  // We use a deque to store all values and we use nullptr to mark the limit
-  // between frames. All values are sorted from last to be pushed to first
-  // (this is done cheaply by deque push_front()) and thus searching should be
-  // more or less efficient (we are traversing the addresses from low to high).
-public:
-  void push(T *value) {
-    assert(value && "this stack does not support nullptr as value");
-    data_.push_front(value);
+#define STRONGTYPEDEF(BASE, TYPE)                                             \
+  struct TYPE {                                                               \
+    TYPE() = default;                                                         \
+    TYPE(BASE v) : value(v) {}                                                \
+    TYPE(const TYPE &v) = default;                                            \
+    TYPE &operator=(const TYPE &rhs) = default;                               \
+    TYPE &operator=(BASE &rhs) { value = rhs; return *this; }                 \
+    operator BASE & () { return value; }                                      \
+    bool operator==(const TYPE &rhs) const { return value == rhs.value; }     \
+    bool operator==(const BASE &rhs) const { return value == rhs; }           \
+    bool operator<(const TYPE &rhs) const { return value < rhs.value; }       \
+    BASE value;                                                               \
+    using BaseType = BASE;                                                    \
   }
 
-  void pushFrame() { data_.push_front(nullptr); }
-
-  void popFrame() {
-    // While there is some values in the vector and the last one is not null
-    // (the end of the last frame), we remove the element of the last frame.
-    while (data_.size() && data_.front()) {
-      data_.pop_front();
-    }
-  }
-
-  T *find_last_frame(const char *name) {
-    for (auto it = begin(data_); it != end(data_); ++it) {
-      // Detect the limit of frame and stop.
-      if (!*it) {
-        break;
-      }
-
-      if (!strcmp((*it)->getname(), name)) {
-        return *it;
-      }
-    }
-    return nullptr;
-  }
-
-  T *find(const char *name) {
-    for (auto it = begin(data_); it != end(data_); ++it) {
-      // Detect the limit of frame and ingore it.
-      if (!*it) {
-        continue;
-      }
-
-      if (!strcmp((*it)->getname(), name)) {
-        return *it;
-      }
-    }
-    return nullptr;
-  }
-
-private:
-  std::deque<T *> data_;
-};
+template<class... Ts>
+struct overloaded : Ts... { using Ts::operator()...; };
+// explicit deduction guide (not needed as of C++20)
+template<class... Ts>
+overloaded(Ts...) -> overloaded<Ts...>;
 
 // Check if the pointer elm is of type T. T and U should be both a pointer
 // type. If both are the type but one if const (or volatile) and not the other

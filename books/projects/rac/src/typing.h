@@ -6,10 +6,7 @@
 #include "visitor.h"
 
 // This pass is rensposible of the typing (type check and determing the type)
-// of each nodes (expressions and some statements). It also dereference the
-// defined types to their "real" type.
-// TODO: not all nodes are typed correctly (some don't even have a type) and
-// there is no type check yet.
+// of each nodes (expressions and some statements).
 class TypingAction final : public RecursiveASTVisitor<TypingAction> {
 public:
   TypingAction(DiagnosticHandler &diag) : diag_(diag) {}
@@ -44,8 +41,6 @@ public:
   bool VisitCondExpr(CondExpr *e);
   bool VisitMultipleValue(MultipleValue *e);
 
-  // Only dereference type.
-  //  bool VisitSymDec(SymDec *s);
   // Type and dereference the type of return.
   bool VisitReturnStmt(ReturnStmt *s);
   bool VisitSwitchStmt(SwitchStmt *s);

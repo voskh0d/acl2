@@ -163,7 +163,7 @@ comment ()
         c = yyinput();
       }
     }
-  prog.diag().report(yylloc, "Unterminated comment");
+  prog.diag().new_error(yylloc, "Unterminated comment").report();
   return false;
 }
 

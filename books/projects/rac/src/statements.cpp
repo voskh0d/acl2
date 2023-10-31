@@ -361,8 +361,7 @@ void Assignment::displaySimple(std::ostream &os) {
 
     const Type *rval_type = rval->get_type();
     if (!isa<const RegType *>(rval_type)) {
-      prog.diag().report(this->loc(), rval->loc(), "here");
-      std::cerr << rval_type->to_string();
+      // TODO this should be check during typing.
       assert(!"Second arg of set_slc must have a defined width");
     }
     unsigned w = always_cast<const RegType *>(rval_type)->width()->evalConst();
@@ -394,6 +393,7 @@ Sexpression *Assignment::ACL2Expr() {
 
     const Type *rval_type = rval->get_type();
     if (!isa<const RegType *>(rval_type)) {
+      // TODO this should be check during typing.
       assert(!"Second arg of set_slc must have a defined width");
     }
 

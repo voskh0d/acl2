@@ -15,13 +15,49 @@ extern Location yylloc;
 
 void yyerror (const char *s)
 {
-  prog.diag().report(yylloc, s);
+  prog.diag()
+      .new_error(yylloc, s)
+      .report();
 }
 
 Program prog;
 List<Builtin> builtins (new Builtin (Location::dummy(), "abs", &intType,
     new List<VarDec>(new VarDec(Location::dummy(), "", &intType))));
-SymbolStack<SymDec> symTab;
+SymbolStack symTab;
+
+template <typename F, typename... Args>
+bool register_with_new_id(const std::string& id, const Location& loc,
+                          F register_action, Args... args) {
+
+  auto res = symTab.find_last_frame_safe (id.c_str());
+  bool error = std::visit(overloaded {
+      [&](SymbolStack::None) {
+        register_action(args...);
+        return false;
+      },
+      [&](SymbolStack::Found f) {
+        auto message = format("Duplicate identifier declaration (could be an "
+                             "enum, a variable or template parameter) `%s`",
+                             id.c_str());
+        prog.diag()
+          .new_error(loc, message)
+          .note("first defined here")
+          .note_location(f.value->loc())
+          .report();
+
+        return true;
+      },
+      [&](SymbolStack::FoundWithDifferentCase f) {
+        prog.diag()
+            .new_error(f.value->loc(), format("TODO: `%s`", id.c_str()))
+            .context(loc)
+            .report();
+          return true;
+      }
+    }, res);
+
+  return error;
+}
 
 #define YYLLOC_DEFAULT(Cur, Rhs, N)                                           \
 do                                                                            \
@@ -137,7 +173,9 @@ program_element : type_dec ';'
 {
   if (!prog.registerType($1))
   {
-      prog.diag().report (@$, "Duplicate type definition");
+      prog.diag()
+          .new_error(@$, "Duplicate type definition")
+          .report();
       YYERROR;
   }
 }
@@ -145,7 +183,9 @@ program_element : type_dec ';'
 {
   if(!prog.registerConstDec(static_cast<ConstDec *>($1)))
     {
-      prog.diag().report (@$, "Duplicate global constant declaration");
+      prog.diag()
+          .new_error(@$, "Duplicate global constant declaration")
+          .report();
       YYERROR;
     }
 }
@@ -155,8 +195,11 @@ program_element : type_dec ';'
     {
       auto loc = static_cast<FunDef *>($1)->get_decl_loc();
       auto previous_loc = prog.getFunDef($1->getname())->get_decl_loc();
-      prog.diag().report(loc, loc, "Duplicate function definition",
-                        previous_loc, "defined here:");
+      prog.diag()
+          .new_error(loc, "Duplicate function definition")
+          .note("defined here:")
+          .note_location(previous_loc)
+          .report();
       YYERROR;
     }
 };
@@ -180,8 +223,10 @@ typedef_dec : TYPEDEF typedef_type ID { $$ = new DefinedType (@$, $3, $2); }
     }
   else
     {
-      prog.diag().report(@$, @3,
-        "Array dimension not a positive integer constant");
+      prog.diag()
+          .new_error(@3, "Array dimension not a positive integer constant")
+          .context(@$)
+          .report();
       YYERROR;
     }
 };
@@ -223,7 +268,9 @@ register_type
     }
   else
     {
-      prog.diag().report(@$, "Illegal parameter of ac_fixed");
+      prog.diag()
+          .new_error(@$, "Illegal parameter of ac_fixed")
+          .report();
       YYERROR;
     }
 }
@@ -236,7 +283,9 @@ register_type
     }
   else
     {
-      prog.diag().report(@$, "Illegal parameter of ac_fixed");
+      prog.diag()
+          .new_error(@$, "Illegal parameter of ac_fixed")
+          .report();
       YYERROR;
     }
 }
@@ -248,7 +297,22 @@ register_type
     }
   else
     {
-      prog.diag().report (@$, "Illegal parameter of ac_int");
+      const char *expected = [&]() {
+        if (!$3->isConst ()) {
+          return "constant";
+        } else if (!$3->isInteger ()) {
+          return "an integer";
+        } else {
+          return "positive";
+        }
+      }();
+
+      auto message = format("Illegal parameter of ac_int, expected this to be "
+                            "%s but is not.", expected);
+      prog.diag()
+          .new_error(@3, message)
+          .context(@$)
+          .report();
       YYERROR;
     }
 }
@@ -260,7 +324,9 @@ register_type
     }
   else
     {
-      prog.diag().report (@$, "Illegal parameter of ac_int");
+      prog.diag()
+          .new_error(@$, "Illegal parameter of ac_int")
+          .report();
       YYERROR;
     }
 }
@@ -275,7 +341,10 @@ array_param_type : ARRAY '<' type_spec ',' arithmetic_expression '>'
     }
   else
     {
-      prog.diag().report (@$, @3, "Non-constant array dimension");
+      prog.diag()
+          .new_error(@3, "Non-constant array dimension")
+          .context(@$)
+          .report();
       YYERROR;
     }
 };
@@ -294,32 +363,26 @@ enum_const_dec_list : enum_const_dec { $$ = new std::vector<EnumConstDec *> ({$1
 { $1->push_back($3); $$ = $1; };
 
 enum_const_dec : ID
-               {
-  if (symTab.find_last_frame ($1))
-    {
-      prog.diag().report(
-        @$,
-        format("Duplicate identifier declaration (could be an enum, a "
-               "variable or template parameter) `%s`",
-               $1));
-      YYERROR;
-    }
-  $$ = new EnumConstDec (@$, $1);
-  symTab.push ($$);
+{
+  bool error = register_with_new_id($1, @$,
+    [&](const Location& loc, const std::string& id) {
+      $$ = new EnumConstDec (loc, id.c_str());
+      symTab.push($$);
+    }, @$, $1);
+  if (error) {
+    YYERROR;
+  }
 }
 | ID '=' expression
 {
-  if (symTab.find_last_frame ($1))
-    {
-      prog.diag().report(
-        @$,
-        format("Duplicate identifier declaration (could be an enum, a "
-               "variable or template parameter) `%s`",
-               $1));
-      YYERROR;
-    }
-  $$ = new EnumConstDec (@$, $1, $3);
-  symTab.push ($$);
+  bool error = register_with_new_id($1, @$,
+    [&](const Location& loc, const std::string& id, Expression *val) {
+      $$ = new EnumConstDec (loc, id.c_str(), val);
+      symTab.push($$);
+    }, @$, $1, $3);
+  if (error) {
+    YYERROR;
+  }
 };
 
 mv_type : TUPLE '<' type_spec ',' type_spec '>'
@@ -383,7 +446,9 @@ symbol_ref : ID
     }
   else
     {
-      prog.diag().report (@$, format("Unknown symbol `%s`", $1));
+      prog.diag()
+          .new_error(@$, format("Unknown symbol `%s`", $1))
+          .report();
       YYERROR;
     }
 }
@@ -396,7 +461,9 @@ funcall : ID '(' expr_list ')'
   if ((f = prog.getFunDef ($1)) == nullptr
       && (f = builtins.find ($1)) == nullptr)
     {
-      prog.diag().report (@$, "Undefined function");
+      prog.diag()
+          .new_error(@$, "Undefined function")
+          .report();
       YYERROR;
     }
   else
@@ -410,7 +477,9 @@ funcall : ID '(' expr_list ')'
 // TODO: Why are we looking into funDefs and not in templates ???
   if ((f = (Template *)prog.getFunDef ($1)) == nullptr)
     {
-      prog.diag().report (@$, "Undefined function template");
+      prog.diag()
+          .new_error(@$, "Undefined function template")
+          .report();
       YYERROR;
     }
   else
@@ -581,11 +650,12 @@ untyped_var_dec : ID
                 {
   if (symTab.find_last_frame ($1))
     {
-      prog.diag().report(
-        @$,
-        format("Duplicate identifier declaration (could be an enum, a "
-               "variable or template parameter) `%s`",
-               $1));
+      prog.diag()
+          .new_error(@$,
+            format("Duplicate identifier declaration (could be an enum, a "
+                   "variable or template parameter) `%s`",
+                   $1))
+          .report();
       YYERROR;
     }
   $$ = new VarDec (@$, $1, nullptr);
@@ -595,11 +665,12 @@ untyped_var_dec : ID
 {
   if (symTab.find_last_frame ($1))
     {
-      prog.diag().report(
+      prog.diag().new_error(
         @$,
         format("Duplicate identifier declaration (could be an enum, a "
                "variable or template parameter) `%s`",
-               $1));
+               $1))
+        .report();
       YYERROR;
     }
   $$ = new VarDec (@$, $1, nullptr, $3);
@@ -609,10 +680,11 @@ untyped_var_dec : ID
 {
   if (symTab.find_last_frame ($1))
     {
-      prog.diag().report(@$,
+      prog.diag().new_error(@$,
         format("Duplicate identifier declaration (could be an enum, a "
                "variable or template parameter) `%s`",
-               $1));
+               $1))
+        .report();
       YYERROR;
     }
   $$ = new VarDec (@$, $1, nullptr, $3);
@@ -622,16 +694,20 @@ untyped_var_dec : ID
 {
   if (!$3->isConst () || $3->evalConst () <= 0)
     {
-      prog.diag().report(@$, @3, "Invalid array size (it shoud be a constant, "
-                        "stricly positive expression)");
+      prog.diag()
+          .new_error(@3, "Invalid array size (it shoud be a constant, stricly "
+                      "positive expression)")
+          .context(@$) 
+          .report();
       YYERROR;
     }
   if (symTab.find_last_frame ($1))
     {
-      prog.diag().report(@$,
+      prog.diag().new_error(@$,
         format("Duplicate identifier declaration (could be an enum, a "
                "variable or template parameter) `%s`",
-               $1));
+               $1))
+        .report();
       YYERROR;
     }
   $$ = new VarDec (@$, $1, new ArrayType (@$, $3, nullptr));
@@ -641,16 +717,21 @@ untyped_var_dec : ID
 {
   if (!$3->isConst () || $3->evalConst () <= 0)
     {
-      prog.diag().report (@$, @3, "Invalid array size (it shoud be a constant,"
-        "stricly positive expression)");
+      prog.diag()
+          .new_error(@3, "Invalid array size (it shoud be a constant,"
+                    "stricly positive expression)")
+          .context(@$)
+          .report();
       YYERROR;
     }
   if (symTab.find_last_frame ($1))
     {
-      prog.diag().report(@$,
-        format("Duplicate identifier declaration (could be an enum, a "
-               "variable or template parameter) `%s`",
-               $1));
+      prog.diag()
+          .new_error(@$,
+              format("Duplicate identifier declaration (could be an enum, a "
+                     "variable or template parameter) `%s`",
+                     $1))
+          .report();
       YYERROR;
     }
   $$ = new VarDec (@$, $1, new ArrayType (@$, $3, nullptr), $6);
@@ -680,49 +761,47 @@ const_dec : CONST type_spec untyped_const_dec
 };
 
 untyped_const_dec : ID '=' expression
-                  {
-  if (symTab.find_last_frame ($1))
-    {
-      prog.diag().report (@$,
-        format("Duplicate identifier declaration (could be an enum, a "
-               "variable or template parameter) `%s`",
-               $1));
-      YYERROR;
-    }
-  $$ = new ConstDec (@$, $1, nullptr, $3);
-  symTab.push ((ConstDec *)$$);
+{
+  bool error = register_with_new_id($1, @1,
+    [&](const Location& loc, const std::string &id, Expression *val) {
+      $$ = new ConstDec (loc, id.c_str(), nullptr, val);
+      symTab.push ((ConstDec *)$$);
+    }, @1, $1, $3);
+  if (error) {
+    YYERROR;
+  }
 }
 | ID '=' array_or_struct_init
 {
-  if (symTab.find_last_frame ($1))
-    {
-      prog.diag().report (@$,
-        format("Duplicate identifier declaration (could be an enum, a "
-               "variable or template parameter) `%s`",
-               $1));
-      YYERROR;
-    }
-  $$ = new ConstDec (@$, $1, nullptr, $3);
-  symTab.push ((ConstDec *)$$);
+  bool error = register_with_new_id($1, @1,
+    [&](const Location& loc, const std::string &id, Expression *val) {
+      $$ = new ConstDec (loc, id.c_str(), nullptr, val);
+      symTab.push ((ConstDec *)$$);
+    }, @1, $1, $3);
+  if (error) {
+    YYERROR;
+  }
 }
 | ID '[' arithmetic_expression ']' '=' array_or_struct_init
 {
   if (!$3->isConst () || $3->evalConst () <= 0)
     {
-      prog.diag().report (@$, "Invalid array size (it shoud be a constant, "
-                              "stricly positive expression)");
+      prog.diag()
+          .new_error(@$, "Invalid array size (it shoud be a constant, "
+                     "stricly positive expression)")
+          .report();
       YYERROR;
     }
-  if (symTab.find_last_frame ($1))
-    {
-      prog.diag().report(
-        @$,
-        format("Duplicate identifier declaration (could be an enum, a "
-               "variable or template parameter) `%s`",
-               $1));
-      YYERROR;
-    }
-  $$ = new ConstDec (@$, $1, new ArrayType (@$, $3, nullptr), $6);
+
+  bool error = register_with_new_id($1, @1,
+    [&](const Location& loc, const std::string &id, Expression *dim, Expression *init) {
+      $$ = new ConstDec (loc, id.c_str(), new ArrayType (loc, dim, nullptr), init);
+      symTab.push ((ConstDec *)$$);
+    }, @1, $1, $3, $6);
+  if (error) {
+    YYERROR;
+  }
+
   symTab.push ((ConstDec *)$$);
 };
 
@@ -917,7 +996,9 @@ func_template : TEMPLATE { symTab.pushFrame (); }
   $$ = new Template (@$, $7, $6, $9, (Block *)$11, $4);
   symTab.popFrame ();
   if (!prog.registerTemplate(static_cast<Template *>($$))) {
-      prog.diag().report (@$, "Duplicate function definition");
+      prog.diag()
+          .new_error (@$, "Duplicate function definition")
+          .report();
       YYERROR;
   }
 };
@@ -935,17 +1016,15 @@ nontrivial_template_param_dec_list : template_param_dec
 };
 
 template_param_dec : type_spec ID
-                   {
-  if (symTab.find_last_frame ($2))
-    {
-      prog.diag().report (@$,
-        format("Duplicate identifier declaration (could be an enum, a "
-               "variable or template parameter) `%s`",
-               $2));
-      YYERROR;
-    }
-  $$ = new TempParamDec (@$, $2, $1);
-  symTab.push ((TempParamDec *)$$);
+{
+  bool error = register_with_new_id($2, @$,
+    [&](const Location& loc, const std::string& id, Type *t) {
+      $$ = new TempParamDec (loc, id.c_str(), t);
+      symTab.push ((TempParamDec *)$$);
+  }, @$, $2, $1);
+  if (error) {
+    YYERROR;
+  }
 };
 %%
 

@@ -2,6 +2,7 @@
 #define DIAGNOSTICS_H
 
 #include <iostream>
+#include <optional>
 #include <string>
 
 class Expression;
@@ -32,23 +33,59 @@ struct Location {
 class DiagnosticHandler {
 
 public:
+  DiagnosticHandler() = default;
+  DiagnosticHandler(const DiagnosticHandler &) = delete;
   ~DiagnosticHandler() {
     if (file_)
       std::fclose(file_);
   }
 
+  class Diagnostic {
+  public:
+    [[nodiscard]] Diagnostic &context(const Location &loc) {
+      context_ = loc;
+      return *this;
+    }
+
+    [[nodiscard]] Diagnostic &note(const std::string &msg) {
+      note_msg_ = { msg };
+      return *this;
+    }
+
+    [[nodiscard]] Diagnostic &note_location(const Location &loc) {
+      note_loc_ = { loc };
+      return *this;
+    }
+
+    void report();
+
+    friend DiagnosticHandler;
+
+  private:
+    Diagnostic(DiagnosticHandler &dh, const Location &loc,
+               const std::string &msg)
+        : dh_(dh), error_loc_(loc), error_msg_(msg) {}
+
+    DiagnosticHandler &dh_;
+
+    const Location &error_loc_;
+    const std::string &error_msg_;
+
+    std::optional<std::reference_wrapper<const Location> > context_;
+    std::optional<std::reference_wrapper<const Location> > note_loc_;
+    std::optional<std::reference_wrapper<const std::string> > note_msg_;
+  };
+
   void setup(FILE *f) { file_ = f; }
 
-  void report(const Location &context, const Location &error,
-              const std::string &msg, const Location &note_loc,
-              const std::string &note_msg);
-  void report(const Location &context, const Location &error,
-              const std::string &msg);
-  void report(const Location &error, const std::string &msg);
+  [[nodiscard]] Diagnostic new_error(const Location &loc,
+                                     const std::string &msg) {
+    return Diagnostic(*this, loc, msg);
+  }
 
 private:
-  // Display the code at context and highlight the are delimited by error like
-  // that:
+  // Display the code at context and highlight the are delimited by error
+  // like that:
   //
   //  4 | context context error context
   //    |                 ^^^^^

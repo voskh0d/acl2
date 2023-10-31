@@ -8,3 +8,8 @@
   disabled-checks:
     - generated_code
   bug: true
+
+- name: template-ac-int
+  has_failed: true
+  exit_code: 1
+

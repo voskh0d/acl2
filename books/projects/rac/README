@@ -54,8 +54,8 @@ This directory contains this README, Makefile, and the following subdirectories:
 Compiling RAC
 -------------
 
-  Compilation requires ACL2 and a reasonably recent version of g++ (version
-  4.8.1 works fine).
+  Compilation requires ACL2 and a reasonably recent version of g++ supporting
+  C++17 (version 9.4 works fine).
 
   Edit Makefile so that ACL2 points to the local distribution of ACL2 (where
   the saved_acl2 is to be found) and RAC points to the current directory (which

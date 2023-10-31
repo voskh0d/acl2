@@ -13,13 +13,12 @@
 std::string Type::to_string() const {
   std::stringstream ss;
 
-  //  //  TODO
-  //  auto cur = origin_;
-  //  while (std::holds_alternative<const DefinedType *>(cur)) {
-  //    auto dt = std::get<const DefinedType *>(cur);
-  //    ss << dt->getname() << " aka ";
-  //    cur = dt->origin_;
-  //  }
+  auto cur = origin_;
+  while (std::holds_alternative<const DefinedType *>(cur)) {
+    auto dt = std::get<const DefinedType *>(cur);
+    ss << dt->getname() << " aka ";
+    cur = dt->origin_;
+  }
 
   display(ss);
   return ss.str();
@@ -60,8 +59,6 @@ PrimType uint64Type = PrimType::Uint64();
 Sexpression *PrimType::ACL2Assign(Expression *rval) const {
 
   const Type *rval_type = rval->get_type();
-  //  assert(isa<const IntType *>(rval_type) || isa<const PrimType
-  //  *>(rval_type));
   return numeric_cast(rval->ACL2Expr(), { rval_type }, this);
 }
 
@@ -173,8 +170,6 @@ unsigned IntType::ACL2ValWidth() const { return width()->evalConst(); }
 Sexpression *IntType::ACL2Assign(Expression *rval) const {
 
   const Type *rval_type = rval->get_type();
-  //  assert(isa<const IntType *>(rval_type) || isa<const PrimType
-  //  *>(rval_type));
   return numeric_cast(rval->ACL2Expr(), { rval_type }, this);
 }
 
@@ -296,20 +291,24 @@ void ArrayType::displayVarName(const char *name, std::ostream &os) const {
 
 void ArrayType::makeDef(const char *name, std::ostream &os) const {
   const Type *b = baseType;
+
   List<Expression> *dims = new List<Expression>(dim);
   while (isa<const ArrayType *>(b)) {
     dims = dims->push(((const ArrayType *)b)->dim);
     b = ((const ArrayType *)b)->baseType;
   }
+
   os << "\ntypedef ";
   b->display(os);
   os << " " << name;
+
   while (dims) {
     os << "[";
     (dims->value)->display(os);
     os << "]";
     dims = dims->next;
   }
+
   os << ";";
 }
 

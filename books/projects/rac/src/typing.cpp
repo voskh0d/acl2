@@ -9,9 +9,11 @@
 
 bool TypingAction::TraverseExpression(Expression *e) {
 
+  // For all expressions, we try to type it...
   if (!base_t::TraverseExpression(e))
     return error();
 
+  // ... and deref its type.
   if (e) {
     e->set_type(deref(e->get_type()));
   }
@@ -21,6 +23,8 @@ bool TypingAction::TraverseExpression(Expression *e) {
 
 bool TypingAction::TraverseFunDef(FunDef *e) {
 
+  // When entering a function (a new scope), we store it's return type as it
+  // will be usefull to type check the returns.
   assert(!type_of_scope);
   type_of_scope = e->returnType;
 
@@ -34,6 +38,7 @@ bool TypingAction::TraverseFunDef(FunDef *e) {
 
 bool TypingAction::TraverseTemplate(Template *e) {
 
+  // Same as FunDef, since template are not really
   assert(!type_of_scope);
   type_of_scope = e->returnType;
 
@@ -132,9 +137,12 @@ bool TypingAction::VisitSubrange(Subrange *e) {
     Integer *width = new Integer(e->loc(), e->width());
     e->set_type(new IntType(e->loc(), width, t->isSigned()));
   } else {
-    diag_.report(e->loc(), e->base->loc(),
-                 format("Base (of type %s) is not a register",
-                        e->base->get_type()->to_string().c_str()));
+    diag_
+        .new_error(e->base->loc(),
+                   format("Base (of type %s) is not a register",
+                          e->base->get_type()->to_string().c_str()))
+        .context(e->loc())
+        .report();
   }
 
   return true;
@@ -191,17 +199,22 @@ bool TypingAction::VisitPrefixExpr(PrefixExpr *e) {
 
   // TODO
   if (isa<const FixedPointType *>(expr_type)) {
-    diag_.report(e->loc(), "warning: Fixed point not well supported yet");
+    diag_.new_error(e->loc(), "warning: Fixed point not well supported yet")
+        .report();
     return true;
   }
 
   // No overload found.
-  diag_.report(
-      e->loc(), e->expr->loc(),
-      format("Cannot apply `%s` to an argument of type `%s` which is not a "
-             "register type or a primitive type, aka int, int64, uint, "
-             "uint64, bool.",
-             to_string(e->op).c_str(), expr_type->to_string().c_str()));
+  diag_
+      .new_error(
+          e->expr->loc(),
+          format(
+              "Cannot apply `%s` to an argument of type `%s` which is not a "
+              "register type or a primitive type, aka int, int64, uint, "
+              "uint64, bool.",
+              to_string(e->op).c_str(), expr_type->to_string().c_str()))
+      .context(e->loc())
+      .report();
 
   e->set_type(new ErrorType());
   return error();
@@ -261,10 +274,13 @@ bool TypingAction::VisitBinaryExpr(BinaryExpr *e) {
     } else if (auto pt = dynamic_cast<const PrimType *>(t1)) {
       t1_promoted = IntType::FromPrimType(pt);
     } else {
-      diag_.report(e->loc(), e->expr1->loc(),
-                   format("Invalid type: left operand is a `%s` but right "
-                          "(%s) is not convertible to a register type.",
-                          t2->to_string().c_str(), t1->to_string().c_str()));
+      diag_
+          .new_error(e->expr1->loc(),
+                     format("Invalid type: left operand is a `%s` but right "
+                            "(%s) is not convertible to a register type.",
+                            t2->to_string().c_str(), t1->to_string().c_str()))
+          .context(e->loc())
+          .report();
 
       e->set_type(new ErrorType());
       return error();
@@ -277,10 +293,13 @@ bool TypingAction::VisitBinaryExpr(BinaryExpr *e) {
     } else if (auto pt = dynamic_cast<const PrimType *>(t2)) {
       t2_promoted = IntType::FromPrimType(pt);
     } else {
-      diag_.report(e->loc(), e->expr2->loc(),
-                   format("Invalid type: right operand is a `%s` but left "
-                          "(%s) is not convertible to a register type.",
-                          t1->to_string().c_str(), t2->to_string().c_str()));
+      diag_
+          .new_error(e->expr2->loc(),
+                     format("Invalid type: right operand is a `%s` but left "
+                            "(%s) is not convertible to a register type.",
+                            t1->to_string().c_str(), t2->to_string().c_str()))
+          .context(e->loc())
+          .report();
 
       e->set_type(new ErrorType());
       return error();
@@ -323,16 +342,21 @@ bool TypingAction::VisitBinaryExpr(BinaryExpr *e) {
   }
 
   if (isa<const FixedPointType *>(t1) || isa<const FixedPointType *>(t2)) {
-    diag_.report(e->loc(), "warning: Fixed point not well supported yet");
+    diag_.new_error(e->loc(), "warning: Fixed point not well supported yet")
+        .report();
     return true;
   }
 
   // No overload found.
-  diag_.report(
-      e->loc(), e->loc(),
-      format("Cannot apply `%s` to an argument which is not a primitive type"
-             "(int, int64, uint, uint64, bool) or a register type.",
-             to_string(e->op).c_str()));
+  diag_
+      .new_error(
+          e->loc(),
+          format(
+              "Cannot apply `%s` to an argument which is not a primitive type"
+              "(int, int64, uint, uint64, bool) or a register type.",
+              to_string(e->op).c_str()))
+      .context(e->loc())
+      .report();
 
   e->set_type(new ErrorType());
   return error();
@@ -342,9 +366,12 @@ bool TypingAction::VisitCondExpr(CondExpr *e) {
 
   // TODO instead, check if convertible to bool.
   if (!e->test->get_type()->isEqual(&boolType)) {
-    diag_.report(e->loc(), e->test->loc(),
-                 format("Expected a boolean, got `%s`.",
-                        e->test->get_type()->to_string().c_str()));
+    diag_
+        .new_error(e->test->loc(),
+                   format("Expected a boolean, got `%s`.",
+                          e->test->get_type()->to_string().c_str()))
+        .context(e->loc())
+        .report();
 
     e->set_type(new ErrorType());
     return error();
@@ -359,11 +386,14 @@ bool TypingAction::VisitCondExpr(CondExpr *e) {
   }
 
   if (!e->expr1->get_type()->isEqual(e->expr2->get_type())) {
-    diag_.report(e->loc(),
-                 format("Left and right do not share same type (left is `%s` "
-                        "and right `%s`).",
-                        e->expr1->get_type()->to_string().c_str(),
-                        e->expr2->get_type()->to_string().c_str()));
+    diag_
+        .new_error(
+            e->loc(),
+            format("Left and right do not share same type (left is `%s` "
+                   "and right `%s`).",
+                   e->expr1->get_type()->to_string().c_str(),
+                   e->expr2->get_type()->to_string().c_str()))
+        .report();
 
     e->set_type(new ErrorType());
     return error();
@@ -377,10 +407,13 @@ bool TypingAction::VisitCondExpr(CondExpr *e) {
 bool TypingAction::VisitMultipleValue(MultipleValue *e) {
 
   if (e->expr.size() != e->type->size()) {
-    diag_.report(
-        e->loc(),
-        format("Expected %d argument(s) (from its type: `%s`), got `%d`.",
-               e->type->size(), e->type->to_string().c_str(), e->expr.size()));
+    diag_
+        .new_error(
+            e->loc(),
+            format("Expected %d argument(s) (from its type: `%s`), got `%d`.",
+                   e->type->size(), e->type->to_string().c_str(),
+                   e->expr.size()))
+        .report();
     e->set_type(new ErrorType());
     return error();
   }
@@ -394,11 +427,14 @@ bool TypingAction::VisitMultipleValue(MultipleValue *e) {
 
     if (!expected->isEqual(actual)) {
 
-      diag_.report(e->loc(), e->expr[i]->loc(),
-                   format("Expected `%s` (from `%s` at index %d), got `%s`",
-                          expected->to_string().c_str(),
-                          e->type->to_string().c_str(), i,
-                          actual->to_string().c_str()));
+      diag_
+          .new_error(e->expr[i]->loc(),
+                     format("Expected `%s` (from `%s` at index %d), got `%s`",
+                            expected->to_string().c_str(),
+                            e->type->to_string().c_str(), i,
+                            actual->to_string().c_str()))
+          .context(e->loc())
+          .report();
 
       has_failed = true;
     }
@@ -409,11 +445,6 @@ bool TypingAction::VisitMultipleValue(MultipleValue *e) {
   e->set_type(new ErrorType());
   return has_failed ? error() : true;
 }
-
-// bool TypingAction::VisitSymDec(SymDec *s) {
-//  s->type = deref(s->type);
-//  return true;
-//}
 
 // Statements:
 
@@ -432,10 +463,13 @@ bool TypingAction::VisitReturnStmt(ReturnStmt *s) {
 
   // TODO implicit cast (most of the case use it)
   if (!is_same_type && !can_be_cast) {
-    diag_.report(s->loc(), s->value->loc(),
-                 format("Invalid return type: expected `%s` got `%s`",
-                        s->returnType->to_string().c_str(),
-                        s->value->get_type()->to_string().c_str()));
+    diag_
+        .new_error(s->value->loc(),
+                   format("Invalid return type: expected `%s` got `%s`",
+                          s->returnType->to_string().c_str(),
+                          s->value->get_type()->to_string().c_str()))
+        .context(s->loc())
+        .report();
     return error();
   }
 
@@ -450,9 +484,12 @@ bool TypingAction::VisitSwitchStmt(SwitchStmt *s) {
                         || t->canBeImplicitlyCastTo(&int64Type);
 
   if (!isa<const PrimType *>(t) && !canBeCastToInt) {
-    diag_.report(
-        s->loc(), s->test_->loc(),
-        format("Expected a primtive type, got `%s`", t->to_string().c_str()));
+    diag_
+        .new_error(s->test_->loc(),
+                   format("Expected a primtive type, got `%s`",
+                          t->to_string().c_str()))
+        .context(s->loc())
+        .report();
 
     return error();
   }
@@ -467,8 +504,11 @@ bool TypingAction::VisitSwitchStmt(SwitchStmt *s) {
     const Type *t = c->label->get_type();
     if (!(isa<const PrimType *>(t) && isa<Constant *>(c->label))
         && !isa<const EnumType *>(t)) {
-      diag_.report(c->loc(), c->label->loc(),
-                   "Case label must be an integer or an enum constant.");
+      diag_
+          .new_error(c->label->loc(),
+                     "Case label must be an integer or an enum constant.")
+          .context(c->loc())
+          .report();
       return error();
     }
     return true;

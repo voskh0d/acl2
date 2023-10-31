@@ -189,14 +189,18 @@ void FunCall::display(std::ostream &os) const {
 }
 
 Sexpression *FunCall::ACL2Expr() {
+
   Plist *result = new Plist({ new Symbol(func->getname()) });
+
   List<VarDec> *p = func->params;
   List<Expression> *a = args;
   while (a) {
+
     result->add(p->value->type->ACL2Assign(a->value));
     a = a->next;
     p = p->next;
   }
+
   return result;
 }
 
@@ -797,9 +801,13 @@ Sexpression *BinaryExpr::ACL2Expr() {
     break;
   }
 
+  // TODO why is it needed ? Maybe should be transform to an assert ? But this
+  // could make RAC_BYPASS_ERRORS fails. At least, the message should be
+  // better.
   if (!get_type()) {
-    prog.diag().report(this->loc(),
-                       format("untyped %s", to_string(op).c_str()));
+    prog.diag()
+        .new_error(this->loc(), format("untyped %s", to_string(op).c_str()))
+        .report();
   }
 
   Sexpression *val = new Plist({ ptr, sexpr1, sexpr2 });
