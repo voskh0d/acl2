@@ -43,6 +43,9 @@ void DiagnosticHandler::show_code_at(const Location &context,
   if (last_line_to_display - first_line_to_display > 5) {
     first_line_to_display = error.first_line;
     last_line_to_display = error.last_line;
+    // Move the cursor to the begin of the area we need to report.
+    cur_pos = error.f_pos - error.first_column;
+    assert(fseek(file_, cur_pos, SEEK_SET) == 0);
   }
 
   // ... unless if it is also too big, in that case we only show the first 5
@@ -107,6 +110,6 @@ void DiagnosticHandler::Diagnostic::report() {
   }
 
   if (note_loc_) {
-    dh_.show_code_at(note_loc_->get(), Location::dummy());
+    dh_.show_code_at(note_loc_->get(), *note_loc_);
   }
 }

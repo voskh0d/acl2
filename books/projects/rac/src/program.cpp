@@ -5,6 +5,7 @@
 #include "types.h"
 
 #include "assertion.h"
+#include "racconstraint.h"
 #include "returnfalse.h"
 #include "typing.h"
 
@@ -97,10 +98,12 @@ bool Program::process() {
 #define RUNPASS(ACTION)                                                       \
   {                                                                           \
     ACTION a(diag_);                                                          \
-    if (!runAction(&a))                                                       \
-      return error();                                                         \
+    if (!runAction(&a) && !bypass_errors()) {                                 \
+      return false;                                                           \
+    }                                                                         \
   }
 
+  RUNPASS(RACConstraint);
   RUNPASS(TypingAction);
   RUNPASS(MarkAssertionAction);
 

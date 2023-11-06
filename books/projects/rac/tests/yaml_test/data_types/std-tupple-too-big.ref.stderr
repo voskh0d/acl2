@@ -1,3 +1,0 @@
-std-tupple-too-big.cpp:8 (44-45): syntax error, unexpected ',', expecting '>'
-  8 | tuple<int, int, int, int, int, int, int, int, int> foo(int a)
-    |                                             ^

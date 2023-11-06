@@ -30,8 +30,6 @@
 - name: std-tupple-big
 
 - name: std-tupple-too-big
-  has_failed: true
-  exit_code: 1
 
 - name: std-tupple-init-not-enought-args
   has_failed: true

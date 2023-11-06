@@ -357,18 +357,7 @@ private:
 
 class MvType : public Type {
 public:
-  MvType(origin_t loc, std::initializer_list<Type *> &&t)
-      : Type(loc), types_(t) {
-
-    //    std::transform(types_.begin(), types_.end(), types_.begin(), [](Type
-    //    *t) {
-    //      if (auto tt = dynamic_cast<DefinedType *>(t)) {
-    //        return tt->derefType();
-    //      } else {
-    //        return t;
-    //      }
-    //    });
-  }
+  MvType(origin_t loc, std::vector<Type *> &&t) : Type(loc), types_(t) {}
 
   void display(std::ostream &os) const override;
 

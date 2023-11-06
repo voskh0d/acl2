@@ -322,7 +322,6 @@ public:
 
   MultipleValue(Location loc, MvType *t, std::vector<Expression *> &&e)
       : Expression(idOf(this), loc), type(t), expr(e) {}
-  MultipleValue(Location loc, MvType *t, List<Expression> *e);
 
   void display(std::ostream &os) const override;
   Sexpression *ACL2Expr() override;

@@ -1,8 +1,10 @@
-function-duplicate.cpp:8-9 (0-0): Duplicate function definition
+function-duplicate.cpp:8-9 (0-1): Duplicate function definition
   8 | int foo()
     | ^^^^^^^^^^
   9 | {
-    | 
+    | ^
 note: defined here:
   3 | int foo()
+    | ^^^^^^^^^^
   4 | {
+    | ^

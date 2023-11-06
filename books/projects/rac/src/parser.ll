@@ -11,7 +11,7 @@ lineba ^"#"\ [0-9]+\ \"[^\"]*\".*\n
 #include "expressions.h"
 #include "functions.h"
 #include "parser.h"
-#include "parser.tab.hpp"
+#include "parser.tab.hh"
 #include "statements.h"
 #include "types.h"
 
@@ -38,6 +38,10 @@ static void lineba();
     }                                                                         \
   }                                                                           \
 }
+
+#define APPLY(CLASS, _) class CLASS;
+#include "astnodes.def"
+#undef APPLY
 
 %}
 %%

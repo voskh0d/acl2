@@ -9,7 +9,7 @@ CPPFLAGS +=
 CXXFLAGS += -Wall -Wextra -std=c++17
 LDFLAGS +=
 
-SRCS=diagnostics.cpp expressions.cpp functions.cpp lex.yy.cpp main.cpp parser.tab.cpp program.cpp sexpressions.cpp statements.cpp types.cpp typing.cpp
+SRCS=diagnostics.cpp expressions.cpp functions.cpp lex.yy.cpp main.cpp parser.tab.cpp program.cpp sexpressions.cpp statements.cpp types.cpp typing.cpp racconstraint.cpp
 
 # By default, build and install everything.
 all : install
@@ -57,7 +57,7 @@ version.h:
 
 # Run bison and flex.
 parser.tab.cpp: parser.yy
-	bison -d -v -o parser.tab.cpp parser.yy
+	bison -d -v -o parser.tab.cpp parser.yy -Wall
 
 lex.yy.cpp: parser.ll
 	flex -o lex.yy.cpp parser.ll

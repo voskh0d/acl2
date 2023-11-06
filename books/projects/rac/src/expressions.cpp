@@ -851,16 +851,6 @@ Sexpression *CondExpr::ACL2Expr() {
 
 // Data members: MvType *type; Expression *expr[8];
 
-MultipleValue::MultipleValue(Location loc, MvType *t, List<Expression> *e)
-    : Expression(idOf(this), loc), type(t) {
-
-  expr.reserve(8);
-  for (unsigned i = 0; i < 8 && e; ++i) {
-    expr.push_back(e->value);
-    e = e->pop();
-  }
-}
-
 void MultipleValue::display(std::ostream &os) const {
 
   os << "<";

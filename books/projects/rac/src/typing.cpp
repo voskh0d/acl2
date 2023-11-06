@@ -478,7 +478,7 @@ bool TypingAction::VisitReturnStmt(ReturnStmt *s) {
 
 bool TypingAction::VisitSwitchStmt(SwitchStmt *s) {
 
-  const Type *t = s->test_->get_type();
+  const Type *t = s->test()->get_type();
 
   bool canBeCastToInt = t->canBeImplicitlyCastTo(&uint64Type)
                         || t->canBeImplicitlyCastTo(&int64Type);
@@ -494,9 +494,9 @@ bool TypingAction::VisitSwitchStmt(SwitchStmt *s) {
     return error();
   }
 
-  return std::all_of(s->cases_.begin(), s->cases_.end(), [this](Case *c) {
+  return std::all_of(s->cases().begin(), s->cases().end(), [this](Case *c) {
     // Default case.
-    if (!c->label) {
+    if (c->isDefaultCase()) {
       return true;
     }
 

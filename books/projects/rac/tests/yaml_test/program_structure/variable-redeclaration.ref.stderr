@@ -1,3 +1,6 @@
 variable-redeclaration.cpp:10 (9-14): Duplicate identifier declaration (could be an enum, a variable or template parameter) `a`
  10 |     int2 a = 3;
     |          ^^^^^
+note: first defined here
+  9 |     int a = 2;
+    |         ^^^^^

@@ -228,12 +228,16 @@ public:
 
 class Case final : public Statement {
 public:
-  Expression *label;
-  List<Statement> *action;
   Case(Location loc, Expression *l, List<Statement> *a);
   void display(std::ostream &os, unsigned indent = 0) override;
 
+  bool isDefaultCase() const { return label == nullptr; }
+  bool isFallthrough() const { return action == nullptr; }
+
   Sexpression *ACL2Expr() override { assert(!"TODO"); }
+
+  Expression *label;
+  List<Statement> *action;
 };
 
 class SwitchStmt : public Statement {

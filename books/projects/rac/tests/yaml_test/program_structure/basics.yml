@@ -146,10 +146,8 @@
   ref_generated: imul-pc.cpp.ref.pc
 
 - name: variable-mix-upper-lower-case
-  bug: true
-  description: Invalid code when two identifiers have the same name but one in
-               lower case and the other in upper case, Lisp is not sensible to
-               case so the RAC parser should not be case sensible.
+  has_failed: true
+  exit_code: 1
 
 - name: variable-mix-upper-lower-case-2
   has_failed: true
@@ -160,3 +158,9 @@
   exit_code: 1
 
 - name: builtin
+
+- name: function-param-duplicate
+  has_failed: true
+  exit_code: 1
+
+- name: scope

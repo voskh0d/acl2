@@ -18,10 +18,21 @@
  
 - name: switch
 - name: switch-enum
+
 - name: switch-fall-through
-  bug: true
+  has_failed: true
+  exit_code: 1
 
 - name: switch-no-default
+
+- name: switch-2-default
+  has_failed: true
+  exit_code: 1
+
+- name : switch-break-hide-statement
+  has_failed: true
+  exit_code: 1
+
 - name: switch-return
   description: Not implemented yet !
   has_failed: true
@@ -32,8 +43,6 @@
 - name: switch-invalid-label
   has_failed: true
   exit_code: 1
-  disabled-checks:
-    - generated_code
   
 - name: for-loop
 - name: for-loop-init-from-const

@@ -719,26 +719,29 @@ Sexpression *SwitchStmt::ACL2Expr() {
 
   List<Sexpression> *labels = nullptr;
   Expression *l = nullptr;
-  List<Statement> *a = nullptr;
   List<Sexpression> *s = nullptr;
 
   std::for_each(cases_.begin(), cases_.end(), [&](Case *c) {
     l = c->label;
-    a = c->action;
+
     if (l) {
       labels = labels ? labels->add(l->ACL2Expr())
                       : new List<Sexpression>(l->ACL2Expr());
     }
-    if (a) {
+
+    if (c->action) {
       Sexpression *slabel
           = !labels
                 ? &s_t
                 : !(labels->next) ? labels->value : Plist::FromList(labels);
+
       s = new List<Sexpression>(slabel);
-      while (a && !isa<BreakStmt *>(a->value)) {
+
+      for (List<Statement> *a = c->action; a && !isa<BreakStmt *>(a->value);
+           a = a->next) {
         s->add(a->value->ACL2Expr());
-        a = a->next;
       }
+
       result->add(Plist::FromList(s));
       labels = nullptr;
     }

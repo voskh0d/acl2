@@ -13,12 +13,13 @@
 std::string Type::to_string() const {
   std::stringstream ss;
 
-  auto cur = origin_;
-  while (std::holds_alternative<const DefinedType *>(cur)) {
-    auto dt = std::get<const DefinedType *>(cur);
-    ss << dt->getname() << " aka ";
-    cur = dt->origin_;
-  }
+  // TODO
+  //  auto cur = origin_;
+  //  while (std::holds_alternative<const DefinedType *>(cur)) {
+  //    auto dt = std::get<const DefinedType *>(cur);
+  //    ss << dt->getname() << " aka ";
+  //    cur = dt->origin_;
+  //  }
 
   display(ss);
   return ss.str();
