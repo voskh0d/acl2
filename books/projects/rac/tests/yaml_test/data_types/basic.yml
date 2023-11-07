@@ -8,23 +8,19 @@
 - name: functional-cast
 
 - name: pointers
-  has_failed: true
-  exit_code: 1
+  should_report_error: true
 
 - name: references
-  has_failed: true
-  exit_code: 1
+  should_report_error: true
 
 - name: c-array-local
 - name: c-array-as-parameter
-  has_failed: true
   stderr_not_empty: true
-  exit_code: 1
+  should_report_error: true
 
 - name: std-array
 - name: std-array-neg-size
-  has_failed: true
-  exit_code: 1
+  should_report_error: true
 
 - name: std-tupple
 - name: std-tupple-big
@@ -32,8 +28,7 @@
 - name: std-tupple-too-big
 
 - name: std-tupple-init-not-enought-args
-  has_failed: true
-  exit_code: 1
+  should_report_error: true
 
 - name: typedef-basic
 - name: typedef-ac
@@ -47,13 +42,11 @@
                pointer hidden behind a typedef.
 
 - name: typedef-c-array-neg
-  exit_code: 1
-  has_failed: true
+  should_report_error: true
 
 
 - name: typedef-redeclaration
-  has_failed: true
-  exit_code: 1
+  should_report_error: true
 
 - name: enum 
 
@@ -78,21 +71,19 @@
 - name: global-constant
 - name: global-constant-enum
 - name: multiple-global-constant
-  exit_code: 1
-  has_failed: 1
+  should_report_error: true
   bug: true
   disabled-checks:
     - stderr
+  description: Error syntax reported.
 
 - name: global-constant-redeclaration
-  exit_code: 1
-  has_failed: true
+  should_report_error: true
   disabled-checks:
     - generated_code
 
 - name: global-mutable
-  has_failed: true
-  exit_code: 1
+  should_report_error: true
 
 - name: initializer-list
 

@@ -6,8 +6,7 @@
   args:                            # default value: ['acl2'], if provided the
                                    # cpp wont be run.
   input: empty.cpp                 # default value: NAME.cpp
-  has_failed:                      # default value: 0, non zero integer is true
-  exit_code:                       # default value: 0
+  should_report_error:             # default value: false
   ref_generated:                   # default value: NAME.ref.ast.lsp
   ref_stderr:                      # default value: NAME.ref.stderr
   ref_stdout:                      # default value: NAME.ref.stdout
@@ -18,8 +17,7 @@
 
   # By default all checks are enabled.
   disabled-checks:
-    - has_failed
-    - exit_code
+    - should_report_error
     - stdout
     - stderr
     - generated_code
@@ -31,8 +29,7 @@
 
 - name: missing-file
   args: ['missing-file.cpp', '-acl2']
-  has_failed: true
-  exit_code: 1
+  should_report_error: true
   disabled-checks:
     - generated_code
 
@@ -44,16 +41,14 @@
     - generated_code
 
 - name: empty
-  has_failed: true
-  exit_code: 1
+  should_report_error: true
 
 - name: comment
 - name: multiline-comment
 
 - name: unterminated-comment
   args: ['unterminated-comment.cpp']
-  has_failed: true
-  exit_code: 1
+  should_report_error: true
 
 - name: error-bypass
   env: {RAC_BYPASS_ERROR: 'true'}
@@ -65,12 +60,10 @@
 - name: guards-2
 
 - name: rac-in-comment-but-not-a-guard
-  exit_code: 0
 
 - name: missing-guards-begin
-  has_failed: true
   stderr_not_empty: true
-  exit_code: 1
+  should_report_error: true
   ref_stdout: "Warning: no function definitions found, maybe you forgot the `// RAC begin` guard"
   ref_stderr: "missing-guards-begin.cpp:8: syntax error, unexpected $end"
 
@@ -80,8 +73,7 @@
 
 - name: function-call
 - name: function-duplicate
-  has_failed: true
-  exit_code: 1
+  should_report_error: true
 
 - name: recursive-call
   description: >
@@ -89,13 +81,11 @@
                 the call, the parser breaks on the declaration before defintion
                 or on the recursive call: we can't call a function util it was
                 been definied.
-  has_failed: true
-  exit_code: 1
+  should_report_error: true
 
 - name: mutually-recursive-function
   description: Same as above (recursive-call)
-  exit_code: 1
-  has_failed: true
+  should_report_error: true
 
 - name: tie
 - name: tie-array
@@ -103,17 +93,15 @@
 
 - name: tie-immediate
   bug: true
-  has_failed: true
-  exit_code: 1
+  should_report_error: true
   disabled-checks:
     - stderr
     - generated_code
+  description: Syntax error, not very important.
 
 - name: structured-binding-like
   bug: true
-  description: >
-               This is illegal syntax in C++. The valid way is using tie or
-               structured binding syntax: auto [a,b] = foo() (not implemented)
+  description: warning about non initialized variable + typing on assignement.
   disabled-checks:
     - generated_code
 
@@ -121,21 +109,10 @@
 - name: multiple-variable-decl
 
 - name: unknown-variable
-  has_failed: true
-  exit_code: 1
+  should_report_error: true
 
 - name: empty-return
-  bug: true
-  has_failed: true
-  description: >
-               This case should not exist since RAC function can't return void.
-               This should be detected as a syntax error, but the parser will
-               usually segfault (exit code -11) or sometimes it will succeed and
-               return 0.
-  disabled-checks:
-    - exit_code
-    - stderr
-    - generated_code
+  should_report_error: true
 
 - name: hello
   input: ../../../examples/hello.cpp
@@ -146,21 +123,17 @@
   ref_generated: imul-pc.cpp.ref.pc
 
 - name: variable-mix-upper-lower-case
-  has_failed: true
-  exit_code: 1
+  should_report_error: true
 
 - name: variable-mix-upper-lower-case-2
-  has_failed: true
-  exit_code: 1
+  should_report_error: true
 
 - name: variable-redeclaration
-  has_failed: true
-  exit_code: 1
+  should_report_error: true
 
 - name: builtin
 
 - name: function-param-duplicate
-  has_failed: true
-  exit_code: 1
+  should_report_error: true
 
 - name: scope

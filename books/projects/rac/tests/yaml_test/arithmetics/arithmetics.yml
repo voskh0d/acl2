@@ -11,8 +11,7 @@
 - name: commutativity-add
 
 - name: div-assign
-  has_failed: true
-  exit_code: 1
+  should_report_error: true
   description: Not implemented yet !
 
 - name: int-bitwise

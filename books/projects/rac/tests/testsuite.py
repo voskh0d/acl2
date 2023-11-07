@@ -70,15 +70,11 @@ def test(bin_path, dir_path, testcase, timeout):
         out = run_parser_raw(bin_path, dir_path, args, timeout)
 
     disabled_checks = testcase.get("disabled-checks", [])
-    if not "has_failed" in disabled_checks:
-        if testcase.get("has_failed", False):
+    if not "should_report_error" in disabled_checks:
+        if testcase.get("should_report_error", False):
             assert out.returncode != 0, "expected a non zero returncode but got 0"
         else:
             assert out.returncode == 0, f"expected a zero returncode but got {out.returncode}"
-
-    if not "exit_code" in disabled_checks:
-        ref = testcase.get("exit_code", 0)
-        assert out.returncode == ref, f"returncode differs:\nexpected: {ref} got: {out.returncode}"
 
     if not "stdout" in disabled_checks:
         stdout_path = testcase.get("ref_stdout", testcase.get("name") + ".ref.stdout")
@@ -94,7 +90,7 @@ def test(bin_path, dir_path, testcase, timeout):
             assert out.stderr == ref, f"stderr differs:\n{(diff(ref, out.stderr))}"
 
     # If the test should fails, don't test the output: there is none.
-    if not "generated_code" in disabled_checks and not testcase.get("has_failed", False):
+    if not "generated_code" in disabled_checks and not testcase.get("should_report_error", False):
 
         ref = ""
         try:

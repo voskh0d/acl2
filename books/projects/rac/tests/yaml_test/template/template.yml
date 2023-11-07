@@ -10,6 +10,5 @@
   bug: true
 
 - name: template-ac-int
-  has_failed: true
-  exit_code: 1
+  should_report_error: true
 

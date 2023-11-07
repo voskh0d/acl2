@@ -1007,7 +1007,10 @@ break_statement
 return_statement
     : RETURN
 {
-  $$ = new ReturnStmt(@$, nullptr);
+  prog.diag()
+      .new_error(@$, "Non-void function should return a value")
+      .report();
+  YYERROR;
 }
     | RETURN expression
 {
