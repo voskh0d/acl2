@@ -22,7 +22,6 @@ class DefinedType;
 //   DefinedType        (introduced by typedef)
 //   RegType            (Algorithmic C register type)
 //   IntType            (limited integer register)
-//   FixedPointType     (fixed-point register
 //   ArrayType          (array type)
 //   StructType         (struct type) EnumType (enumeration type)
 //   MvType             (multiple value type)
@@ -245,30 +244,6 @@ public:
 
 private:
   Expression *width_;
-  bool isSigned_;
-};
-
-class FixedPointType : public RegType {
-public:
-  FixedPointType(origin_t loc, Expression *w, Expression *iw, bool isSigned);
-
-  Sexpression *ACL2Assign(Expression *rval) const override;
-  Sexpression *ACL2Eval(Sexpression *s) const override;
-  void display(std::ostream &os = std::cout) const override;
-
-  Expression *width() const override { return width_; }
-  bool isSigned() const override { return isSigned_; }
-
-  bool isEqual(const Type *other) const override;
-
-  bool canBeImplicitlyCastTo([
-      [maybe_unused]] const Type *target) const override {
-    return false;
-  }
-
-private:
-  Expression *width_;
-  Expression *iwidth_;
   bool isSigned_;
 };
 

@@ -1,7 +1,0 @@
-fixed-point-shift.cpp:6 (6-12): warning: Fixed point not well supported yet
-  6 |   x = x << 2;
-    |       ^^^^^^
-
-fixed-point-shift.cpp:11 (6-12): warning: Fixed point not well supported yet
- 11 |   x = x >> 2;
-    |       ^^^^^^

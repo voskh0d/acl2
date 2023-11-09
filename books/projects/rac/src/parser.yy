@@ -319,21 +319,12 @@ primitive_type
     | BOOL { $$ = &boolType; };
 
 register_type
-    : AC_FIXED '<' arithmetic_expression ',' arithmetic_expression ',' boolean '>'
+    : AC_FIXED
 {
-  if ($3->isConst () && $3->isInteger ()
-      && ($3->evalConst () >= 0) & $5->isConst () && $5->isInteger ())
-    {
-      $$ = new FixedPointType (@$, $3, $5, $7->evalConst());
-      delete $7;
-    }
-  else
-    {
-      prog.diag()
-          .new_error(@$, "Illegal parameter of ac_fixed")
-          .report();
-      YYERROR;
-    }
+  prog.diag()
+      .new_error(@1, "ac_fixed is deprecated")
+      .report();
+  YYERROR;
 }
     | AC_INT '<' arithmetic_expression ',' boolean '>'
 {

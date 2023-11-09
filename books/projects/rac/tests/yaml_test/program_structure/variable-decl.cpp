@@ -1,4 +1,3 @@
-#include <ac_fixed.h>
 #include <ac_int.h>
 #include <array>
 
@@ -9,8 +8,6 @@ using namespace std;
 int foo() {
   ac_int<2, false> a1 = 1;
   ac_int<2, true> a2 = -4;
-  ac_fixed<2, 4, false> b1 = 1;
-  ac_fixed<2, 4, true> b2 = -2;
   int c = 9;
   array<int, 4> d = {};
   int64 e = 4;

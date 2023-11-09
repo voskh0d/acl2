@@ -199,13 +199,6 @@ bool TypingAction::VisitPrefixExpr(PrefixExpr *e) {
     return true;
   }
 
-  // TODO
-  if (isa<const FixedPointType *>(expr_type)) {
-    diag_.new_error(e->loc(), "warning: Fixed point not well supported yet")
-        .report();
-    return true;
-  }
-
   // No overload found.
   diag_
       .new_error(
@@ -340,12 +333,6 @@ bool TypingAction::VisitBinaryExpr(BinaryExpr *e) {
       UNREACHABLE();
     }
     e->set_type(new IntType(e->loc(), new Integer(e->loc(), w_res), s_res));
-    return true;
-  }
-
-  if (isa<const FixedPointType *>(t1) || isa<const FixedPointType *>(t2)) {
-    diag_.new_error(e->loc(), "warning: Fixed point not well supported yet")
-        .report();
     return true;
   }
 
