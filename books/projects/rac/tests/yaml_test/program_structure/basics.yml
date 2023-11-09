@@ -100,10 +100,9 @@
   description: Syntax error, not very important.
 
 - name: structured-binding-like
-  bug: true
-  description: warning about non initialized variable + typing on assignement.
-  disabled-checks:
-    - generated_code
+  should_report_error: true
+  description: This looks like structured binding but in reality we are declaring
+               two integers and try to assign a tuple to the last one.
 
 - name: variable-decl
 - name: multiple-variable-decl

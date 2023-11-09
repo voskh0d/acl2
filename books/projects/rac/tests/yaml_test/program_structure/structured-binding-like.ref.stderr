@@ -1,0 +1,3 @@
+structured-binding-like.cpp:10 (13-22): Incompatible types: <int, int> cannot be cast to int
+ 10 |   int a = 0, b = foo();
+    |              ^^^^^^^^^

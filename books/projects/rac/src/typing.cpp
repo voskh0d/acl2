@@ -453,29 +453,7 @@ bool TypingAction::VisitMultipleValue(MultipleValue *e) {
 bool TypingAction::VisitReturnStmt(ReturnStmt *s) {
 
   s->returnType = deref(type_of_scope);
-
-  assert(s->returnType && "Not in a scope or no type for the scope");
-
-  bool is_same_type = s->returnType->isEqual(s->value->get_type());
-
-  assert(s->value->get_type() && "Value not typed ?!");
-
-  bool can_be_cast
-      = s->value->get_type()->canBeImplicitlyCastTo(s->returnType);
-
-  // TODO implicit cast (most of the case use it)
-  if (!is_same_type && !can_be_cast) {
-    diag_
-        .new_error(s->value->loc(),
-                   format("Invalid return type: expected `%s` got `%s`",
-                          s->returnType->to_string().c_str(),
-                          s->value->get_type()->to_string().c_str()))
-        .context(s->loc())
-        .report();
-    return error();
-  }
-
-  return true;
+  return check_assignement(s->loc(), s->returnType, s->value->get_type());
 }
 
 bool TypingAction::VisitSwitchStmt(SwitchStmt *s) {
@@ -555,18 +533,33 @@ bool TypingAction::VisitAssignment(Assignment *s) {
     return true;
   }
 
-  bool is_same_type = s->lval->get_type()->isEqual(s->rval->get_type());
-  bool can_be_cast
-      = s->rval->get_type()->canBeImplicitlyCastTo(s->lval->get_type());
+  return check_assignement(s->loc(), s->lval->get_type(), s->rval->get_type());
+}
+
+bool TypingAction::VisitSymDec(SymDec *s) {
+
+  if (s->init && !isa<Initializer *>(s->init)) {
+    assert(s->init->get_type());
+    return check_assignement(s->loc(), deref(s->type), s->init->get_type());
+  } else {
+    return true;
+  }
+}
+
+bool TypingAction::check_assignement(const Location &where, const Type *left,
+                                     const Type *right) {
+
+  // todo right->isEqual(left)
+  bool is_same_type = right->isEqual(left);
+  bool can_be_cast = right->canBeImplicitlyCastTo(left);
 
   if (!is_same_type && !can_be_cast) {
     diag_
-        .new_error(s->loc(),
-                   format("Incompatible types: %s cannot be cast to %s",
-                          s->rval->get_type()->to_string().c_str(),
-                          s->lval->get_type()->to_string().c_str()))
+        .new_error(where, format("Incompatible types: %s cannot be cast to %s",
+                                 right->to_string().c_str(),
+                                 left->to_string().c_str()))
         .report();
-    return false;
+    return error();
   }
   return true;
 }

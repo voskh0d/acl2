@@ -44,7 +44,10 @@ public:
   // Type and dereference the type of return.
   bool VisitReturnStmt(ReturnStmt *s);
   bool VisitSwitchStmt(SwitchStmt *s);
+
+  // Type check assignements.
   bool VisitAssignment(Assignment *s);
+  bool VisitSymDec(SymDec *s);
 
 private:
   using base_t = RecursiveASTVisitor<TypingAction>;
@@ -56,6 +59,9 @@ private:
   const Type *type_of_scope = nullptr;
 
   static inline const Type *deref(const Type *t);
+
+  bool check_assignement(const Location &where, const Type *left,
+                         const Type *right);
 };
 
 const Type *TypingAction::deref(const Type *t) {
