@@ -26,7 +26,7 @@ std::string Type::to_string() const {
 }
 
 Sexpression *
-Type::ACL2Assign(Expression *rval) const { // virtual (overridden by RegType)
+Type::ACL2Assign(Expression *rval) const { // virtual (overridden by IntType)
   // Convert rval to an S-expression to be assigned to an object of this type.
   return rval->ACL2Expr();
 }
@@ -143,7 +143,7 @@ bool PrimType::canBeImplicitlyCastTo(const Type *target) const {
   return false;
 }
 
-// class IntType : public RegType
+// class IntType : public Type
 // -------------------------------
 
 IntType *IntType::FromPrimType(const PrimType *t) {
@@ -195,7 +195,7 @@ bool IntType::canBeImplicitlyCastTo(const Type *target) const {
   if (isa<const PrimType *>(target)) {
     return width_->evalConst() <= 64;
   }
-  return isa<const RegType *>(target);
+  return isa<const IntType *>(target);
 }
 
 // class ArrayType : public Type

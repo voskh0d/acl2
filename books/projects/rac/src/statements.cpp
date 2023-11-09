@@ -360,11 +360,11 @@ void Assignment::displaySimple(std::ostream &os) {
   if (!strcmp(op, "set_slc")) {
 
     const Type *rval_type = rval->get_type();
-    if (!isa<const RegType *>(rval_type)) {
+    if (!isa<const IntType *>(rval_type)) {
       // TODO this should be check during typing.
       assert(!"Second arg of set_slc must have a defined width");
     }
-    unsigned w = always_cast<const RegType *>(rval_type)->width()->evalConst();
+    unsigned w = always_cast<const IntType *>(rval_type)->width()->evalConst();
     Subrange lval_slc(loc_, lval, index, w);
     lval_slc.display(os);
 
@@ -392,12 +392,12 @@ Sexpression *Assignment::ACL2Expr() {
   if (!strcmp(op, "set_slc")) {
 
     const Type *rval_type = rval->get_type();
-    if (!isa<const RegType *>(rval_type)) {
+    if (!isa<const IntType *>(rval_type)) {
       // TODO this should be check during typing.
       assert(!"Second arg of set_slc must have a defined width");
     }
 
-    unsigned w = always_cast<const RegType *>(rval_type)->width()->evalConst();
+    unsigned w = always_cast<const IntType *>(rval_type)->width()->evalConst();
 
     auto lval_slc = new Subrange(loc_, lval, index, w);
 

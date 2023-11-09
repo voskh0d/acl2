@@ -361,7 +361,7 @@ Sexpression *ArrayRef::ACL2Expr() {
     Sexpression *i = index->ACL2Expr();
 
     // If the register is signed, get its 2-complement representation.
-    const RegType *t = always_cast<const RegType *>(array->get_type());
+    const IntType *t = always_cast<const IntType *>(array->get_type());
 
     if (t->isSigned()) {
       unsigned n = t->width()->evalConst();
@@ -381,7 +381,7 @@ Sexpression *ArrayRef::ACL2Assign(Sexpression *rval) {
     Sexpression *b = array->ACL2Expr();
     Sexpression *i = index->ACL2Expr();
 
-    const RegType *t = always_cast<const RegType *>(array->get_type());
+    const IntType *t = always_cast<const IntType *>(array->get_type());
     unsigned n = t->width()->evalConst();
 
     // If the register is signed, get its 2-complement representation.
@@ -471,7 +471,7 @@ Sexpression *Subrange::ACL2Expr() {
 
   Sexpression *bv_val = new Plist({ &s_bits, b, hi, lo });
 
-  const RegType *t = always_cast<const RegType *>(base->get_type());
+  const IntType *t = always_cast<const IntType *>(base->get_type());
 
   if (t->isSigned()) {
     return new Plist({ &s_si, bv_val, new Integer(loc_, width_) });
@@ -486,7 +486,7 @@ Sexpression *Subrange::ACL2Assign(Sexpression *rval) {
   Sexpression *hi = high->ACL2Expr();
   Sexpression *lo = low->ACL2Expr();
 
-  const RegType *t = always_cast<const RegType *>(base->get_type());
+  const IntType *t = always_cast<const IntType *>(base->get_type());
   unsigned n = t->width()->evalConst();
 
   // If the register is signed, get its 2-complement representation.
@@ -721,24 +721,24 @@ Sexpression *BinaryExpr::ACL2Expr() {
   case Op::Plus:
     ptr = &s_plus;
     // AC types are guranted to fit in their result type.
-    need_narrowing = !isa<const RegType *>(get_type());
+    need_narrowing = !isa<const IntType *>(get_type());
     break;
   case Op::Minus:
     ptr = &s_minus;
     // AC types are guranted to fit in their result type.
-    need_narrowing = !isa<const RegType *>(get_type());
+    need_narrowing = !isa<const IntType *>(get_type());
     break;
   case Op::Times:
     ptr = &s_times;
     // AC types are guranted to fit in their result type.
-    need_narrowing = !isa<const RegType *>(get_type());
+    need_narrowing = !isa<const IntType *>(get_type());
     break;
   case Op::Divide:
     // TODO
     return new Plist({ &s_fl, new Plist({ &s_slash, sexpr1, sexpr2 }) });
   case Op::Mod:
     // AC types are guranted to fit in their result type.
-    need_narrowing = !isa<const RegType *>(get_type());
+    need_narrowing = !isa<const IntType *>(get_type());
     ptr = &s_rem;
     break;
   case Op::LShift:

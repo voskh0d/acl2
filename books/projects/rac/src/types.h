@@ -20,7 +20,6 @@ class DefinedType;
 //
 //   PrimType           (primitive type: uintType, intType, boolType)
 //   DefinedType        (introduced by typedef)
-//   RegType            (Algorithmic C register type)
 //   IntType            (limited integer register)
 //   ArrayType          (array type)
 //   StructType         (struct type) EnumType (enumeration type)
@@ -47,7 +46,7 @@ public:
   virtual void makeDef([[maybe_unused]] const char *name,
                        std::ostream &os = std::cout) const;
 
-  // overridden by RegType
+  // overridden by IntType
   // Convert rval to an S-expression to be assigned to an object of this
   virtual Sexpression *ACL2Assign(Expression *rval) const;
 
@@ -63,10 +62,10 @@ public:
     return 0;
   }
 
-  // overridden by RegType
+  // overridden by IntType
   virtual Sexpression *ACL2Eval(Sexpression *s) const {
-    // For a RegType, the numerical value represented by a given bit vector s.
-    // For any other type, just return s.
+    // For a IntType, get the bit vector from the numerical value represented
+    // by s. For any other type, just return s.
     return s;
   }
 
@@ -182,10 +181,7 @@ public:
   }
 
   void displayDef(std::ostream &os = std::cout) const {
-    // Why do we display only if it is a regtype ? We should show all typedefs.
-    //    if (!(isa<const RegType *>( def_))) {
     def_->makeDef(getname(), os);
-    //    }
   }
 
   Type *getdef() { return def_; }
@@ -215,17 +211,10 @@ private:
   Type *def_;
 };
 
-class RegType : public Type {
-public:
-  RegType(origin_t loc) : Type(loc) {}
-  virtual Expression *width() const = 0;
-  virtual bool isSigned() const = 0;
-};
-
-class IntType final : public RegType {
+class IntType final : public Type {
 public:
   IntType(origin_t loc, Expression *w, bool s)
-      : RegType(loc), width_(w), isSigned_(s) {}
+      : Type(loc), width_(w), isSigned_(s) {}
 
   // Return an ac_int of the same sign and width as t.
   static IntType *FromPrimType(const PrimType *t);
@@ -236,8 +225,8 @@ public:
 
   unsigned ACL2ValWidth() const override;
 
-  bool isSigned() const override { return isSigned_; }
-  Expression *width() const override { return width_; }
+  bool isSigned() const { return isSigned_; }
+  Expression *width() const { return width_; }
 
   bool isEqual(const Type *other) const override;
   bool canBeImplicitlyCastTo(const Type *target) const override;
@@ -398,7 +387,7 @@ inline bool isIntegerType(const Type *t) {
 // TODO remove this is awful.
 inline bool isSigned(const Type *t) {
 
-  if (auto rt = dynamic_cast<const RegType *>(t)) {
+  if (auto rt = dynamic_cast<const IntType *>(t)) {
     return rt->isSigned();
   }
 

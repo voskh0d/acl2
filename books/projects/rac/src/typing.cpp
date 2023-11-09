@@ -135,7 +135,7 @@ bool TypingAction::VisitStructRef(StructRef *e) {
 
 bool TypingAction::VisitSubrange(Subrange *e) {
 
-  if (const RegType *t = dynamic_cast<const RegType *>(e->base->get_type())) {
+  if (const IntType *t = dynamic_cast<const IntType *>(e->base->get_type())) {
     Integer *width = new Integer(e->loc(), e->width());
     e->set_type(new IntType(e->loc(), width, t->isSigned()));
   } else {
@@ -269,7 +269,7 @@ bool TypingAction::VisitBinaryExpr(BinaryExpr *e) {
     return true;
   }
 
-  if (isa<const IntType *>(t1) || isa<const RegType *>(t2)) {
+  if (isa<const IntType *>(t1) || isa<const IntType *>(t2)) {
 
     // If e1 if not a intType, try to convert int.
     IntType *t1_promoted = nullptr;
@@ -505,7 +505,7 @@ bool TypingAction::VisitAssignment(Assignment *s) {
       return error();
     }
 
-    if (!isa<const RegType *>(s->rval->get_type())) {
+    if (!isa<const IntType *>(s->rval->get_type())) {
       diag_
           .new_error(s->rval->loc(),
                      format("Value (of type %s) is not a register",
