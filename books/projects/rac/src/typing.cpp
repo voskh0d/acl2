@@ -216,8 +216,17 @@ bool TypingAction::VisitPrefixExpr(PrefixExpr *e) {
 }
 
 bool TypingAction::VisitCastExpr(CastExpr *e) {
-  // TODO check incompatible type ex: array -> int
-  e->set_type(e->type);
+  const Type *t = deref(e->type);
+  e->set_type(t);
+  if (!e->expr->get_type()->canBeImplicitlyCastTo(t)) {
+    diag_
+        .new_error(e->loc(),
+                   format("Incompatible types: %s cannot be cast to %s",
+                          e->expr->get_type()->to_string().c_str(),
+                          t->to_string().c_str()))
+        .report();
+    return error();
+  }
   return true;
 }
 
@@ -353,8 +362,8 @@ bool TypingAction::VisitBinaryExpr(BinaryExpr *e) {
 
 bool TypingAction::VisitCondExpr(CondExpr *e) {
 
-  // TODO instead, check if convertible to bool.
-  if (!e->test->get_type()->isEqual(&boolType)) {
+  // Convertible to bool
+  if (!isIntegerType(e->test->get_type())) {
     diag_
         .new_error(e->test->loc(),
                    format("Expected a boolean, got `%s`.",
@@ -536,7 +545,6 @@ bool TypingAction::VisitSymDec(SymDec *s) {
 bool TypingAction::check_assignement(const Location &where, const Type *left,
                                      const Type *right) {
 
-  // todo right->isEqual(left)
   bool is_same_type = right->isEqual(left);
   bool can_be_cast = right->canBeImplicitlyCastTo(left);
 

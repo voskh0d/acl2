@@ -90,3 +90,6 @@
 - name: std-array-initializer-incomplete
 
 - name: overflow
+
+- name: invalid-cast
+  should_report_error: true
