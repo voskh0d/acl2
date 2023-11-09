@@ -410,49 +410,49 @@ bool EnumType::isEqual(const Type *other) const {
   return false;
 }
 
-// class MvType : public Type (multiple-value type)
-// -------------------------------------------
+namespace priv {
 
-// Data members:  unsigned numVals; Type *type[8];
-// 2 <= numVals <= 8; determines number of valid entries of type[].
+  // class CompositeType : public Type (multiple-value type)
+  // -------------------------------------------
 
-void MvType::display(std::ostream &os) const {
+  void CompositeType::display(std::ostream &os) const {
 
-  assert(types_.size() >= 2
-         && "It does not make sense to have a mv with 1 or 0 elem");
+    assert(types_.size() >= 2
+           && "It does not make sense to have a mv with 1 or 0 elem");
 
-  os << "<";
-  bool first = true;
-  for (const auto t : types_) {
-    if (!first) {
-      os << ", ";
+    os << "<";
+    bool first = true;
+    for (const auto t : types_) {
+      if (!first) {
+        os << ", ";
+      }
+      t->display(os);
+      first = false;
     }
-    t->display(os);
-    first = false;
-  }
-  os << ">";
-}
-
-bool MvType::isEqual(const Type *other) const {
-
-  if (auto o = dynamic_cast<const DefinedType *>(other)) {
-    other = o->derefType();
+    os << ">";
   }
 
-  if (auto o = dynamic_cast<const MvType *>(other)) {
-    if (types_.size() != o->types_.size()) {
-      return false;
+  bool CompositeType::isEqual(const Type *other) const {
+
+    if (auto o = dynamic_cast<const DefinedType *>(other)) {
+      other = o->derefType();
     }
 
-    for (unsigned i = 0; i < types_.size(); ++i) {
-      if (!types_[i]->isEqual(o->types_[i])) {
+    if (auto o = dynamic_cast<const CompositeType *>(other)) {
+      if (types_.size() != o->types_.size()) {
         return false;
       }
-    }
-    return true;
-  }
 
-  return false;
+      for (unsigned i = 0; i < types_.size(); ++i) {
+        if (!types_[i]->isEqual(o->types_[i])) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    return false;
+  }
 }
 
 Sexpression *numeric_cast(Sexpression *sexpr, std::optional<const Type *> src,

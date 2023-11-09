@@ -72,7 +72,7 @@ def test(bin_path, dir_path, testcase, timeout):
     disabled_checks = testcase.get("disabled-checks", [])
     if not "should_report_error" in disabled_checks:
         if testcase.get("should_report_error", False):
-            assert out.returncode != 0, "expected a non zero returncode but got 0"
+            assert out.returncode == 1, "expected a non zero returncode but got 0"
         else:
             assert out.returncode == 0, f"expected a zero returncode but got {out.returncode}"
 

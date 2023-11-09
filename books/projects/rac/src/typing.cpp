@@ -112,8 +112,12 @@ bool TypingAction::VisitTempCall(TempCall *e) {
 }
 
 bool TypingAction::VisitInitializer(Initializer *e) {
-  // TODO ??
-  e->set_type(nullptr);
+
+  // Infer type.
+  std::vector<const Type *> types;
+  for_each(e->vals, [&](Constant *c) { types.push_back(c->get_type()); });
+  e->set_type(new InitializerType({ e->loc() }, std::move(types)));
+
   return true;
 }
 
@@ -534,16 +538,95 @@ bool TypingAction::VisitAssignment(Assignment *s) {
 
 bool TypingAction::VisitSymDec(SymDec *s) {
 
-  if (s->init && !isa<Initializer *>(s->init)) {
-    assert(s->init->get_type());
+  if (s->init) {
     return check_assignement(s->loc(), deref(s->type), s->init->get_type());
-  } else {
-    return true;
   }
+  return true;
 }
 
 bool TypingAction::check_assignement(const Location &where, const Type *left,
                                      const Type *right) {
+
+  // TODO: refactore this nightmare.
+  // Initializer list can be used in two differents context: array and
+  // struct. Strong typed Initialization is not supported yet.
+  if (auto t = dynamic_cast<const InitializerType *>(right)) {
+
+    if (auto array = dynamic_cast<const ArrayType *>(left)) {
+
+      unsigned array_size = array->dim->evalConst();
+
+      if (t->size() > array_size) {
+        diag_
+            .new_error(
+                where,
+                format(
+                    "Too many arguments, %s, expected %d argument(s) got %d",
+                    array_size, t->size()))
+            .report();
+        return error();
+      }
+
+      auto is_correct = std::all_of(
+          t->types().begin(), t->types().end(), [&](const Type *t) {
+            if (!t->canBeImplicitlyCastTo(array->baseType)) {
+              diag_
+                  .new_error(
+                      where,
+                      format("Wrong type provided, expected %s but got %s",
+                             array->baseType->to_string().c_str(),
+                             t->to_string().c_str()))
+                  .report();
+              return false;
+            }
+            return true;
+          });
+
+      return is_correct ? true : error();
+
+    } else if (auto struct_ = dynamic_cast<const StructType *>(left)) {
+
+      unsigned struct_size = struct_->fields().size();
+
+      if (t->size() > struct_size) {
+        diag_
+            .new_error(
+                where,
+                format("Too many arguments, expected %d argument(s) got %d",
+                       struct_size, t->size()))
+            .report();
+        return error();
+      }
+
+      unsigned i = 0;
+      auto is_correct = std::all_of(
+          t->types().begin(), t->types().end(), [&](const Type *t) {
+            Type *field_type = struct_->fields()[i]->type;
+            if (!t->canBeImplicitlyCastTo(field_type)) {
+              diag_
+                  .new_error(
+                      where,
+                      format("Wrong type provided, expected %s but got %s",
+                             field_type->to_string().c_str(),
+                             t->to_string().c_str()))
+                  .report();
+              return false;
+            }
+            ++i;
+            return true;
+          });
+
+      return is_correct ? true : error();
+
+    } else {
+      diag_
+          .new_error(where,
+                     format("Initializer list are not yet supported for %s",
+                            left->to_string().c_str()))
+          .report();
+      return error();
+    }
+  }
 
   bool is_same_type = right->isEqual(left);
   bool can_be_cast = right->canBeImplicitlyCastTo(left);

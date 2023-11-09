@@ -21,7 +21,6 @@ int foo() { return a + s.a + n; }
 
 int bar() {
   const int c = 4, e = 4, f = 4;
-  const array<int, 2> arr1[2] = { 3 }, arr2[1] = { 0 }, arr3[1] = { 0 };
   return arr[3];
 }
 

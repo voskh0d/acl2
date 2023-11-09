@@ -24,6 +24,7 @@ class DefinedType;
 //   ArrayType          (array type)
 //   StructType         (struct type) EnumType (enumeration type)
 //   MvType             (multiple value type)
+//   InitializerType    (type of initializer list)
 //   ErrorType          (type used to recover from typing error)
 class Type {
 
@@ -319,24 +320,40 @@ private:
   std::vector<EnumConstDec *> vals_;
 };
 
-class MvType : public Type {
+namespace priv {
+  class CompositeType : public Type {
+  public:
+    CompositeType(origin_t loc, std::vector<const Type *> &&t)
+        : Type(loc), types_(t) {}
+
+    void display(std::ostream &os) const override;
+
+    unsigned size() const { return types_.size(); }
+    const Type *get(unsigned n) { return types_[n]; }
+    const std::vector<const Type *> &types() const { return types_; }
+
+    bool isEqual(const Type *other) const override;
+
+    bool canBeImplicitlyCastTo([
+        [maybe_unused]] const Type *target) const override {
+      return false;
+    }
+
+  private:
+    std::vector<const Type *> types_;
+  };
+}
+
+class MvType final : public priv::CompositeType {
 public:
-  MvType(origin_t loc, std::vector<Type *> &&t) : Type(loc), types_(t) {}
+  MvType(origin_t loc, std::vector<const Type *> &&t)
+      : CompositeType(loc, std::move(t)) {}
+};
 
-  void display(std::ostream &os) const override;
-
-  unsigned size() const { return types_.size(); }
-  const Type *get(unsigned n) { return types_[n]; }
-
-  bool isEqual(const Type *other) const override;
-
-  bool canBeImplicitlyCastTo([
-      [maybe_unused]] const Type *target) const override {
-    return false;
-  }
-
-private:
-  std::vector<Type *> types_;
+class InitializerType final : public priv::CompositeType {
+public:
+  InitializerType(origin_t loc, std::vector<const Type *> &&t)
+      : CompositeType(loc, std::move(t)) {}
 };
 
 // Type used to recover from error during the type pass.

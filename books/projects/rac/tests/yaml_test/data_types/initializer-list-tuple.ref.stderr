@@ -1,0 +1,3 @@
+initializer-list-tuple.cpp:7 (18-30): Initializer list are not yet supported for <int, int>
+  7 |   tuple<int, int> t = { 1, 2 };
+    |                   ^^^^^^^^^^^^

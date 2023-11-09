@@ -309,8 +309,6 @@ Initializer::ACL2StructExpr(const std::vector<StructField *> &fields) {
   Sexpression *result = new Plist();
   List<Constant> *ptr = vals;
 
-  assert(vals->length() == fields.size());
-
   for (auto f : fields) {
     result = new Plist({ &s_as, new Plist({ &s_quote, f->sym }),
                          ptr->value->ACL2Expr(), result });

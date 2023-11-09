@@ -140,7 +140,7 @@ while (0)
   Case *c;
   std::vector<Case *> *cl;
 
-  std::vector<Type *> *vl;
+  std::vector<const Type *> *vl;
   Boolean *b;
   MvType *mvtype;
 }
@@ -447,7 +447,7 @@ mv_type
 mv_type_rest
     : '>'
 {
-  $$ = new std::vector<Type *>();
+  $$ = new std::vector<const Type *>();
 }
     | ',' type_spec mv_type_rest
 {
