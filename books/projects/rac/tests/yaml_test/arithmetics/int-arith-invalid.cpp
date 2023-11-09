@@ -13,7 +13,7 @@ int prefix_invalid() {
 }
 
 int no_implicit_cast() {
-  ac_int<3, false> x;
+  ac_int<3, false> x = 0;
   array<int, 3> a = { 0, 1, 2 };
   x = x + a;
 
@@ -21,7 +21,7 @@ int no_implicit_cast() {
 }
 
 int ternary_invalid() {
-  ac_int<3, false> x;
+  ac_int<3, false> x = 0;
   array<int, 3> a = { 0, 1, 2 };
   x = true ? x : a;
 

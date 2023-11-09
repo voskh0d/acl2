@@ -28,8 +28,10 @@ bool TypingAction::TraverseFunDef(FunDef *e) {
   assert(!type_of_scope);
   type_of_scope = e->returnType;
 
-  if (!base_t::TraverseFunDef(e))
+  if (!base_t::TraverseFunDef(e)) {
+    type_of_scope = nullptr;
     return error();
+  }
 
   type_of_scope = nullptr;
 
@@ -513,4 +515,58 @@ bool TypingAction::VisitSwitchStmt(SwitchStmt *s) {
     }
     return true;
   });
+}
+
+bool TypingAction::VisitAssignment(Assignment *s) {
+
+  if (!strcmp(s->op, "set_slc")) {
+
+    if (!isa<const IntType *>(s->lval->get_type())) {
+      diag_
+          .new_error(s->lval->loc(),
+                     format("Base (of type %s) is not a register",
+                            s->lval->get_type()->to_string().c_str()))
+          .context(s->loc())
+          .report();
+      return error();
+    }
+
+    if (!isa<const RegType *>(s->rval->get_type())) {
+      diag_
+          .new_error(s->rval->loc(),
+                     format("Value (of type %s) is not a register",
+                            s->rval->get_type()->to_string().c_str()))
+          .context(s->loc())
+          .report();
+      return error();
+    }
+
+    if (!isIntegerType(s->index->get_type())) {
+      diag_
+          .new_error(
+              s->index->loc(),
+              format("Expected an integer (ac_int, int, ..,), got %s instead",
+                     s->index->get_type()->to_string().c_str()))
+          .context(s->loc())
+          .report();
+      return error();
+    }
+
+    return true;
+  }
+
+  bool is_same_type = s->lval->get_type()->isEqual(s->rval->get_type());
+  bool can_be_cast
+      = s->rval->get_type()->canBeImplicitlyCastTo(s->lval->get_type());
+
+  if (!is_same_type && !can_be_cast) {
+    diag_
+        .new_error(s->loc(),
+                   format("Incompatible types: %s cannot be cast to %s",
+                          s->rval->get_type()->to_string().c_str(),
+                          s->lval->get_type()->to_string().c_str()))
+        .report();
+    return false;
+  }
+  return true;
 }

@@ -45,3 +45,7 @@
                expect that init is either a assignement or a variable
                declaration without checking the type of init. I think the cond
                and increment may have the same issue.
+
+- name: break-outside-of-switch
+  should_report_error: true
+

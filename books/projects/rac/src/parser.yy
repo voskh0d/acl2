@@ -479,7 +479,10 @@ primary_expression
 
 constant
     : integer
-    | boolean;
+    | boolean
+{
+  $$ = static_cast<Constant *>($1);
+}
 
 integer
     : NAT { $$ = new Integer (@$, $1); }
@@ -873,6 +876,10 @@ array_or_struct_init
     : '{' init_list '}'
 {
   $$ = new Initializer (@$, (List<Constant> *)($2->front ()));
+}
+    | '{' '}'
+{
+  $$ = new Initializer (@$, nullptr);
 };
 
 init_list

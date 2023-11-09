@@ -44,6 +44,7 @@ public:
   // Type and dereference the type of return.
   bool VisitReturnStmt(ReturnStmt *s);
   bool VisitSwitchStmt(SwitchStmt *s);
+  bool VisitAssignment(Assignment *s);
 
 private:
   using base_t = RecursiveASTVisitor<TypingAction>;

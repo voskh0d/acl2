@@ -6,7 +6,7 @@ endif
 # Preprocessor, compiler and liker flags. Those lines does not overwrite the
 # environment variable, it only append more to them.
 CPPFLAGS +=
-CXXFLAGS += -Wall -Wextra -std=c++17
+CXXFLAGS += -Wall -Wextra -pedantic -std=c++17
 LDFLAGS +=
 
 SRCS=diagnostics.cpp expressions.cpp functions.cpp lex.yy.cpp main.cpp parser.tab.cpp program.cpp sexpressions.cpp statements.cpp types.cpp typing.cpp racconstraint.cpp
@@ -67,7 +67,7 @@ parse: version.h ${OBJS}
 	${CC} -o parse $(LDFLAGS) ${OBJS}
 
 clean:
-	rm -f rac parser.tab.c parser.tab.h parser.output lex.yy.c parser.c
+	rm -f ${OBJS} version.h parser.tab.cpp lex.yy.cpp
 	rm -f -r parse.dSym
 
 veryclean : clean

@@ -266,37 +266,49 @@ void Initializer::display(std::ostream &os) const {
 }
 
 Sexpression *Initializer::ACL2Expr() {
-  BigList<Sexpression> *result
-      = new BigList<Sexpression>((Sexpression *)(vals->value->ACL2Expr()));
-  List<Constant> *ptr = vals->next;
-  while (ptr) {
-    result->add((Sexpression *)(ptr->value->ACL2Expr()));
-    ptr = ptr->next;
-  }
-  return Plist::FromList(result->front());
+
+  Plist *res = new Plist();
+
+  for_each(vals, [&](Constant *c) { res->add(c->ACL2Expr()); });
+
+  return res;
 }
 
+// TODO refacto
 Sexpression *Initializer::ACL2ArrayExpr() {
+
+  if (!vals)
+    return new Plist();
+
   List<Sexpression> *entries = ((Plist *)(ACL2Expr()))->list;
-  Plist *p = new Plist();
+  //  Plist *entries = always_cast<Plist *>(ACL2Expr());
+
+  Plist *res = new Plist();
   unsigned i = 0;
-  while (entries) {
-    if (strcmp(((Constant *)(entries->value))->getname(), "0")) {
-      p->add(new Cons(new Integer(loc_, i), entries->value));
+
+  for_each(entries, [&](Sexpression *s) {
+    if (strcmp(always_cast<Symbol *>(s)->getname(), "0")) {
+      res->add(new Cons(new Integer(loc_, i), s));
     }
     i++;
-    entries = entries->next;
+  });
+
+  if (res->list) {
+    res = new Plist({ &s_quote, res });
   }
-  if (p->list) {
-    p = new Plist({ &s_quote, p });
-  }
-  return p;
+
+  return res;
 }
 
 Sexpression *
 Initializer::ACL2StructExpr(const std::vector<StructField *> &fields) {
+
+  if (!vals)
+    return new Plist();
+
   Sexpression *result = new Plist();
   List<Constant> *ptr = vals;
+
   assert(vals->length() == fields.size());
 
   for (auto f : fields) {
@@ -304,6 +316,7 @@ Initializer::ACL2StructExpr(const std::vector<StructField *> &fields) {
                          ptr->value->ACL2Expr(), result });
     ptr = ptr->next;
   }
+
   return result;
 }
 

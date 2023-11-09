@@ -86,5 +86,7 @@
   should_report_error: true
 
 - name: initializer-list
+- name: std-array-initializer-diff-size
+- name: std-array-initializer-incomplete
 
 - name: overflow
