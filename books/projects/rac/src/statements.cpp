@@ -160,7 +160,7 @@ Sexpression *VarDec::ACL2Expr() {
     } else if (isROM()) {
       val = new Plist({ &s_quote, init->ACL2Expr() });
     } else {
-      val = init->ACL2ArrayExpr();
+      val = always_cast<Initializer *>(init)->ACL2ArrayExpr();
     }
   } else if (isa<const StructType *>(t)) {
     if (!init) {
@@ -168,7 +168,7 @@ Sexpression *VarDec::ACL2Expr() {
     } else if (Initializer *i = dynamic_cast<Initializer *>(init)) {
       val = i->ACL2StructExpr(always_cast<const StructType *>(t)->fields());
     } else {
-      val = init->ACL2ArrayExpr();
+      val = always_cast<Initializer *>(init)->ACL2ArrayExpr();
     }
   } else if (init) {
     val = t->ACL2Assign(init);

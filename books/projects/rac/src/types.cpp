@@ -221,23 +221,20 @@ void ArrayType::displayVarName(const char *name, std::ostream &os) const {
 }
 
 void ArrayType::makeDef(const char *name, std::ostream &os) const {
-  const Type *b = baseType;
-
-  List<Expression> *dims = new List<Expression>(dim);
-  while (isa<const ArrayType *>(b)) {
-    dims = dims->push(((const ArrayType *)b)->dim);
-    b = ((const ArrayType *)b)->baseType;
-  }
 
   os << "\ntypedef ";
-  b->display(os);
+  baseType->display(os);
   os << " " << name;
 
-  while (dims) {
+  std::vector<Expression *> dims;
+  for (auto b = this; b; b = dynamic_cast<const ArrayType *>(b->baseType)) {
+    dims.push_back(b->dim);
+  }
+
+  for (auto it = dims.begin(); it != dims.end(); ++it) {
     os << "[";
-    (dims->value)->display(os);
+    (*it)->display(os);
     os << "]";
-    dims = dims->next;
   }
 
   os << ";";

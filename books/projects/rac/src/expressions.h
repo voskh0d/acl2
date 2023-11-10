@@ -28,7 +28,6 @@ public:
 
   // The following method converts an expression to an S-expression.
   virtual Sexpression *ACL2Expr() = 0;
-  virtual Sexpression *ACL2ArrayExpr();
   virtual Sexpression *ACL2Assign(Sexpression *rval);
 
   unsigned ACL2ValWidth();
@@ -125,9 +124,6 @@ public:
   }
 
   virtual Sexpression *ACL2Expr() override { return expr_->ACL2Expr(); }
-  virtual Sexpression *ACL2ArrayExpr() override {
-    return expr_->ACL2ArrayExpr();
-  }
   virtual Sexpression *ACL2Assign(Sexpression *rval) override {
     return expr_->ACL2Assign(rval);
   }
@@ -179,8 +175,8 @@ public:
   Initializer(Location loc, List<Constant> *v);
   void display(std::ostream &os) const override;
   Sexpression *ACL2Expr() override;
-  Sexpression *ACL2ArrayExpr() override;
 
+  Sexpression *ACL2ArrayExpr();
   Sexpression *ACL2StructExpr(const std::vector<StructField *> &fields);
 };
 

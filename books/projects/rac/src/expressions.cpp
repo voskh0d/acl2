@@ -26,15 +26,6 @@ bool Expression::isInteger() { // virtual
   return false;
 }
 
-// The following method converts an expression to an Sexpression to be used as
-// an array initialization. It returns the same value as ACL2Expr, except for
-// an Initializer:
-
-Sexpression *
-Expression::ACL2ArrayExpr() { // virtual (overridden by Initializer)
-  return ACL2Expr();
-}
-
 // Translate to an ACL2 assignment with this lvalue and the rvalue given as the
 // argument:
 

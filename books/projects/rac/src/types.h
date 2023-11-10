@@ -1,6 +1,7 @@
 #ifndef TYPES_H
 #define TYPES_H
 
+#include "diagnostics.h"
 #include "sexpressions.h"
 
 #include <algorithm>

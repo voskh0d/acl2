@@ -525,7 +525,6 @@ funcall
     | TEMPLATEID '<' arith_expr_list '>' '(' arith_expr_list ')'
 {
   Template *f;
-// TODO: Why are we looking into funDefs and not in templates ???
   if ((f = (Template *)prog.getFunDef ($1)) == nullptr)
     {
       prog.diag()
