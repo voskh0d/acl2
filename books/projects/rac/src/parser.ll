@@ -11,7 +11,7 @@ lineba ^"#"\ [0-9]+\ \"[^\"]*\".*\n
 #include "expressions.h"
 #include "functions.h"
 #include "parser.h"
-#include "parser.tab.hh"
+#include "parser.tab.hpp"
 #include "statements.h"
 #include "types.h"
 

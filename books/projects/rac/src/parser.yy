@@ -118,7 +118,7 @@ while (0)
 %}
 
 %union {
-  char *c_string;
+  char *s;
 
   Type *type;
   DefinedType *defined_type;
@@ -157,12 +157,12 @@ while (0)
 %token FOR IF ELSE WHILE DO SWITCH CASE DEFAULT BREAK RETURN ASSERT
 %token ARRAY TUPLE TIE
 %token AC_INT AC_FIXED
-%token<c_string> RSHFT_ASSIGN LSHFT_ASSIGN ADD_ASSIGN SUB_ASSIGN MUL_ASSIGN MOD_ASSIGN
-%token<c_string> AND_ASSIGN XOR_ASSIGN OR_ASSIGN
-%token<c_string> INC_OP DEC_OP
-%token<c_string> RSHFT_OP LSHFT_OP AND_OP OR_OP LE_OP GE_OP EQ_OP NE_OP
-%token<c_string> ID NAT TRUE FALSE TYPEID TEMPLATEID
-%token<c_string> '=' '+' '-' '&' '|' '!' '~' '*' '%' '<' '>' '^' '/'
+%token<s> RSHFT_ASSIGN LSHFT_ASSIGN ADD_ASSIGN SUB_ASSIGN MUL_ASSIGN MOD_ASSIGN
+%token<s> AND_ASSIGN XOR_ASSIGN OR_ASSIGN
+%token<s> INC_OP DEC_OP
+%token<s> RSHFT_OP LSHFT_OP AND_OP OR_OP LE_OP GE_OP EQ_OP NE_OP
+%token<s> ID NAT TRUE FALSE TYPEID TEMPLATEID
+%token<s> '=' '+' '-' '&' '|' '!' '~' '*' '%' '<' '>' '^' '/'
 
 %start program
 
@@ -195,7 +195,7 @@ while (0)
 %type<stm> simple_statement assignment multiple_assignment assertion return_statement
 %type<c> case
 %type<cl> case_list
-%type<c_string> assign_op inc_op unary_op
+%type<s> assign_op inc_op unary_op
 %type<vl> mv_type_rest
 
 %expect 3

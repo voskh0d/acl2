@@ -59,7 +59,7 @@ version.h:
 parser.tab.cpp: parser.yy
 	bison -d -v -o parser.tab.cpp parser.yy -Wall
 
-lex.yy.cpp: parser.ll
+lex.yy.cpp: parser.ll parser.tab.cpp
 	flex -o lex.yy.cpp parser.ll
 
 # Build the binary.
