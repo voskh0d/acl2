@@ -84,12 +84,8 @@ bool RecursiveASTVisitor<Derived>::TraverseFunCall(FunCall *e) {
     if (!derived().WalkUpFunCall(e))
       return false;
 
-  bool b = true;
-  for_each(e->args, [&](Expression *e) {
-    if (b && !derived().TraverseExpression(e))
-      b = false;
-  });
-  if (!b)
+  if (!std::all_of(e->args.begin(), e->args.end(),
+        [&](Expression *e) { return derived().TraverseExpression(e); }))
     return false;
 
   if (derived().postfixTraversal())
@@ -106,12 +102,8 @@ bool RecursiveASTVisitor<Derived>::TraverseTempCall(TempCall *e) {
     if (!derived().WalkUpTempCall(e))
       return false;
 
-  bool b = true;
-  for_each(e->params, [&](Expression *e) {
-    if (b && !derived().TraverseExpression(e))
-      b = false;
-  });
-  if (!b)
+  if (!std::all_of(e->params.begin(), e->params.end(),
+        [&](Expression *e) { return derived().TraverseExpression(e); }))
     return false;
 
   if (derived().postfixTraversal())
@@ -275,9 +267,8 @@ bool RecursiveASTVisitor<Derived>::TraverseMultipleValue(MultipleValue *e) {
     if (!derived().WalkUpMultipleValue(e))
       return false;
 
-  if (!std::all_of(e->expr.begin(), e->expr.end(), [this](Expression *e) {
-        return derived().TraverseExpression(e);
-      }))
+  if (!std::all_of(e->expr.begin(), e->expr.end(),
+        [this](Expression *e) { return derived().TraverseExpression(e); }))
     return false;
 
   if (derived().postfixTraversal())
@@ -492,8 +483,7 @@ bool RecursiveASTVisitor<Derived>::TraverseMultipleAssignment(
     if (!derived().WalkUpMultipleAssignment(s))
       return false;
 
-  if (!std::all_of(
-          s->lvals().begin(), s->lvals().end(),
+  if (!std::all_of(s->lvals().begin(), s->lvals().end(),
           [this](Expression *e) { return derived().TraverseExpression(e); }))
     return false;
 
@@ -514,12 +504,8 @@ bool RecursiveASTVisitor<Derived>::TraverseBlock(Block *s) {
     if (!derived().WalkUpBlock(s))
       return false;
 
-  bool b = true;
-  for_each(s->stmtList, [&](Statement *s) {
-    if (b && !derived().TraverseStatement(s))
-      b = false;
-  });
-  if (!b)
+  if (!std::all_of(s->stmtList.begin(), s->stmtList.end(),
+        [&](Statement *s) { return derived().TraverseStatement(s); }))
     return false;
 
   if (derived().postfixTraversal())
@@ -588,12 +574,8 @@ bool RecursiveASTVisitor<Derived>::TraverseCase(Case *s) {
   if (!derived().TraverseExpression(s->label))
     return false;
 
-  bool b = true;
-  for_each(s->action, [&](Statement *s) {
-    if (b && !derived().TraverseStatement(s))
-      b = false;
-  });
-  if (!b)
+  if (!std::all_of(s->action.begin(), s->action.end(),
+        [&](Statement *s) { return derived().TraverseStatement(s); }))
     return false;
 
   if (derived().postfixTraversal())
@@ -697,10 +679,6 @@ bool RecursiveASTVisitor<Derived>::TraverseTemplate(Template *s) {
       b = false;
   });
   if (!b)
-    return false;
-
-  if (!std::all_of(s->calls.begin(), s->calls.end(),
-        [&](TempCall *s) { return derived().TraverseExpression(s); }))
     return false;
 
   if (derived().postfixTraversal())

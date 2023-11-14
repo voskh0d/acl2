@@ -149,19 +149,12 @@ Sexpression *SymRef::ACL2Assign(Sexpression *rval) {
 // class FunCall : public Expression (function call)
 // -------------------------------------------------
 
-// Data members:  FunDef *func; List<Expression> *args;
+FunCall::FunCall(Location loc, FunDef *f, std::vector<Expression *> &&a)
+    : Expression(idOf(this), loc), func(f), args(a) {}
 
-FunCall::FunCall(Location loc, FunDef *f, List<Expression> *a)
-    : Expression(idOf(this), loc) {
-  func = f;
-  args = a;
-}
-
-FunCall::FunCall(NodesId id, Location loc, FunDef *f, List<Expression> *a)
-    : Expression(id, loc) {
-  func = f;
-  args = a;
-}
+FunCall::FunCall(NodesId id, Location loc, FunDef *f,
+                 std::vector<Expression *> &&a)
+    : Expression(id, loc), func(f), args(a) {}
 
 bool FunCall::isInteger() { return isIntegerType(get_type()); }
 
@@ -169,7 +162,7 @@ void FunCall::display(std::ostream &os) const {
 
   os << func->getname() << "(";
   bool is_first = true;
-  for_each(args, [&](Expression *e) {
+  std::for_each(args.begin(), args.end(), [&](Expression *e) {
     if (!is_first)
       os << ", ";
     e->display(os);
@@ -184,11 +177,9 @@ Sexpression *FunCall::ACL2Expr() {
   Plist *result = new Plist({ new Symbol(func->getname()) });
 
   List<VarDec> *p = func->params;
-  List<Expression> *a = args;
-  while (a) {
 
-    result->add(p->value->type->ACL2Assign(a->value));
-    a = a->next;
+  for (Expression *a : args) {
+    result->add(p->value->type->ACL2Assign(a));
     p = p->next;
   }
 
@@ -198,31 +189,34 @@ Sexpression *FunCall::ACL2Expr() {
 // class TempCall : public Expression (function template Data)
 // -------------------------------------------------
 
-// call members:  Symbol *instanceSym; List<Expression> *params;
-
-TempCall::TempCall(Location loc, Template *f, List<Expression> *a,
-                   List<Expression> *p)
-    : FunCall(idOf(this), loc, f, a) {
-  params = p;
+TempCall::TempCall(Location loc, Template *f, std::vector<Expression *> &&a,
+                   std::vector<Expression *> &&p)
+    : FunCall(idOf(this), loc, f, std::move(a)), params(p) {
   f->calls.push_back(this);
 }
 
 void TempCall::display(std::ostream &os) const {
   os << func->getname() << "<";
-  List<Expression> *ptr = params;
-  while (ptr) {
-    ptr->value->display(os);
-    if (ptr->next)
+
+  bool is_first = true;
+  for (Expression *p : params) {
+    if (!is_first) {
       os << ", ";
-    ptr = ptr->next;
+    } else {
+      is_first = false;
+    }
+    p->display(os);
   }
   os << ">(";
-  ptr = args;
-  while (ptr) {
-    ptr->value->display(os);
-    if (ptr->next)
+
+  is_first = true;
+  for (Expression *a : args) {
+    if (!is_first) {
       os << ", ";
-    ptr = ptr->next;
+    } else {
+      is_first = false;
+    }
+    a->display(os);
   }
   os << ")";
 }

@@ -92,12 +92,13 @@ void Template::display(std::ostream &os, const char *prefix, unsigned indent) {
 
 // This is called by both Template::displayACL2Expr and TempCall::ACL2Expr:
 
-void Template::bindParams(List<Expression> *actuals) {
+void Template::bindParams(const std::vector<Expression *> &actuals) {
 
+  auto it = actuals.begin();
   for_each(tempParams, [&](TempParamDec *formal) {
-    assert(actuals);
-    formal->init = actuals->value;
-    actuals = actuals->next;
+    assert(it != actuals.end());
+    formal->init = *it;
+    ++it;
   });
 }
 

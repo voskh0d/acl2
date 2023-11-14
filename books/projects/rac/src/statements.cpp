@@ -532,38 +532,32 @@ Sexpression *NullStmt::ACL2Expr() { return new Plist({ &s_null }); }
 
 // Data member: List<Statement> *stmtList;
 
-Block::Block(Location loc, List<Statement> *s)
+Block::Block(Location loc, std::vector<Statement *> &&s)
     : Statement(idOf(this), loc), stmtList(s) {}
 
 Block::Block(Location loc, Statement *s) : Statement(idOf(this), loc) {
-  stmtList = new List<Statement>(s);
+  stmtList.push_back(s);
 }
 
 Block::Block(Location loc, Statement *s1, Statement *s2)
     : Statement(idOf(this), loc) {
-  stmtList = new List<Statement>(s1, new List<Statement>(s2));
-}
-
-Block::Block(Location loc, Statement *s1, Statement *s2, Statement *s3)
-    : Statement(idOf(this), loc) {
-  stmtList = new List<Statement>(
-      s1, new List<Statement>(s2, new List<Statement>(s3)));
+  stmtList.push_back(s1);
+  stmtList.push_back(s2);
 }
 
 Block *Block::blockify() { return this; }
 
 Block *Block::blockify(Statement *s) {
-  return new Block(loc_, stmtList ? stmtList->copy()->add(s)
-                                  : new List<Statement>(s));
+  std::vector<Statement *> copy = stmtList;
+  copy.push_back(s);
+  return new Block(loc_, std::move(copy));
 }
 
 void Block::display(std::ostream &os, unsigned indent) {
   os << " {";
-  if (stmtList) {
-    List<Statement> *ptr = stmtList;
-    while (ptr) {
-      ptr->value->displayWithinBlock(os, indent);
-      ptr = ptr->next;
+  if (stmtList.size()) {
+    for (Statement *s : stmtList) {
+      s->displayWithinBlock(os, indent);
     }
     os << "\n";
     if (indent > 2) {
@@ -575,10 +569,8 @@ void Block::display(std::ostream &os, unsigned indent) {
 
 void Block::displayWithinBlock(std::ostream &os, unsigned indent) {
   os << "\n" << std::setw(indent) << (indent ? " " : "") << "{";
-  List<Statement> *ptr = stmtList;
-  while (ptr) {
-    ptr->value->displayWithinBlock(os, indent + 2);
-    ptr = ptr->next;
+  for (Statement *s : stmtList) {
+    s->displayWithinBlock(os, indent + 2);
   }
   os << "\n";
   if (indent) {
@@ -589,10 +581,8 @@ void Block::displayWithinBlock(std::ostream &os, unsigned indent) {
 
 Sexpression *Block::ACL2Expr() {
   Plist *result = new Plist({ &s_block });
-  List<Statement> *ptr = stmtList;
-  while (ptr) {
-    result->add(ptr->value->ACL2Expr());
-    ptr = ptr->next;
+  for (Statement *s : stmtList) {
+    result->add(s->ACL2Expr());
   }
   return result;
 }
@@ -669,7 +659,7 @@ Sexpression *ForStmt::ACL2Expr() {
 
 // Data members:   Expression *label; List<Statement> *action;
 
-Case::Case(Location loc, Expression *l, List<Statement> *a)
+Case::Case(Location loc, Expression *l, std::vector<Statement *> &&a)
     : Statement(idOf(this), loc), label(l), action(a) {}
 
 void Case::display(std::ostream &os, unsigned indent) {
@@ -681,10 +671,8 @@ void Case::display(std::ostream &os, unsigned indent) {
     os << "default";
   }
   os << ":";
-  List<Statement> *ptr = action;
-  while (ptr) {
-    ptr->value->displayWithinBlock(os, indent + 2);
-    ptr = ptr->next;
+  for (Statement *a : action) {
+    a->displayWithinBlock(os, indent + 2);
   }
 }
 
@@ -729,7 +717,7 @@ Sexpression *SwitchStmt::ACL2Expr() {
                       : new List<Sexpression>(l->ACL2Expr());
     }
 
-    if (c->action) {
+    if (c->action.size()) {
       Sexpression *slabel
           = !labels
                 ? &s_t
@@ -737,9 +725,11 @@ Sexpression *SwitchStmt::ACL2Expr() {
 
       s = new List<Sexpression>(slabel);
 
-      for (List<Statement> *a = c->action; a && !isa<BreakStmt *>(a->value);
-           a = a->next) {
-        s->add(a->value->ACL2Expr());
+      for (Statement *a : c->action) {
+        if (isa<BreakStmt *>(a)) {
+          break;
+        }
+        s->add(a->ACL2Expr());
       }
 
       result->add(Plist::FromList(s));

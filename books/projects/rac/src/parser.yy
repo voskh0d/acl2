@@ -125,7 +125,7 @@ while (0)
 
   Expression *exp;
   FunDef *fd;
-  List<Expression> *expl;
+  std::vector<Expression *> *expl;
   BigList<Expression> *initl;
   StructField *sf;
   std::vector<StructField *> *sfl;
@@ -136,7 +136,7 @@ while (0)
   TempParamDec *tpd;
   List<TempParamDec> *tdl;
   Statement *stm;
-  List<Statement> *stml;
+  std::vector<Statement *> *stml;
   Case *c;
   std::vector<Case *> *cl;
 
@@ -519,7 +519,9 @@ funcall
     }
   else
     {
-      $$ = new FunCall (@$, f, $3);
+      //std::reverse($3->begin(), $3->end());
+      $$ = new FunCall (@$, f, std::move(*$3));
+      delete $3;
     }
 }
     | TEMPLATEID '<' arith_expr_list '>' '(' arith_expr_list ')'
@@ -534,7 +536,11 @@ funcall
     }
   else
     {
-      $$ = new TempCall (@$, f, $6, $3);
+      //std::reverse($6->begin(), $6->end());
+      //std::reverse($3->begin(), $3->end());
+      $$ = new TempCall (@$, f, std::move(*$6), std::move(*$3));
+      delete $6;
+      delete $3;
     }
 };
 
@@ -698,7 +704,8 @@ cond_expression
 mv_expression
     : mv_type '(' expr_list ')'
 {
-  $$ = new MultipleValue (@$, $1, collect($3));
+  //std::reverse($3->begin(), $3->end());
+  $$ = new MultipleValue (@$, $1, std::move(*$3));
   delete $3;
 };
 
@@ -709,7 +716,7 @@ expression
 expr_list
     : %empty
 {
-  $$ = nullptr;
+  $$ = new std::vector<Expression *>();
 }
     | nontrivial_expr_list
 {
@@ -719,17 +726,19 @@ expr_list
 nontrivial_expr_list
     : expression
 {
-  $$ = new List<Expression>($1);
+  $$ = new std::vector<Expression *>();
+  $$->push_back($1);
 }
     | nontrivial_expr_list ',' expression
 {
-  $$ = $1->add ($3);
+  $1->push_back($3);
+  $$ = $1;
 };
 
 arith_expr_list
     : %empty
 {
-  $$ = nullptr;
+  $$ = new std::vector<Expression *>();
 }
     | nontrivial_arith_expr_list
 {
@@ -739,11 +748,13 @@ arith_expr_list
 nontrivial_arith_expr_list
     : arithmetic_expression
 {
-  $$ = new List<Expression> ($1);
+  $$ = new std::vector<Expression *>();
+  $$->push_back($1);
 }
     | nontrivial_arith_expr_list ',' arithmetic_expression
 {
-  $$ = $1->add ($3);
+  $1->push_back($3);
+  $$ = $1;
 };
 
 //*************************************************************************************
@@ -1050,7 +1061,8 @@ inc_op
 multiple_assignment
     : TIE '(' nontrivial_expr_list ')' '=' postfix_expression
 {
-  $$ = new MultipleAssignment (@$, (FunCall *)$6, collect ($3));
+  //std::reverse($3->begin(), $3->end());
+  $$ = new MultipleAssignment (@$, (FunCall *)$6, std::move(*$3));
 };
 
 assertion
@@ -1075,7 +1087,8 @@ block
     : '{' dummy statement_list '}'
 {
   symTab.popFrame ();
-  $$ = new Block (@$, $3);
+  $$ = new Block (@$, std::move(*$3));
+  delete $3;
 }; // Replace 'dummy' with the midrule action '{symTab.pushFrame();}'
    // will cause reduce/reduce conflicts.
 
@@ -1083,21 +1096,24 @@ r_block
     : '{' dummy r_statement_list '}'
 {
   symTab.popFrame ();
-  $$ = new Block (@$, $3);
+  $$ = new Block (@$, std::move(*$3));
+  delete $3;
 }; // Replace 'dummy' with the midrule action '{symTab.pushFrame();}'
    // will cause reduce/reduce conflicts.
 
 statement_list
-    : %empty { $$ = nullptr; }
+    : %empty { $$ = new std::vector<Statement *>(); }
     | statement_list statement
 {
-  $$ = $1 ? $1->add ($2) : new List<Statement> ($2);
+  $1->push_back($2);
+  $$ = $1;
 };
 
 r_statement_list
     : statement_list final_statement
 {
-  $$ = $1 ? $1->add ($2) : new List<Statement> ($2);
+  $1->push_back($2);
+  $$ = $1;
 };
 
 for_statement
@@ -1152,11 +1168,11 @@ case_list
 case
     : CASE case_label ':' statement_list
 {
-  $$ = new Case (@$, $2, $4);
+  $$ = new Case (@$, $2, std::move(*$4));
 }
     | DEFAULT ':' statement_list
 {
-  $$ = new Case (@$, nullptr, $3);
+  $$ = new Case (@$, nullptr, std::move(*$3));
 };
 
 case_label
@@ -1178,7 +1194,8 @@ func_def
     : type_spec ID { symTab.pushFrame (); }
       '(' param_dec_list ')' '{' r_statement_list '}'
 {
-  $$ = new FunDef (@$, $2, $1, $5, new Block(@8, $8));
+  $$ = new FunDef (@$, $2, $1, $5, new Block(@8, std::move(*$8)));
+  delete $8;
   symTab.popFrame ();
 }
     | func_template;

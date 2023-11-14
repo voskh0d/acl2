@@ -54,7 +54,7 @@ bool RACConstraint::TraverseCase(Case *s) {
 
   in_switch_ = false;
 
-  if (s->action && s != last_case_ && !previous_break_loc_) {
+  if (s->action.size() && s != last_case_ && !previous_break_loc_) {
     diag_.new_error(s->loc(), "No break at the end of case").report();
     return false;
   }

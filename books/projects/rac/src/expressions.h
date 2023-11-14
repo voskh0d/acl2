@@ -148,9 +148,9 @@ class FunCall : public Expression {
   // type: rtype
 public:
   FunDef *func;
-  List<Expression> *args;
-  FunCall(Location loc, FunDef *f, List<Expression> *a);
-  FunCall(NodesId id, Location loc, FunDef *f, List<Expression> *a);
+  std::vector<Expression *> args;
+  FunCall(Location loc, FunDef *f, std::vector<Expression *> &&a);
+  FunCall(NodesId id, Location loc, FunDef *f, std::vector<Expression *> &&a);
 
   bool isInteger() override;
   void display(std::ostream &os) const override;
@@ -162,9 +162,9 @@ class Template;
 class TempCall final : public FunCall {
 public:
   Symbol *instanceSym;
-  List<Expression> *params;
-  TempCall(Location loc, Template *f, List<Expression> *a,
-           List<Expression> *p);
+  std::vector<Expression *> params;
+  TempCall(Location loc, Template *f, std::vector<Expression *> &&a,
+           std::vector<Expression *> &&p);
   void display(std::ostream &os) const override;
   Sexpression *ACL2Expr() override;
 };

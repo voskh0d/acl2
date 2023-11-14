@@ -44,8 +44,10 @@ bool TypingAction::TraverseTemplate(Template *e) {
   assert(!type_of_scope);
   type_of_scope = e->returnType;
 
-  if (!base_t::TraverseTemplate(e))
+  if (!base_t::TraverseTemplate(e)) {
+    type_of_scope = nullptr;
     return error();
+  }
 
   type_of_scope = nullptr;
 
@@ -351,13 +353,13 @@ bool TypingAction::VisitBinaryExpr(BinaryExpr *e) {
 
   // No overload found.
   diag_
-      .new_error(
-          e->loc(),
-          format(
-              "Cannot apply `%s` to an argument which is not a primitive type"
-              "(int, int64, uint, uint64, bool) or a register type.",
-              to_string(e->op).c_str()))
+      .new_error(e->loc(),
+                 format("Cannot apply `%s` to arguments of type %s and %s",
+                        to_string(e->op).c_str(), t1->to_string().c_str(),
+                        t2->to_string().c_str()))
       .context(e->loc())
+      .note("They should be both a primitive type (like an int or enum) or a "
+            "register type.")
       .report();
 
   e->set_type(new ErrorType());

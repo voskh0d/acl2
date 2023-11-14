@@ -68,7 +68,7 @@ public:
            List<TempParamDec> *tp);
   void display(std::ostream &os, const char *prefix = "",
                unsigned indent = 0) override;
-  void bindParams(List<Expression> *a);
+  void bindParams(const std::vector<Expression *> &a);
   void displayACL2Expr(std::ostream &os) override;
 };
 

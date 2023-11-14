@@ -67,7 +67,6 @@ public:
   void display(std::ostream &os, unsigned) override;
   void displaySimple(std::ostream &os) override { display(os, 0); }
   bool isConst() override;
-  // ACL2expr Weird
   Sexpression *ACL2Expr() override;
   Sexpression *ACL2SymExpr() override;
 };
@@ -191,11 +190,12 @@ public:
 
 class Block final : public Statement {
 public:
-  List<Statement> *stmtList;
-  Block(Location loc, List<Statement> *s);
+  std::vector<Statement *> stmtList;
+
+  Block(Location loc, std::vector<Statement *> &&s);
   Block(Location loc, Statement *s);
   Block(Location loc, Statement *s1, Statement *s2);
-  Block(Location loc, Statement *s1, Statement *s2, Statement *s3);
+
   Block *blockify() override;
   Block *blockify(Statement *s) override;
   void display(std::ostream &os, unsigned indent = 0) override;
@@ -228,16 +228,16 @@ public:
 
 class Case final : public Statement {
 public:
-  Case(Location loc, Expression *l, List<Statement> *a);
+  Case(Location loc, Expression *l, std::vector<Statement *> &&a);
   void display(std::ostream &os, unsigned indent = 0) override;
 
   bool isDefaultCase() const { return label == nullptr; }
-  bool isFallthrough() const { return action == nullptr; }
+  bool isFallthrough() const { return action.size() == 0; }
 
   Sexpression *ACL2Expr() override { assert(!"TODO"); }
 
   Expression *label;
-  List<Statement> *action;
+  std::vector<Statement *> action;
 };
 
 class SwitchStmt : public Statement {
