@@ -626,20 +626,64 @@ Sexpression *IfStmt::ACL2Expr() {
 
 ForStmt::ForStmt(Location loc, SimpleStatement *v, Expression *t,
                  Assignment *u, Statement *b)
-    : Statement(idOf(this), loc) {
-  init = v;
-  test = t;
-  update = u;
-  body = b;
+    : Statement(idOf(this), loc), init(v), rac_test(t), test(t), update(u),
+      body(b) {
+
+  // By adding those comparaison (wich are always true), we help the
+  // termination proofs.
+  auto add_constraints_for_sym_dec = [&](SymRef *sr) {
+    if (isIntegerType(sr->get_type())) {
+
+      Expression *min_val;
+      if (isSigned(sr->get_type())) {
+        min_val = new Integer(loc, "-2147483648");
+      } else {
+        min_val = Integer::zero_v(loc);
+      }
+
+      Expression *max_val;
+      if (isSigned(sr->get_type())) {
+        max_val = new Integer(loc, "2147483648");
+      } else {
+        max_val = new Integer(loc, "4294967296");
+      }
+
+      Expression *always_ge = new BinaryExpr(loc, sr, min_val, ">=");
+
+      Expression *always_lt = new BinaryExpr(loc, sr, max_val, "<");
+
+      test = new BinaryExpr(loc, test, always_ge, "&&");
+      test = new BinaryExpr(loc, test, always_lt, "&&");
+    }
+  };
+
+  if (auto sd = dynamic_cast<VarDec *>(init)) {
+    auto sr = new SymRef(loc, sd);
+    sr->set_type(sd->type);
+    add_constraints_for_sym_dec(sr);
+
+  } else if (auto md = dynamic_cast<MulVarDec *>(init)) {
+    for_each(md->decs, [&](VarDec *sd) {
+      auto sr = new SymRef(loc, sd);
+      sr->set_type(sd->type);
+      return add_constraints_for_sym_dec(sr);
+    });
+  } else if (auto as = dynamic_cast<Assignment *>(init)) {
+    if (auto sr = dynamic_cast<SymRef *>(init)) {
+      add_constraints_for_sym_dec(sr);
+    }
+  }
+  // TODO MultipleAssignment
 }
 
 void ForStmt::display(std::ostream &os, unsigned indent) {
   os << "\n"
      << std::setw(indent) << " "
      << "for (";
+
   init->displaySimple(os);
   os << "; ";
-  test->display(os);
+  rac_test->display(os);
   os << "; ";
   update->displaySimple(os);
   os << ")";
@@ -649,6 +693,7 @@ void ForStmt::display(std::ostream &os, unsigned indent) {
 Sexpression *ForStmt::ACL2Expr() {
   Sexpression *sinit = init->ACL2Expr();
   Sexpression *stest = test->ACL2Expr();
+
   Sexpression *supdate = ((Plist *)(update->ACL2Expr()))->list->nth(2);
   return new Plist({ &s_for, new Plist({ sinit, stest, supdate }),
                      body->blockify()->ACL2Expr() });

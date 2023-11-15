@@ -501,9 +501,26 @@ are more than one).  The test of the IF is simply the test of the loop.
      (append
       '((in-package "RTL")
         "(INCLUDE-BOOK \"rtl/rel11/lib/rac\" :DIR :SYSTEM)"
-        ;; "(INCLUDE-BOOK \"projects/rac/lisp/internal-fns-gen\" :DIR :SYSTEM)"
+        "(INCLUDE-BOOK \"rtl/rel11/lib/bits\" :DIR :SYSTEM)"
         (set-ignore-ok t)
-        (set-irrelevant-formals-ok t))
+        (set-irrelevant-formals-ok t)
+        (local (defthm si-bits-rw
+                       (implies (and (integerp x)
+                                     (natp n)
+                                     (= m (1- n))
+                                     (< x (expt 2 (1- n)))
+                                     (>= x (- (expt 2 (1- n)))))
+                                (= (si (bits x m 0) n) x))
+                       :hints (("Goal" :use si-bits))))
+        (local (defthm bits-tail-gen-alt
+                       (implies (and (integerp x)
+                                     (natp i)
+                                     (< x (expt 2 i))
+                                     (>= x 0))
+                                (equal (bits x i 0)
+                                       (if (>= x 0)
+                                         x (+ x (expt 2 (+ 1 i))))))))
+        (local (in-theory (disable bits-tail-gen))))
       (translate-program-list lst) )
      outfile
      ()

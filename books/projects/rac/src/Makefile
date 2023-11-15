@@ -9,7 +9,9 @@ CPPFLAGS +=
 CXXFLAGS += -Wall -Wextra -pedantic -std=c++17
 LDFLAGS +=
 
-SRCS=diagnostics.cpp expressions.cpp functions.cpp lex.yy.cpp main.cpp parser.tab.cpp program.cpp sexpressions.cpp statements.cpp types.cpp typing.cpp racconstraint.cpp
+SRCS += diagnostics.cpp expressions.cpp functions.cpp lex.yy.cpp main.cpp
+SRCS += parser.tab.cpp program.cpp sexpressions.cpp statements.cpp types.cpp
+SRCS += typing.cpp racconstraint.cpp forconstraints.cpp
 
 # By default, build and install everything.
 all : install

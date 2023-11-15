@@ -217,9 +217,16 @@ public:
 class ForStmt final : public Statement {
 public:
   SimpleStatement *init;
+
+  // rac_test is the exact expression from the source file. test contains some
+  // additional test to help the acl2 translation. See constructor for more
+  // details.
+  Expression *rac_test;
   Expression *test;
+
   Assignment *update;
   Statement *body;
+
   ForStmt(Location loc, SimpleStatement *v, Expression *t, Assignment *u,
           Statement *b);
   void display(std::ostream &os, unsigned indent = 0) override;

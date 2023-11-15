@@ -5,6 +5,7 @@
 #include "types.h"
 
 #include "assertion.h"
+#include "forconstraints.h"
 #include "racconstraint.h"
 #include "returnfalse.h"
 #include "typing.h"
@@ -104,6 +105,7 @@ bool Program::process() {
   }
 
   RUNPASS(RACConstraint);
+  RUNPASS(ForConstraints);
   RUNPASS(TypingAction);
   RUNPASS(MarkAssertionAction);
 
