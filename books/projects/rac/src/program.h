@@ -45,9 +45,9 @@ public:
   // called in the parser. Return false if the registration failed (they is
   // already something with the same name).
   bool registerType(DefinedType *t);
-  bool registerConstDec(ConstDec *d);
-  bool registerTemplate(Template *t);
-  bool registerFunDef(FunDef *t);
+  void registerConstDec(ConstDec *d);
+  void registerTemplate(Template *t);
+  void registerFunDef(FunDef *t);
 
   // Get an type/dec/function called `name`. Return nullptr if nothing was
   // registered with this name.

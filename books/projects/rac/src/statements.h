@@ -47,7 +47,6 @@ public:
   Symbol *sym;
   const Type *type;
   Expression *init;
-  SymDec(Location loc, const char *n, Type *t, Expression *i = nullptr);
   SymDec(NodesId id, Location loc, const char *n, Type *t,
          Expression *i = nullptr);
 

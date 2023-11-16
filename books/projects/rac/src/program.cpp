@@ -32,12 +32,7 @@ DefinedType *Program::getType(const std::string &name) {
   return it == typeDefs.end() ? nullptr : *it;
 }
 
-bool Program::registerConstDec(ConstDec *d) {
-  if (getConstDec(d->getname()))
-    return false;
-  constDecs.push_back(d);
-  return true;
-}
+void Program::registerConstDec(ConstDec *d) { constDecs.push_back(d); }
 
 ConstDec *Program::getConstDec(const std::string &name) {
   auto it = std::find_if(constDecs.begin(), constDecs.end(),
@@ -45,12 +40,7 @@ ConstDec *Program::getConstDec(const std::string &name) {
   return it == constDecs.end() ? nullptr : *it;
 }
 
-bool Program::registerTemplate(Template *t) {
-  if (getTemplate(t->getname()))
-    return false;
-  templates.push_back(t);
-  return true;
-}
+void Program::registerTemplate(Template *t) { templates.push_back(t); }
 
 Template *Program::getTemplate(const std::string &name) {
   auto it = std::find_if(templates.begin(), templates.end(),
@@ -58,12 +48,7 @@ Template *Program::getTemplate(const std::string &name) {
   return it == templates.end() ? nullptr : *it;
 }
 
-bool Program::registerFunDef(FunDef *f) {
-  if (getFunDef(f->getname()))
-    return false;
-  funDefs.push_back(f);
-  return true;
-}
+void Program::registerFunDef(FunDef *f) { funDefs.push_back(f); }
 
 FunDef *Program::getFunDef(const std::string &name) {
   auto it = std::find_if(funDefs.begin(), funDefs.end(),

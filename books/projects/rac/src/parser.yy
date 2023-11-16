@@ -38,12 +38,12 @@ bool register_with_new_id(Container c, const std::string& id,
       },
       [&](SymbolStack::Found f) {
         auto message = format("Duplicate identifier declaration (could be an "
-                             "enum, a variable or template parameter) `%s`",
+                             "enum, a variable template parameter or function) `%s`",
                              id.c_str());
         prog.diag()
           .new_error(loc, message)
           .note("first defined here")
-          .note_location(f.value->loc())
+          .note_location(symTab.get_loc(f.value))
           .report();
 
         return true;
@@ -55,7 +55,7 @@ bool register_with_new_id(Container c, const std::string& id,
         prog.diag()
             .new_error(loc, message)
             .note("first defined here")
-            .note_location(f.value->loc())
+            .note_location(symTab.get_loc(f.value))
             .report();
           return true;
       }
@@ -66,29 +66,41 @@ bool register_with_new_id(Container c, const std::string& id,
 
 enum class Where { LastFrame, Global };
 
-template <typename Container>
-auto get_from_id(Container c, Where where, const std::string& id, const Location& loc)
+template <typename ExpectedType>
+auto get_from_id(Where where, const std::string& id, const Location& loc)
 {
-  auto res = where == Where::LastFrame ? c.find_last_frame(id)
-                                       : c.find(id);
+  auto res = where == Where::LastFrame ? symTab.find_last_frame(id)
+                                       : symTab.find(id);
 
   return std::visit(overloaded {
       [&](SymbolStack::None) {
         prog.diag()
             .new_error(loc, format("Unknown symbol `%s`", id.c_str()))
             .report();
-        return std::optional<typename Container::type>();
+        return std::optional<ExpectedType>();
       },
       [&](SymbolStack::Found f) {
-        return std::optional { f.value };
+        if (std::holds_alternative<ExpectedType>(f.value)) {
+          return std::optional { std::get<ExpectedType>(f.value) };
+        } else {
+          prog.diag()
+              .new_error(loc, format("error todo"))
+              .note_location(symTab.get_loc(f.value))
+              .report();
+          return std::optional<ExpectedType>();
+        }
       },
       [&](SymbolStack::FoundWithDifferentCase f) {
-        prog.diag()
-            .new_error(loc, format("Unknown symbol `%s`", id.c_str()))
-            .note(format("maybe you meant `%s` ?", f.value->getname()))
-            .note_location(f.value->loc())
-            .report();
-        return std::optional<typename Container::type>();
+
+        if (std::holds_alternative<ExpectedType>(f.value)) {
+          prog.diag()
+              .new_error(loc, format("Unknown symbol `%s`", id.c_str()))
+              .note(format("maybe you meant `%s` ?", symTab.get_name(f.value)))
+              .note_location(symTab.get_loc(f.value))
+              .report();
+        }
+
+        return std::optional<ExpectedType>();
       }
     }, res);
 }
@@ -228,28 +240,10 @@ program_element
 }
     | const_dec ';'
 {
-  if(!prog.registerConstDec(static_cast<ConstDec *>($1)))
-    {
-      prog.diag()
-          .new_error(@$, "Duplicate global constant declaration")
-          .report();
-      YYERROR;
-    }
+  prog.registerConstDec(static_cast<ConstDec *>($1));
 }
     | func_def
-{
-  if (!prog.registerFunDef($1))
-    {
-      auto loc = $1->get_decl_loc();
-      auto previous_loc = prog.getFunDef($1->getname())->get_decl_loc();
-      prog.diag()
-          .new_error(loc, "Duplicate function definition")
-          .note("defined here:")
-          .note_location(previous_loc)
-          .report();
-      YYERROR;
-    }
-};
+    ;
 
 //*************************************************************************************
 // Types
@@ -498,7 +492,7 @@ boolean
 symbol_ref
     : ID
 {
-  if (auto s = get_from_id(symTab, Where::Global, $1, @$)) {
+  if (auto s = get_from_id<SymDec *>(Where::Global, $1, @$)) {
     $$ = new SymRef (@$, *s);
   } else {
     YYERROR;
@@ -519,7 +513,6 @@ funcall
     }
   else
     {
-      //std::reverse($3->begin(), $3->end());
       $$ = new FunCall (@$, f, std::move(*$3));
       delete $3;
     }
@@ -527,7 +520,7 @@ funcall
     | TEMPLATEID '<' arith_expr_list '>' '(' arith_expr_list ')'
 {
   Template *f;
-  if ((f = (Template *)prog.getFunDef ($1)) == nullptr)
+  if ((f = prog.getTemplate($1)) == nullptr)
     {
       prog.diag()
           .new_error(@$, "Undefined function template")
@@ -536,8 +529,6 @@ funcall
     }
   else
     {
-      //std::reverse($6->begin(), $6->end());
-      //std::reverse($3->begin(), $3->end());
       $$ = new TempCall (@$, f, std::move(*$6), std::move(*$3));
       delete $6;
       delete $3;
@@ -1194,9 +1185,19 @@ func_def
     : type_spec ID { symTab.pushFrame (); }
       '(' param_dec_list ')' '{' r_statement_list '}'
 {
-  $$ = new FunDef (@$, $2, $1, $5, new Block(@8, std::move(*$8)));
-  delete $8;
+  auto f = new FunDef (@$, $2, $1, $5, new Block(@8, std::move(*$8)));
   symTab.popFrame ();
+
+  bool error = register_with_new_id(symTab, $2, f->get_decl_loc(), [&]() {
+    $$ = f;
+    delete $8;
+    symTab.push(f);
+    prog.registerFunDef($$);
+  });
+
+  if (error) {
+    YYERROR;
+  }
 }
     | func_template;
 
@@ -1221,13 +1222,18 @@ func_template
   : TEMPLATE { symTab.pushFrame (); }
     '<' template_param_dec_list '>' type_spec ID '(' param_dec_list ')' r_block
 {
-  $$ = new Template (@$, $7, $6, $9, (Block *)$11, $4);
+  auto f = new Template (@$, $7, $6, $9, (Block *)$11, $4);
   symTab.popFrame ();
-  if (!prog.registerTemplate(static_cast<Template *>($$))) {
-      prog.diag()
-          .new_error (@$, "Duplicate function definition")
-          .report();
-      YYERROR;
+
+  bool error = register_with_new_id(symTab, $7, f->get_decl_loc(), [&]() {
+    $$ = f;
+    symTab.push(f);
+    prog.registerTemplate(f);
+    prog.registerFunDef(f);
+  });
+
+  if (error) {
+    YYERROR;
   }
 };
 

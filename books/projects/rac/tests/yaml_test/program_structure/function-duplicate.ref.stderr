@@ -1,9 +1,9 @@
-function-duplicate.cpp:8-9 (0-1): Duplicate function definition
+function-duplicate.cpp:8-9 (0-1): Duplicate identifier declaration (could be an enum, a variable template parameter or function) `foo`
   8 | int foo()
     | ^^^^^^^^^^
   9 | {
     | ^
-note: defined here:
+note: first defined here
   3 | int foo()
     | ^^^^^^^^^^
   4 | {

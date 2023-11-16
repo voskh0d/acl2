@@ -227,9 +227,6 @@ public:
     TYPE &operator=(const TYPE &rhs) = default;                               \
     TYPE &operator=(BASE &rhs) { value = rhs; return *this; }                 \
     operator BASE & () { return value; }                                      \
-    bool operator==(const TYPE &rhs) const { return value == rhs.value; }     \
-    bool operator==(const BASE &rhs) const { return value == rhs; }           \
-    bool operator<(const TYPE &rhs) const { return value < rhs.value; }       \
     BASE value;                                                               \
     using BaseType = BASE;                                                    \
   }
@@ -256,6 +253,9 @@ inline T always_cast(U elm) {
   return t;
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-security"
+
 template <typename... Args>
 std::string format(const std::string &format, Args... args) {
 
@@ -270,47 +270,6 @@ std::string format(const std::string &format, Args... args) {
                      buf.get() + size - 1); // We don't want the '\0' inside
 }
 
-template <typename Iterator1, typename Iterator2>
-struct Zip {
-
-  class iterator : public std::iterator<
-                   std::output_iterator_tag,
-                   std::tuple<typename Iterator1::value, typename Iterator2::value>
-                   >
-  {
-    public:
-      explicit iterator(Iterator1 begin1, Iterator2 begin2)
-        : cur1_(begin1), cur2_(begin2)
-      {}
-
-      iterator& operator++() { ++cur1_; ++cur2_; return *this; }
-//      iterator operator++(int) { iterator retval = *this; ++(*this); return retval; }
-      bool operator==(iterator other) const {
-        return cur1_ == other.cur1_ && cur2_ == other.cur2;
-      }
-      bool operator!=(iterator other) const { return !(*this == other); }
-      auto operator*() const { return std::tuple(*cur1_, *cur2_); }
-
-
-    private:
-      Iterator1 cur1_;
-      Iterator2 cur2_;
-  };
-
-  Zip(Iterator1 begin1, Iterator1 end1, Iterator2 begin2, Iterator2 end2)
-    : begin1_(begin1)
-    , end1_(end1)
-    , begin2_(begin2)
-    , end2_(end2)
-  {}
-
-  iterator begin() { return iterator(begin1_, begin2_); }
-  iterator end() { return iterator(end1_, end2_); }
-
-  Iterator1 begin1_;
-  Iterator1 end1_;
-  Iterator2 begin2_;
-  Iterator2 end2_;
-};
+#pragma GCC diagnostic pop
 
 #endif // UTILS_H

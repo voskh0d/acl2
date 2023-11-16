@@ -95,49 +95,54 @@ class SymbolStack {
   // be more or less efficient (we are traversing the addresses from low to
   // high).
 public:
-  using type = SymDec *;
+  struct FrameBoundary {
+    int a;
+  };
+  using type = std::variant<FrameBoundary, SymDec *, FunDef *>;
 
   // Represent the three states result: not found, found with matching case
   // and mach with different case.
   struct None {};
-  STRONGTYPEDEF(SymDec *, Found);
-  STRONGTYPEDEF(SymDec *, FoundWithDifferentCase);
+  STRONGTYPEDEF(type, Found);
+  STRONGTYPEDEF(type, FoundWithDifferentCase);
   using Result = std::variant<None, Found, FoundWithDifferentCase>;
 
-  void push(SymDec *value) {
-    assert(value && "this stack does not support nullptr as value");
-    data_.push_front(value);
+  template <typename T>
+  void push(T value) {
+    data_.push_front({ value });
   }
 
-  void pushFrame() { data_.push_front(nullptr); }
+  void pushFrame() { data_.push_front(FrameBoundary{}); }
 
   void popFrame() {
-    // While there is some values in the vector and the last one is not null
-    // (the end of the last frame), we remove the element of the last frame.
-    while (data_.size() && data_.front()) {
+    // While there is some values in the vector and the last one the boudary,
+    // we remove the element of the last frame.
+    while (data_.size()
+           && !std::holds_alternative<FrameBoundary>(data_.front())) {
       data_.pop_front();
     }
+    data_.pop_front();
   }
 
   Result find_last_frame(std::string_view name) {
     for (auto it = begin(data_); it != end(data_); ++it) {
       // Detect the limit of frame and stop.
-      if (!*it) {
+      if (std::holds_alternative<FrameBoundary>(*it)) {
         break;
       }
 
-      if (!strcmp((*it)->getname(), name.data())) {
+      if (!strcmp(get_name(*it), name.data())) {
         return Result(Found(*it));
       }
     }
 
     for (auto it = begin(data_); it != end(data_); ++it) {
       // Detect the limit of frame and stop.
-      if (!*it) {
+      if (std::holds_alternative<FrameBoundary>(*it)) {
         break;
       }
 
-      if (!strcasecmp((*it)->getname(), name.data())) {
+      if (!strcasecmp(get_name(*it), name.data())) {
         return FoundWithDifferentCase(*it);
       }
     }
@@ -147,21 +152,21 @@ public:
   Result find(std::string_view name) {
     for (auto it = begin(data_); it != end(data_); ++it) {
       // Detect the limit of frame and ingore it.
-      if (!*it) {
+      if (std::holds_alternative<FrameBoundary>(*it)) {
         continue;
       }
 
-      if (!strcmp((*it)->getname(), name.data())) {
+      if (!strcmp(get_name(*it), name.data())) {
         return Found(*it);
       }
     }
 
     for (auto it = begin(data_); it != end(data_); ++it) {
       // Detect the limit of frame and ingore it.
-      if (!*it) {
+      if (std::holds_alternative<FrameBoundary>(*it)) {
         continue;
       }
-      if (!strcasecmp((*it)->getname(), name.data())) {
+      if (!strcasecmp(get_name(*it), name.data())) {
         return FoundWithDifferentCase(*it);
       }
     }
@@ -172,16 +177,36 @@ public:
   void dump() {
     for (auto it = begin(data_); it != end(data_); ++it) {
       // frame limit
-      if (*it) {
-        std::cerr << (*it)->getname() << '\n';
-      } else {
+      if (std::holds_alternative<FrameBoundary>(*it)) {
         std::cerr << "======================================\n";
+      } else {
+        std::cerr << get_name(*it) << '\n';
       }
     }
   }
 
+  const char *get_name(type v) {
+    return std::visit(overloaded{ [](SymDec *s) { return s->getname(); },
+                                  [](FunDef *s) { return s->getname(); },
+                                  [](FrameBoundary) {
+                                    UNREACHABLE();
+                                    return "";
+                                  } },
+                      v);
+  }
+
+  Location get_loc(type v) {
+    return std::visit(overloaded{ [](SymDec *s) { return s->loc(); },
+                                  [](FunDef *s) { return s->get_decl_loc(); },
+                                  [](FrameBoundary) {
+                                    UNREACHABLE();
+                                    return Location::dummy();
+                                  } },
+                      v);
+  }
+
 private:
-  std::deque<SymDec *> data_;
+  std::deque<type> data_;
 };
 
 #endif
