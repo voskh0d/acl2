@@ -89,9 +89,9 @@ bool Program::process() {
     }                                                                         \
   }
 
+  RUNPASS(TypingAction);
   RUNPASS(RACConstraint);
   RUNPASS(ForConstraints);
-  RUNPASS(TypingAction);
   RUNPASS(MarkAssertionAction);
 
   return true;

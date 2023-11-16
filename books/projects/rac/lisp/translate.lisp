@@ -512,6 +512,10 @@ are more than one).  The test of the IF is simply the test of the loop.
                                      (>= x (- (expt 2 (1- n)))))
                                 (= (si (bits x m 0) n) x))
                        :hints (("Goal" :use si-bits))))
+        ;; This is a nasty hack: instead of using bits-tail-gen, we use this
+        ;; this more restrictive theorem. If we keep bits-tail-gen enable, it
+        ;; conflicts with si-bits-rw. This not the case with this alt version
+        ;; since it is much more restritive.
         (local (defthm bits-tail-gen-alt
                        (implies (and (integerp x)
                                      (natp i)

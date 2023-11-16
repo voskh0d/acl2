@@ -71,6 +71,14 @@ bool ForConstraints::VisitSymRef(SymRef *s) {
   // If there is multiple variable declaration, only take the first one.
   if (init_block_ && !var_name_) {
     var_name_ = s->symDec->sym->getname();
+    if (s->get_type()->ACL2ValWidth() != 32) {
+      diag_
+          .new_error(s->loc(), "Type width is not 32 (this is a bug and will "
+                               "maybe one day fixed)")
+          .note(format("Change the type os %s to int or uint", var_name_))
+          .report();
+      return false;
+    }
   }
 
   if (test_or_update_block_) {
