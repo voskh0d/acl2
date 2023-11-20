@@ -230,7 +230,9 @@ program_element
 }
     | const_dec ';'
 {
-  ast.registerConstDec(static_cast<ConstDec *>($1));
+  ConstDec *cd = static_cast<ConstDec *>($1);
+  cd->setGlobal();
+  ast.registerConstDec(cd);
 }
     | func_def
     ;

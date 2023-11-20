@@ -3,6 +3,9 @@
 #include "expressions.h"
 #include "functions.h"
 #include "statements.h"
+#include "types.h"
+
+#include "../parser.h"
 
 AST::AST() {
   typeDefs.reserve(256);
@@ -76,7 +79,7 @@ std::optional<AST> AST::parse(const std::string &file) {
     puts("Warning: no function definitions found,"
          " maybe you forgot the `// RAC begin` guard");
 
-  return { ast };
+  return { std::move(ast) };
 }
 
 bool AST::isEmpty() const { return funDefs.size() == 0; }

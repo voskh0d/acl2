@@ -3,8 +3,6 @@
 #include "statements.h"
 #include "types.h"
 
-#include "../../program.h"
-
 #include <algorithm>
 #include <iomanip>
 
@@ -193,10 +191,7 @@ void ConstDec::displaySimple(std::ostream &os) {
 
 bool ConstDec::isConst() { return isIntegerType(type); }
 
-bool ConstDec::isGlobal() {
-  // TODO is the == this is really necessary ?
-  return prog.getConstDec(getname()) == this;
-}
+bool ConstDec::isGlobal() { return isGlobal_; }
 
 bool ConstDec::isROM() { return isGlobal() && isa<const ArrayType *>(type); }
 

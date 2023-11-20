@@ -86,6 +86,11 @@ public:
   bool isGlobal() override;
   bool isROM() override;
   Sexpression *ACL2SymExpr() override;
+
+  void setGlobal() { isGlobal_ = true; }
+
+private:
+  bool isGlobal_ = false;
 };
 
 class MulConstDec : public SimpleStatement {
