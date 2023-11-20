@@ -24,6 +24,7 @@
 
 - name: rac-pseudo-code-option
   args: ['guards.cpp', '-rac']
+  preprocess: "guards.cpp"
   disabled-checks:
     - generated_code
 
@@ -118,6 +119,7 @@
 
 - name: imul-pc
   args: ['../../../examples/imul/imul.cpp', '-rac']
+  preprocess: '../../../examples/imul/imul.cpp'
   out_generated: ../../../examples/imul/imul.cpp.pc
   ref_generated: imul-pc.cpp.ref.pc
 

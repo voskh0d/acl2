@@ -11,17 +11,22 @@ import sys
 
 test_dir_path = 'yaml_test/'
 
+def preprocess(working_dir, input):
+    cpp = sp.run(['g++', '-D__RAC__', '-C', '-E', '-std=c++14', '-I../../../include',
+    input, '-o', input + '.i'], capture_output=True, text=True, cwd=working_dir)
+    assert cpp.returncode == 0, 'Preprocessor failed:\n' + cpp.stderr
+
+
+
 def run_parser(bin_path, working_dir, input, timeout, env):
 
     # Remove potential old generated code.
     sp.run(['rm', '-f', input + '.ast.lsp'], cwd=working_dir)
 
-    cpp = sp.run(['g++', '-D__RAC__', '-C', '-E', '-std=c++14', '-I../../../include',
-        input, '-o', input + '.i'], capture_output=True, text=True, cwd=working_dir)
-    assert cpp.returncode == 0, 'Preprocessor failed:\n' + cpp.stderr
+    preprocess(working_dir, input)
 
     return sp.run(['../../../' / bin_path, input, '-acl2'], capture_output=True, text=True,
-            timeout=timeout, cwd=working_dir, env=env)
+        timeout=timeout, cwd=working_dir, env=env)
 
 def run_parser_raw(bin_path, working_dir, args, timeout):
     return sp.run([bin_path, *args],
@@ -67,6 +72,9 @@ def test(bin_path, dir_path, testcase, timeout):
     if args is None:
         out = run_parser(bin_path, dir_path, input, timeout, env)
     else:
+        file_to_preprocess = testcase.get("preprocess")
+        if file_to_preprocess:
+            preprocess(dir_path, file_to_preprocess)
         out = run_parser_raw(bin_path, dir_path, args, timeout)
 
     disabled_checks = testcase.get("disabled-checks", [])
