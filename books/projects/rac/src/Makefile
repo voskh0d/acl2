@@ -65,7 +65,8 @@ parse:  $(DEPDIR) | version.h ${OBJS}
 	${CC} -o parse $(LDFLAGS) ${OBJS}
 
 clean:
-	rm -f ${OBJS} version.h program/parser/parser.tab.cpp program/parser/lex.yy.cpp
+	rm -f ${OBJS} version.h program/parser/parser.tab.hpp
+	rm -f program/parser/parser.tab.cpp program/parser/lex.yy.cpp
 	rm -f -r parse.dSym
 
 veryclean : clean

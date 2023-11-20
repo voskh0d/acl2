@@ -83,8 +83,8 @@ static void lineba();
 "true"                      {yylval.s = tokstr(); return TRUE;}
 "false"                     {yylval.s = tokstr(); return FALSE;}
 
-[a-zA-Z_][a-zA-Z_0-9]*      {yylval.s = tokstr(); return (ast.getType(yytext))
-  ? TYPEID : (ast.getTemplate(yytext)) ? TEMPLATEID : ID;}
+[a-zA-Z_][a-zA-Z_0-9]*      {yylval.s = tokstr(); return (yyast.getType(yytext))
+  ? TYPEID : (yyast.getTemplate(yytext)) ? TEMPLATEID : ID;}
 
 [0-9]+ |
 "0x"[a-fA-F_0-9]+           {yylval.s = tokstr(); return NAT;}
@@ -157,7 +157,7 @@ comment ()
         c = yyinput();
       }
     }
-  ast.diag().new_error(yylloc, "Unterminated comment").report();
+  yyast.diag().new_error(yylloc, "Unterminated comment").report();
   return false;
 }
 

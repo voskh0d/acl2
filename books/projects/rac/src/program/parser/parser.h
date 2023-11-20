@@ -20,7 +20,7 @@ extern Location yylloc;
 extern int yyparse();
 extern FILE *yyin;
 
-extern AST ast;
+extern AST yyast;
 
 void yyerror(const Location &loc, const char *);
 

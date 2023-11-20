@@ -35,6 +35,10 @@ class DiagnosticHandler {
 public:
   DiagnosticHandler() = default;
   DiagnosticHandler(const DiagnosticHandler &) = delete;
+  DiagnosticHandler(DiagnosticHandler &&other) : file_(other.file_) {
+    other.file_ = nullptr;
+  }
+
   ~DiagnosticHandler() {
     if (file_)
       std::fclose(file_);

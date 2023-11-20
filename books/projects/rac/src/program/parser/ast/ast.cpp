@@ -17,8 +17,8 @@ AST::AST() {
 AST::AST(AST &&other)
     : typeDefs(std::move(other.typeDefs)),
       constDecs(std::move(other.constDecs)),
-      templates(std::move(other.templates)),
-      funDefs(std::move(other.funDefs)) {}
+      templates(std::move(other.templates)), funDefs(std::move(other.funDefs)),
+      diag_(std::move(other.diag_)) {}
 
 bool AST::registerType(DefinedType *t) {
   if (getType(t->getname()))
@@ -61,8 +61,7 @@ std::optional<AST> AST::parse(const std::string &file) {
 
   yyin = fopen(file.c_str(), "r");
 
-  AST ast;
-  ast.diag_.setup(yyin);
+  yyast.diag_.setup(yyin);
 
   if (yyin == nullptr) {
     std::cerr << "Failed to open file " << file << ": " << strerror(errno)
@@ -75,11 +74,11 @@ std::optional<AST> AST::parse(const std::string &file) {
   if (yyparse())
     return {};
 
-  if (ast.isEmpty())
+  if (yyast.isEmpty())
     puts("Warning: no function definitions found,"
          " maybe you forgot the `// RAC begin` guard");
 
-  return { std::move(ast) };
+  return { std::move(yyast) };
 }
 
 bool AST::isEmpty() const { return funDefs.size() == 0; }

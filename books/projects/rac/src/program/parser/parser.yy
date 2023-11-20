@@ -6,7 +6,7 @@
 
 void yyerror (const char *s)
 {
-  ast.diag()
+  yyast.diag()
       .new_error(yylloc, s)
       .report();
 }
@@ -15,7 +15,7 @@ List<Builtin> builtins (new Builtin (Location::dummy(), "abs", &intType,
     new List<VarDec>(new VarDec(Location::dummy(), "", &intType))));
 
 SymbolStack symTab;
-AST ast;
+AST yyast;
 
 template <typename Container, typename F, typename... Args>
 bool register_with_new_id(Container c, const std::string& id,
@@ -31,7 +31,7 @@ bool register_with_new_id(Container c, const std::string& id,
         auto message = format("Duplicate identifier declaration (could be an "
                              "enum, a variable template parameter or function) `%s`",
                              id.c_str());
-        ast.diag()
+        yyast.diag()
           .new_error(loc, message)
           .note("first defined here")
           .note_location(symTab.get_loc(f.value))
@@ -43,7 +43,7 @@ bool register_with_new_id(Container c, const std::string& id,
         auto message = format("%s is already used but with a different case "
                               "(in ACL2, they will refer to the same thing)",
                               id.c_str());
-        ast.diag()
+        yyast.diag()
             .new_error(loc, message)
             .note("first defined here")
             .note_location(symTab.get_loc(f.value))
@@ -65,7 +65,7 @@ auto get_from_id(Where where, const std::string& id, const Location& loc)
 
   return std::visit(overloaded {
       [&](SymbolStack::None) {
-        ast.diag()
+        yyast.diag()
             .new_error(loc, format("Unknown symbol `%s`", id.c_str()))
             .report();
         return std::optional<ExpectedType>();
@@ -74,7 +74,7 @@ auto get_from_id(Where where, const std::string& id, const Location& loc)
         if (std::holds_alternative<ExpectedType>(f.value)) {
           return std::optional { std::get<ExpectedType>(f.value) };
         } else {
-          ast.diag()
+          yyast.diag()
               .new_error(loc, format("error todo"))
               .note_location(symTab.get_loc(f.value))
               .report();
@@ -84,7 +84,7 @@ auto get_from_id(Where where, const std::string& id, const Location& loc)
       [&](SymbolStack::FoundWithDifferentCase f) {
 
         if (std::holds_alternative<ExpectedType>(f.value)) {
-          ast.diag()
+          yyast.diag()
               .new_error(loc, format("Unknown symbol `%s`", id.c_str()))
               .note(format("maybe you meant `%s` ?", symTab.get_name(f.value)))
               .note_location(symTab.get_loc(f.value))
@@ -221,9 +221,9 @@ program
 program_element
     : type_dec ';'
 {
-  if (!ast.registerType($1))
+  if (!yyast.registerType($1))
   {
-      ast.diag()
+      yyast.diag()
           .new_error(@$, "Duplicate type definition")
           .report();
       YYERROR;
@@ -233,7 +233,7 @@ program_element
 {
   ConstDec *cd = static_cast<ConstDec *>($1);
   cd->setGlobal();
-  ast.registerConstDec(cd);
+  yyast.registerConstDec(cd);
 }
     | func_def
     ;
@@ -267,7 +267,7 @@ typedef_dec
     }
   else
     {
-      ast.diag()
+      yyast.diag()
           .new_error(@3, "Array dimension not a positive integer constant")
           .context(@$)
           .report();
@@ -282,7 +282,7 @@ typedef_type
     | mv_type { $$ = static_cast<Type *>($1); }       // instantiation of mv class template
     | TYPEID
 {
-  $$ = ast.getType($1);
+  $$ = yyast.getType($1);
 }; // name of a previously declared type
 
 
@@ -308,7 +308,7 @@ primitive_type
 register_type
     : AC_FIXED
 {
-  ast.diag()
+  yyast.diag()
       .new_error(@1, "ac_fixed is deprecated")
       .report();
   YYERROR;
@@ -334,7 +334,7 @@ register_type
 
       auto message = format("Illegal parameter of ac_int, expected this to be "
                             "%s but is not.", expected);
-      ast.diag()
+      yyast.diag()
           .new_error(@3, message)
           .context(@$)
           .report();
@@ -351,7 +351,7 @@ array_param_type
     }
   else
     {
-      ast.diag()
+      yyast.diag()
           .new_error(@3, "Non-constant array dimension")
           .context(@$)
           .report();
@@ -496,10 +496,10 @@ funcall
     : ID '(' expr_list ')'
 {
   FunDef *f;
-  if ((f = ast.getFunDef ($1)) == nullptr
+  if ((f = yyast.getFunDef ($1)) == nullptr
       && (f = builtins.find ($1)) == nullptr)
     {
-      ast.diag()
+      yyast.diag()
           .new_error(@$, "Undefined function")
           .report();
       YYERROR;
@@ -513,9 +513,9 @@ funcall
     | TEMPLATEID '<' arith_expr_list '>' '(' arith_expr_list ')'
 {
   Template *f;
-  if ((f = ast.getTemplate($1)) == nullptr)
+  if ((f = yyast.getTemplate($1)) == nullptr)
     {
-      ast.diag()
+      yyast.diag()
           .new_error(@$, "Undefined function template")
           .report();
       YYERROR;
@@ -820,7 +820,7 @@ untyped_var_dec
 {
   if (!$3->isConst () || $3->evalConst () <= 0)
     {
-      ast.diag()
+      yyast.diag()
           .new_error(@3, "Invalid array size (it shoud be a constant, stricly "
                       "positive expression)")
           .context(@$)
@@ -840,7 +840,7 @@ untyped_var_dec
 {
   if (!$3->isConst () || $3->evalConst () <= 0)
     {
-      ast.diag()
+      yyast.diag()
           .new_error(@3, "Invalid array size (it shoud be a constant,"
                     "stricly positive expression)")
           .context(@$)
@@ -913,7 +913,7 @@ untyped_const_dec
 {
   if (!$3->isConst () || $3->evalConst () <= 0)
     {
-      ast.diag()
+      yyast.diag()
           .new_error(@$, "Invalid array size (it shoud be a constant, "
                      "stricly positive expression)")
           .report();
@@ -999,7 +999,7 @@ break_statement
 return_statement
     : RETURN
 {
-  ast.diag()
+  yyast.diag()
       .new_error(@$, "Non-void function should return a value")
       .report();
   YYERROR;
@@ -1185,7 +1185,7 @@ func_def
     $$ = f;
     delete $8;
     symTab.push(f);
-    ast.registerFunDef($$);
+    yyast.registerFunDef($$);
   });
 
   if (error) {
@@ -1221,8 +1221,8 @@ func_template
   bool error = register_with_new_id(symTab, $7, f->get_decl_loc(), [&]() {
     $$ = f;
     symTab.push(f);
-    ast.registerTemplate(f);
-    ast.registerFunDef(f);
+    yyast.registerTemplate(f);
+    yyast.registerFunDef(f);
   });
 
   if (error) {
