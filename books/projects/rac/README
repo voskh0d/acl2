@@ -124,6 +124,13 @@ Parsing, pretty-printing, and translating RAC programs
       prog.cert is created.  If not, the file prog.acl2.log should provide
       clues to the cause of failure.
 
+  In case of bug of the parser (like when an error is reported but the code is
+  valid), it is possible to define RAC_BYPASS_ERROR environement variable to
+  any value. The errors will be still reported, but will not make the parser
+  fails (but crashes and failed assertions can still happen !). In that case,
+  be extra carefull and check the translation as anything can happen,
+  especially if it is a type related error.
+
 
 Compiling RAC programs for simulation
 --------------------------------------
