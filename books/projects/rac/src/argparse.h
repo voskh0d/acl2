@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-#include "program.h"
+#include "program/program.h"
 #include "version.h"
 
 class CommandLine {

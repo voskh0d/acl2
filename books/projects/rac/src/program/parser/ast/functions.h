@@ -1,9 +1,9 @@
 #ifndef FUNCTIONS_H
 #define FUNCTIONS_H
 
-#include "sexpressions.h"
+#include "../../sexpressions.h"
+#include "../utils/utils.h"
 #include "statements.h"
-#include "utils.h"
 
 #include <iomanip>
 

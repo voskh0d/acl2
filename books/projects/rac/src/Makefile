@@ -9,9 +9,11 @@ CPPFLAGS +=
 CXXFLAGS += -Wall -Wextra -pedantic -std=c++17
 LDFLAGS +=
 
-SRCS += diagnostics.cpp expressions.cpp functions.cpp lex.yy.cpp main.cpp
-SRCS += parser.tab.cpp program.cpp sexpressions.cpp statements.cpp types.cpp
-SRCS += typing.cpp racconstraint.cpp forconstraints.cpp
+OBJS += program/parser/ast/expressions.o program/parser/ast/functions.o program/parser/ast/statements.o program/parser/ast/types.o
+OBJS += program/parser/utils/diagnostics.o
+OBJS += program/parser/lex.yy.o program/parser/parser.tab.o
+OBJS += program/process/typing.o program/process/racconstraint.o program/process/forconstraints.o
+OBJS += main.o program/program.o program/sexpressions.o
 
 # By default, build and install everything.
 all : install
@@ -21,8 +23,8 @@ install: release rac
 	install -m 775 rac ${RAC}/bin
 	rm rac parse
 
-#We should execute this rule every time, since it depends on some environment
-#variables.
+# We should execute this rule every time, since it depends on some environment
+# variables.
 rac:
 	printf "#!/bin/bash\n\nRAC=${RAC}\nACL2=${ACL2}" | cat - rac-skel > rac
 
@@ -35,44 +37,38 @@ debug: CPPFLAGS += -DDEBUG
 debug: CXXFLAGS += -O0 -g
 debug: parse
 
-OBJS := $(SRCS:%.cpp=%.o)
-
 # Compile and generate dependencies (stored under .deps).
 DEPDIR := .deps
-DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
+CPPFLAGS += -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
 
-COMPILE.cpp = $(CC) $(DEPFLAGS) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c
+# Copy the layout of the sources in the dependencies directory.
+$(DEPDIR):
+	@find -type d -links 2 -exec mkdir -p "$(DEPDIR)/{}" \;
 
-%.o: %.cpp
-%.o: %.cpp $(DEPDIR)/%.d | $(DEPDIR)
-	$(COMPILE.cpp) $(OUTPUT_OPTION) $<
-
-$(DEPDIR): ; @mkdir -p $@
-
-DEPFILES := $(SRCS:%.cpp=$(DEPDIR)/%.d)
+DEPFILES := $(SRCS:$*.cpp=$(DEPDIR)/$*.d)
 $(DEPFILES):
-include $(wildcard $(DEPFILES))
+include $(shell find $(DEPFILES) -name '*.d')
 
 # Generate the version header.
 version.h:
 	sh -e generate_version.sh
 
 # Run bison and flex.
-parser.tab.cpp: parser.yy
-	bison -d -v -o parser.tab.cpp parser.yy -Wall
+program/parser/parser.tab.cpp: program/parser/parser.yy
+	bison -d -v -o program/parser/parser.tab.cpp program/parser/parser.yy -Wall
 
-lex.yy.cpp: parser.ll parser.tab.cpp
-	flex -o lex.yy.cpp parser.ll
+program/parser/lex.yy.cpp: program/parser/parser.ll program/parser/parser.tab.cpp
+	flex -o program/parser/lex.yy.cpp program/parser/parser.ll
 
 # Build the binary.
-parse: version.h ${OBJS}
+parse:  $(DEPDIR) | version.h ${OBJS}
 	${CC} -o parse $(LDFLAGS) ${OBJS}
 
 clean:
-	rm -f ${OBJS} version.h parser.tab.cpp lex.yy.cpp
+	rm -f ${OBJS} version.h program/parser/parser.tab.cpp program/parser/lex.yy.cpp
 	rm -f -r parse.dSym
 
 veryclean : clean
 	rm -rf rac parse .deps
 
-.PHONY : all clean veryclean install rac version.h release debug
+.PHONY : all clean veryclean install rac release debug

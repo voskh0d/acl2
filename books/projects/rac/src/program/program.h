@@ -1,8 +1,9 @@
 #ifndef PROGRAM_H
 #define PROGRAM_H
 
-#include "visitor.h"
+#include "parser/utils/diagnostics.h"
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -40,6 +41,8 @@ public:
   // Apply all required passes (type check, desugarization, ...) to the
   // program.
   bool process();
+
+  void dumpAsDot() const;
 
   // Add anew type/constant/function to the program. Those should only be
   // called in the parser. Return false if the registration failed (they is

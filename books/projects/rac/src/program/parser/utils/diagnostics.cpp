@@ -1,6 +1,7 @@
 #include "diagnostics.h"
-#include "visitor.h"
+#include "utils.h"
 
+#include <cassert>
 #include <limits>
 
 std::ostream &operator<<(std::ostream &os, const Location &loc) {

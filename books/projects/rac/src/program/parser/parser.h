@@ -3,8 +3,8 @@
 
 #include <variant>
 
-#include "diagnostics.h"
-#include "program.h"
+#include "../program.h"
+#include "utils/diagnostics.h"
 
 extern int yylineno;
 extern Location yylloc;
@@ -13,80 +13,6 @@ extern int yyparse();
 extern FILE *yyin;
 
 extern Program prog;
-
-/*
-#include "statements.h"
-
-template <typename T, bool reverse = false>
-class NamedVector {
-public:
-  // Represent the three states result: not found, found with matching case
-  // and mach with different case.
-
-  using type = T;
-  using iterator = typename std::deque<T>::iterator;
-
-  struct None {};
-
-  STRONGTYPEDEF(type, FoundIt);
-  STRONGTYPEDEF(type, FoundWithDifferentCaseIt);
-  using ResultIt = std::variant<None, FoundIt, FoundWithDifferentCaseIt>;
-
-  STRONGTYPEDEF(iterator, Found);
-  STRONGTYPEDEF(iterator, FoundWithDifferentCase);
-  using Result = std::variant<None, Found, FoundWithDifferentCase>;
-
-  void push(T value) {
-    if (reverse) {
-      data_.push_front(value);
-    } else {
-      data_.push_back(value);
-    }
-  }
-
-  ResultIt find_it(const std::string_view name,
-                   std::optional<iterator> restart_from = std::nullopt) {
-
-    auto begin = restart_from ? *restart_from
-                              : reverse ? data_.rbegin() : data_.begin();
-    auto end = reverse ? data_.rend() : data_.end();
-
-    for (auto it = begin; it != end; ++it) {
-
-      if (string_compare_ignore_case(name, it->getname())) {
-        if (name == it->getname()) {
-          return ResultIt(Found(it));
-        } else {
-          return FoundWithDifferentCaseIt(it);
-        }
-      }
-    }
-    return None();
-  }
-
-  Result find(const std::string_view name) {
-
-    auto res = find_it(name);
-    return std::visit(overloaded{ [](FoundIt f) { return Found(*f.value); },
-                                  [](FoundWithDifferentCaseIt f) {
-                                    return FoundWithDifferentCase(*f.value);
-                                  },
-                                  [](None) { return None(); } },
-                      res);
-  }
-
-private:
-  bool string_compare_ignore_case(std::string_view a, std::string_view b) {
-    return std::equal(a.begin(), a.end(), b.begin(), b.end(),
-                      [](char a, char b) {
-                        return std::tolower(static_cast<unsigned char>(a))
-                               == std::tolower(static_cast<unsigned char>(b));
-                      });
-  }
-
-  std::deque<T> data_;
-};
-*/
 
 class SymbolStack {
   // We use a deque to store all values and we use nullptr to mark the limit

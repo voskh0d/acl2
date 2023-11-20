@@ -1,8 +1,8 @@
 #ifndef TYPES_H
 #define TYPES_H
 
-#include "diagnostics.h"
-#include "sexpressions.h"
+#include "../../sexpressions.h"
+#include "../utils/diagnostics.h"
 
 #include <algorithm>
 #include <iostream>

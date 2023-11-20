@@ -1,5 +1,5 @@
+#include "../../program.h"
 #include "functions.h"
-#include "program.h"
 #include "statements.h"
 
 #include <algorithm>
@@ -666,7 +666,7 @@ ForStmt::ForStmt(Location loc, SimpleStatement *v, Expression *t,
       return add_constraints_for_sym_dec(sr);
     });
   } else if (auto as = dynamic_cast<Assignment *>(init)) {
-    if (auto sr = dynamic_cast<SymRef *>(init)) {
+    if (auto sr = dynamic_cast<SymRef *>(as->lval)) {
       add_constraints_for_sym_dec(sr);
     }
   }

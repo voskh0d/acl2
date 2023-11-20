@@ -6,7 +6,7 @@
 #include <sstream>
 
 // TODO remove (only for debug)
-#include "parser.h"
+#include "../../program.h"
 
 //***********************************************************************************
 // class Expression

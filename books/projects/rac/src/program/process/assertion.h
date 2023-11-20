@@ -1,8 +1,6 @@
 #ifndef ASSERTION_H
 #define ASSERTION_H
 
-#include "functions.h"
-#include "statements.h"
 #include "visitor.h"
 
 // Bind each assertion to its parent function (needed to disply where the

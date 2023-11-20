@@ -1,8 +1,6 @@
 #ifndef TYPING_H
 #define TYPING_H
 
-#include "expressions.h"
-#include "types.h"
 #include "visitor.h"
 
 // This pass is rensposible of the typing (type check and determing the type)

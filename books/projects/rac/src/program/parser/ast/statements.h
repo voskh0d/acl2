@@ -1,11 +1,11 @@
 #ifndef STATEMENTS_H
 #define STATEMENTS_H
 
-#include "diagnostics.h"
+#include "../../sexpressions.h"
+#include "../utils/diagnostics.h"
+#include "../utils/utils.h"
 #include "expressions.h"
-#include "sexpressions.h"
 #include "types.h"
-#include "utils.h"
 
 //***********************************************************************************
 // Statements

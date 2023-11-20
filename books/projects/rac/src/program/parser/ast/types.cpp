@@ -1,6 +1,7 @@
+#include "types.h"
+
 #include "expressions.h"
 #include "statements.h"
-#include "types.h"
 
 #include <algorithm>
 #include <iomanip>

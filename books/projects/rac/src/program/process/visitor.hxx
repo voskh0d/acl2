@@ -11,7 +11,7 @@ bool RecursiveASTVisitor<Derived>::dispatchTraverse(AbstractBase *e) {
       return derived().Traverse##CLASS(reinterpret_cast<CLASS *>(e));         \
     else                                                                      \
       UNREACHABLE();
-#include "astnodes.def"
+#include "../parser/ast/astnodes.def"
 #undef APPLY
   }
   UNREACHABLE();
@@ -705,7 +705,7 @@ bool RecursiveASTVisitor<Derived>::WalkUpStatement(Statement *s) {
       return false;                                                           \
     return derived().Visit##CLASS(c);                                         \
   }
-#include "astnodes.def"
+#include "../parser/ast/astnodes.def"
 #undef APPLY
 
 template <typename Derived>
@@ -723,5 +723,5 @@ bool RecursiveASTVisitor<Derived>::VisitStatement(Statement *) {
   bool RecursiveASTVisitor<Derived>::Visit##CLASS(CLASS *) {                  \
     return true;                                                              \
   }
-#include "astnodes.def"
+#include "../parser/ast/astnodes.def"
 #undef APPLY

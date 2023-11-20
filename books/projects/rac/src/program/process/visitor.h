@@ -3,9 +3,9 @@
 
 #include <algorithm>
 
-#include "expressions.h"
-#include "functions.h"
-#include "statements.h"
+#include "../parser/ast/expressions.h"
+#include "../parser/ast/functions.h"
+#include "../parser/ast/statements.h"
 
 // This class perform a preorder or postorder depth-first travsersal of the
 // AST. This class should be inherited to add custom actions, see astdumper.h
@@ -54,7 +54,7 @@ public:
   inline bool TraverseExpression(Expression *e);
   inline bool TraverseStatement(Statement *s);
 #define APPLY(CLASS, PARENT) inline bool Traverse##CLASS(CLASS *);
-#include "astnodes.def"
+#include "../parser/ast/astnodes.def"
 #undef APPLY
 
   // Takes a pointer to a child class and call WalkUp on its parents. Then
@@ -64,7 +64,7 @@ public:
   inline bool WalkUpExpression(Expression *e);
   inline bool WalkUpStatement(Statement *s);
 #define APPLY(CLASS, PARENT) inline bool WalkUp##CLASS(CLASS *);
-#include "astnodes.def"
+#include "../parser/ast/astnodes.def"
 #undef APPLY
 
   // Those functions are meant to be overload to add action on nodes on
@@ -77,7 +77,7 @@ public:
   inline bool VisitExpression(Expression *e);
   inline bool VisitStatement(Statement *s);
 #define APPLY(CLASS, PARENT) inline bool Visit##CLASS(CLASS *);
-#include "astnodes.def"
+#include "../parser/ast/astnodes.def"
 #undef APPLY
 
 private:

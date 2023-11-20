@@ -7,13 +7,14 @@ Rac (rac|RAC|Rac)
 lineba ^"#"\ [0-9]+\ \"[^\"]*\".*\n
 
 %{
-#include <stdio.h>
-#include "expressions.h"
-#include "functions.h"
+#include "ast/statements.h"
+#include "ast/expressions.h"
+#include "ast/functions.h"
+#include "ast/types.h"
 #include "parser.h"
 #include "parser.tab.hpp"
-#include "statements.h"
-#include "types.h"
+
+#include <stdio.h>
 
 
 extern int yylex ();
@@ -38,10 +39,6 @@ static void lineba();
     }                                                                         \
   }                                                                           \
 }
-
-#define APPLY(CLASS, _) class CLASS;
-#include "astnodes.def"
-#undef APPLY
 
 %}
 %%

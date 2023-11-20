@@ -1,14 +1,17 @@
 #include "program.h"
 
-#include "functions.h"
-#include "parser.h"
-#include "types.h"
+#include "astdumper.h"
 
-#include "assertion.h"
-#include "forconstraints.h"
-#include "racconstraint.h"
-#include "returnfalse.h"
-#include "typing.h"
+#include "parser/ast/functions.h"
+#include "parser/ast/types.h"
+
+#include "parser/parser.h"
+
+#include "process/assertion.h"
+#include "process/forconstraints.h"
+#include "process/racconstraint.h"
+#include "process/returnfalse.h"
+#include "process/typing.h"
 
 #include <algorithm>
 
@@ -95,6 +98,11 @@ bool Program::process() {
   RUNPASS(MarkAssertionAction);
 
   return true;
+}
+
+void Program::dumpAsDot() const {
+  ASTDumperAction a;
+  prog.runAction(&a);
 }
 
 void Program::displayTypeDefs(std::ostream &os, DispMode mode) const {

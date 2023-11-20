@@ -1,10 +1,7 @@
 #ifndef ASTDUMPER_H
 #define ASTDUMPER_H
 
-#include "expressions.h"
-#include "functions.h"
-#include "statements.h"
-#include "visitor.h"
+#include "process/visitor.h"
 
 #include <iostream>
 #include <vector>
@@ -79,7 +76,7 @@ public:
                                                                               \
     return true;                                                              \
   }
-#include "astnodes.def"
+#include "parser/ast/astnodes.def"
 #undef APPLY
 
 private:

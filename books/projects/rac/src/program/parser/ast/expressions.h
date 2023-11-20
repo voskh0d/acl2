@@ -1,11 +1,12 @@
 #ifndef EXPRESSIONS_H
 #define EXPRESSIONS_H
 
-#include "diagnostics.h"
 #include "nodesid.h"
-#include "sexpressions.h"
 #include "types.h"
-#include "utils.h"
+
+#include "../../sexpressions.h"
+#include "../utils/diagnostics.h"
+#include "../utils/utils.h"
 
 //***********************************************************************************
 // Expressions

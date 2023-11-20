@@ -1,10 +1,10 @@
 #include <fstream>
 #include <iostream>
+#include <string.h>
 #include <string>
 
 #include "argparse.h"
-#include "astdumper.h"
-#include "program.h"
+#include "program/program.h"
 
 int main(int argc, char **argv) {
 
@@ -27,8 +27,7 @@ int main(int argc, char **argv) {
   }
 
   if (args->dump_ast) {
-    ASTDumperAction a;
-    prog.runAction(&a);
+    prog.dumpAsDot();
   }
 
   if (args->mode) {

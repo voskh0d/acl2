@@ -1,10 +1,11 @@
 %{
-#include "expressions.h"
-#include "functions.h"
+#include "ast/expressions.h"
+#include "ast/functions.h"
+#include "ast/statements.h"
+#include "ast/types.h"
+
 #include "parser.h"
-#include "program.h"
-#include "statements.h"
-#include "types.h"
+#include "../program.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wfree-nonheap-object"
