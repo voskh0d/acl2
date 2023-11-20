@@ -15,6 +15,7 @@ List<Builtin> builtins (new Builtin (Location::dummy(), "abs", &intType,
     new List<VarDec>(new VarDec(Location::dummy(), "", &intType))));
 
 SymbolStack symTab;
+AST ast;
 
 template <typename Container, typename F, typename... Args>
 bool register_with_new_id(Container c, const std::string& id,
