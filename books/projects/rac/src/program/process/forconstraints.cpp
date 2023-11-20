@@ -1,5 +1,7 @@
 #include "forconstraints.h"
 
+#include "../parser/ast/types.h"
+
 bool ForConstraints::TraverseForStmt(ForStmt *s) {
 
   // Travese init and recover the variable.

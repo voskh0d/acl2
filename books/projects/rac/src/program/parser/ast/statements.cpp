@@ -1,6 +1,9 @@
-#include "../../program.h"
+#include "expressions.h"
 #include "functions.h"
 #include "statements.h"
+#include "types.h"
+
+#include "../../program.h"
 
 #include <algorithm>
 #include <iomanip>

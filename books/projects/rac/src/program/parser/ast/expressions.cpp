@@ -1,12 +1,10 @@
 #include "expressions.h"
 #include "functions.h"
 #include "statements.h"
+#include "types.h"
 
 #include <iomanip>
 #include <sstream>
-
-// TODO remove (only for debug)
-#include "../../program.h"
 
 //***********************************************************************************
 // class Expression
@@ -791,11 +789,7 @@ Sexpression *BinaryExpr::ACL2Expr() {
   // TODO why is it needed ? Maybe should be transform to an assert ? But this
   // could make RAC_BYPASS_ERRORS fails. At least, the message should be
   // better.
-  if (!get_type()) {
-    prog.diag()
-        .new_error(this->loc(), format("untyped %s", to_string(op).c_str()))
-        .report();
-  }
+  assert(get_type());
 
   Sexpression *val = new Plist({ ptr, sexpr1, sexpr2 });
 

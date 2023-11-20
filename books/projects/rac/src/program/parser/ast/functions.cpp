@@ -1,4 +1,6 @@
+#include "expressions.h"
 #include "functions.h"
+#include "types.h"
 
 #include <algorithm>
 #include <sstream>

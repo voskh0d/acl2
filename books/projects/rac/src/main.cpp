@@ -4,6 +4,8 @@
 #include <string>
 
 #include "argparse.h"
+
+#include "program/parser/ast/ast.h"
 #include "program/program.h"
 
 int main(int argc, char **argv) {
@@ -18,16 +20,18 @@ int main(int argc, char **argv) {
     return 0;
   }
 
-  if (!prog.parse(*args->file + ".i")) {
+  auto parsed_ast = AST::parse(*args->file + ".i");
+  if (!parsed_ast) {
     return 1;
   }
 
-  if (!prog.process()) {
+  auto processed_ast = Program::process(std::move(*parsed_ast));
+  if (!processed_ast) {
     return 1;
   }
 
   if (args->dump_ast) {
-    prog.dumpAsDot();
+    processed_ast->dumpAsDot();
   }
 
   if (args->mode) {
@@ -41,7 +45,7 @@ int main(int argc, char **argv) {
                 << '\n';
     }
 
-    prog.display(fout, *args->mode);
+    processed_ast->display(fout, *args->mode);
   }
 
   return 0;

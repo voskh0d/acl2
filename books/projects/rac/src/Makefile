@@ -13,7 +13,7 @@ OBJS += program/parser/ast/expressions.o program/parser/ast/functions.o program/
 OBJS += program/parser/utils/diagnostics.o
 OBJS += program/parser/lex.yy.o program/parser/parser.tab.o
 OBJS += program/process/typing.o program/process/racconstraint.o program/process/forconstraints.o
-OBJS += main.o program/program.o program/sexpressions.o
+OBJS += main.o program/astdumper.o program/program.o program/sexpressions.o
 
 # By default, build and install everything.
 all : install

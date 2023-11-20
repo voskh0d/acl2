@@ -1,18 +1,16 @@
 #ifndef STATEMENTS_H
 #define STATEMENTS_H
 
+#include "fwd.h"
+#include "nodesid.h"
+
 #include "../../sexpressions.h"
 #include "../utils/diagnostics.h"
 #include "../utils/utils.h"
-#include "expressions.h"
-#include "types.h"
 
 //***********************************************************************************
 // Statements
 //***********************************************************************************
-
-class Block;
-class FunCall;
 
 class Statement {
 public:

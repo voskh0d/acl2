@@ -1,0 +1,49 @@
+#ifndef AST_H
+#define AST_H
+
+#include "fwd.h"
+
+#include "../utils/diagnostics.h"
+
+#include <vector>
+
+// A program consists of type definitions, global constant declarations, and
+// function definitions.
+class AST {
+public:
+  AST();
+  AST(AST &&ast);
+
+  // Parse the file given and store the result into this class. The program
+  // should be empty before calling it.
+  static std::optional<AST> parse(const std::string &file);
+
+  DiagnosticHandler &diag() { return diag_; }
+
+  // Add anew type/constant/function to the program. Those should only be
+  // called in the parser. Return false if the registration failed (they is
+  // already something with the same name).
+  bool registerType(DefinedType *t);
+  void registerConstDec(ConstDec *d);
+  void registerTemplate(Template *t);
+  void registerFunDef(FunDef *t);
+
+  // Get an type/dec/function called `name`. Return nullptr if nothing was
+  // registered with this name.
+  DefinedType *getType(const std::string &name);
+  ConstDec *getConstDec(const std::string &name);
+  Template *getTemplate(const std::string &name);
+  FunDef *getFunDef(const std::string &name);
+
+protected:
+  bool isEmpty() const;
+
+  std::vector<DefinedType *> typeDefs;
+  std::vector<ConstDec *> constDecs;
+  std::vector<Template *> templates;
+  std::vector<FunDef *> funDefs;
+
+  DiagnosticHandler diag_;
+};
+
+#endif // AST_H

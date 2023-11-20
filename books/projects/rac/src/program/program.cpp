@@ -2,93 +2,26 @@
 
 #include "astdumper.h"
 
-#include "parser/ast/functions.h"
-#include "parser/ast/types.h"
-
-#include "parser/parser.h"
-
 #include "process/assertion.h"
 #include "process/forconstraints.h"
 #include "process/racconstraint.h"
 #include "process/returnfalse.h"
 #include "process/typing.h"
 
+#include "parser/ast/functions.h"
+#include "parser/ast/types.h"
+
 #include <algorithm>
 
-Program::Program() {
-  typeDefs.reserve(256);
-  constDecs.reserve(256);
-  templates.reserve(256);
-  funDefs.reserve(256);
-}
+std::optional<Program> Program::process(AST &&ast) {
 
-bool Program::registerType(DefinedType *t) {
-  if (getType(t->getname()))
-    return false;
-  typeDefs.push_back(t);
-  return true;
-}
-
-DefinedType *Program::getType(const std::string &name) {
-  auto it = std::find_if(typeDefs.begin(), typeDefs.end(),
-                         [&](DefinedType *t) { return name == t->getname(); });
-  return it == typeDefs.end() ? nullptr : *it;
-}
-
-void Program::registerConstDec(ConstDec *d) { constDecs.push_back(d); }
-
-ConstDec *Program::getConstDec(const std::string &name) {
-  auto it = std::find_if(constDecs.begin(), constDecs.end(),
-                         [&](ConstDec *d) { return name == d->getname(); });
-  return it == constDecs.end() ? nullptr : *it;
-}
-
-void Program::registerTemplate(Template *t) { templates.push_back(t); }
-
-Template *Program::getTemplate(const std::string &name) {
-  auto it = std::find_if(templates.begin(), templates.end(),
-                         [&](Template *t) { return name == t->getname(); });
-  return it == templates.end() ? nullptr : *it;
-}
-
-void Program::registerFunDef(FunDef *f) { funDefs.push_back(f); }
-
-FunDef *Program::getFunDef(const std::string &name) {
-  auto it = std::find_if(funDefs.begin(), funDefs.end(),
-                         [&](FunDef *t) { return name == t->getname(); });
-  return it == funDefs.end() ? nullptr : *it;
-}
-
-bool Program::parse(const std::string &file) {
-
-  yyin = fopen(file.c_str(), "r");
-  diag_.setup(yyin);
-
-  if (yyin == nullptr) {
-    std::cerr << "Failed to open file " << file << ": " << strerror(errno)
-              << '\n';
-    return false;
-  }
-
-  yylineno = 1;
-  yylloc = Location::from_file(file);
-  if (yyparse())
-    return false;
-
-  if (isEmpty())
-    puts("Warning: no function definitions found,"
-         " maybe you forgot the `// RAC begin` guard");
-
-  return true;
-}
-
-bool Program::process() {
+  Program processed_ast(std::move(ast));
 
 #define RUNPASS(ACTION)                                                       \
   {                                                                           \
-    ACTION a(diag_);                                                          \
-    if (!runAction(&a) && !bypass_errors()) {                                 \
-      return false;                                                           \
+    ACTION a(processed_ast.diag_);                                            \
+    if (!processed_ast.runAction(&a) && !bypass_errors()) {                   \
+      return {};                                                              \
     }                                                                         \
   }
 
@@ -97,12 +30,12 @@ bool Program::process() {
   RUNPASS(ForConstraints);
   RUNPASS(MarkAssertionAction);
 
-  return true;
+  return { std::move(processed_ast) };
 }
 
-void Program::dumpAsDot() const {
+void Program::dumpAsDot() {
   ASTDumperAction a;
-  prog.runAction(&a);
+  runAction(&a);
 }
 
 void Program::displayTypeDefs(std::ostream &os, DispMode mode) const {
@@ -143,5 +76,3 @@ void Program::display(std::ostream &os, DispMode mode) const {
   displayFunDefs(os, mode);
   os << "\n";
 }
-
-bool Program::isEmpty() const { return funDefs.empty(); }

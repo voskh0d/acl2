@@ -644,3 +644,12 @@ bool TypingAction::check_assignement(const Location &where, const Type *left,
   }
   return true;
 }
+
+const Type *TypingAction::deref(const Type *t) {
+
+  if (const DefinedType *dt = dynamic_cast<const DefinedType *>(t)) {
+    return dt->derefType();
+  } else {
+    return t;
+  }
+}

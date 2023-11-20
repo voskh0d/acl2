@@ -1,18 +1,28 @@
 #ifndef PARSER_H
 #define PARSER_H
 
-#include <variant>
-
-#include "../program.h"
+#include "ast/ast.h"
+#include "ast/expressions.h"
+#include "ast/functions.h"
+#include "ast/statements.h"
+#include "ast/types.h"
 #include "utils/diagnostics.h"
 
+#include <deque>
+#include <variant>
+
+class SymDec;
+
+int yylex();
 extern int yylineno;
 extern Location yylloc;
 
 extern int yyparse();
 extern FILE *yyin;
 
-extern Program prog;
+extern AST ast;
+
+void yyerror(const Location &loc, const char *);
 
 class SymbolStack {
   // We use a deque to store all values and we use nullptr to mark the limit
@@ -21,9 +31,7 @@ class SymbolStack {
   // be more or less efficient (we are traversing the addresses from low to
   // high).
 public:
-  struct FrameBoundary {
-    int a;
-  };
+  struct FrameBoundary {};
   using type = std::variant<FrameBoundary, SymDec *, FunDef *>;
 
   // Represent the three states result: not found, found with matching case

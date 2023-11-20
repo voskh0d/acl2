@@ -1,8 +1,8 @@
 #ifndef EXPRESSIONS_H
 #define EXPRESSIONS_H
 
+#include "fwd.h"
 #include "nodesid.h"
-#include "types.h"
 
 #include "../../sexpressions.h"
 #include "../utils/diagnostics.h"
@@ -11,8 +11,6 @@
 //***********************************************************************************
 // Expressions
 //***********************************************************************************
-
-class SymDec;
 
 class Expression {
 public:
@@ -143,8 +141,6 @@ public:
   Sexpression *ACL2Assign(Sexpression *rval) override;
 };
 
-class FunDef;
-
 class FunCall : public Expression {
   // type: rtype
 public:
@@ -157,8 +153,6 @@ public:
   void display(std::ostream &os) const override;
   Sexpression *ACL2Expr() override;
 };
-
-class Template;
 
 class TempCall final : public FunCall {
 public:

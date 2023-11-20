@@ -62,13 +62,4 @@ private:
                          const Type *right);
 };
 
-const Type *TypingAction::deref(const Type *t) {
-
-  if (const DefinedType *dt = dynamic_cast<const DefinedType *>(t)) {
-    return dt->derefType();
-  } else {
-    return t;
-  }
-}
-
 #endif // TYPING_H

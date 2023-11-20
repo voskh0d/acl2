@@ -7,18 +7,11 @@ Rac (rac|RAC|Rac)
 lineba ^"#"\ [0-9]+\ \"[^\"]*\".*\n
 
 %{
-#include "ast/statements.h"
-#include "ast/expressions.h"
-#include "ast/functions.h"
-#include "ast/types.h"
 #include "parser.h"
 #include "parser.tab.hpp"
 
 #include <stdio.h>
 
-
-extern int yylex ();
-extern void yyerror(const Location& loc, const char *);
 static bool comment();
 char *tokstr();
 static void lineba();
@@ -90,8 +83,8 @@ static void lineba();
 "true"                      {yylval.s = tokstr(); return TRUE;}
 "false"                     {yylval.s = tokstr(); return FALSE;}
 
-[a-zA-Z_][a-zA-Z_0-9]*      {yylval.s = tokstr(); return (prog.getType(yytext))
-  ? TYPEID : (prog.getTemplate(yytext)) ? TEMPLATEID : ID;}
+[a-zA-Z_][a-zA-Z_0-9]*      {yylval.s = tokstr(); return (ast.getType(yytext))
+  ? TYPEID : (ast.getTemplate(yytext)) ? TEMPLATEID : ID;}
 
 [0-9]+ |
 "0x"[a-fA-F_0-9]+           {yylval.s = tokstr(); return NAT;}
@@ -164,7 +157,7 @@ comment ()
         c = yyinput();
       }
     }
-  prog.diag().new_error(yylloc, "Unterminated comment").report();
+  ast.diag().new_error(yylloc, "Unterminated comment").report();
   return false;
 }
 

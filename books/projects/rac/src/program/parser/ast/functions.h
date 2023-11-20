@@ -1,9 +1,12 @@
 #ifndef FUNCTIONS_H
 #define FUNCTIONS_H
 
+#include "fwd.h"
+#include "nodesid.h"
+#include "statements.h"
+
 #include "../../sexpressions.h"
 #include "../utils/utils.h"
-#include "statements.h"
 
 #include <iomanip>
 

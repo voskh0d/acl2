@@ -1,6 +1,8 @@
 #ifndef PROGRAM_H
 #define PROGRAM_H
 
+#include "displaymode.h"
+#include "parser/ast/ast.h"
 #include "parser/utils/diagnostics.h"
 
 #include <algorithm>
@@ -11,53 +13,13 @@
 // Programs
 //***********************************************************************************
 
-enum class DispMode { rac, acl2 };
-
-class DefinedType;
-class ConstDec;
-class Template;
-class FunDef;
-
-// A program consists of type definitions, global constant declarations, and
-// function definitions.
-class Program {
-  std::vector<DefinedType *> typeDefs;
-  std::vector<ConstDec *> constDecs;
-  std::vector<Template *> templates;
-  std::vector<FunDef *> funDefs;
-
-  DiagnosticHandler diag_;
-
+class Program : public AST {
 public:
-  Program();
-
-  // Parse the file given and store the result into this class. The program
-  // should be empty before calling it.
-  bool parse(const std::string &file);
-
-  // Only used in the parser.
-  DiagnosticHandler &diag() { return diag_; }
-
   // Apply all required passes (type check, desugarization, ...) to the
   // program.
-  bool process();
+  static std::optional<Program> process(AST &&ast);
 
-  void dumpAsDot() const;
-
-  // Add anew type/constant/function to the program. Those should only be
-  // called in the parser. Return false if the registration failed (they is
-  // already something with the same name).
-  bool registerType(DefinedType *t);
-  void registerConstDec(ConstDec *d);
-  void registerTemplate(Template *t);
-  void registerFunDef(FunDef *t);
-
-  // Get an type/dec/function called `name`. Return nullptr if nothing was
-  // registered with this name.
-  DefinedType *getType(const std::string &name);
-  ConstDec *getConstDec(const std::string &name);
-  Template *getTemplate(const std::string &name);
-  FunDef *getFunDef(const std::string &name);
+  void dumpAsDot();
 
   // Display functions.
   void displayConstDecs(std::ostream &os, DispMode mode) const;
@@ -82,9 +44,10 @@ public:
   }
 
 private:
-  bool isEmpty() const;
+  Program(AST ast) : AST(std::move(ast)) {}
 };
 
-extern Program prog;
+// TODO remove
+extern AST prog;
 
 #endif // PROGRAM_H
