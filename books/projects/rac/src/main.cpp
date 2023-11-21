@@ -5,7 +5,7 @@
 
 #include "argparse.h"
 
-#include "program/parser/ast/ast.h"
+#include "program/parser/parser.h"
 #include "program/program.h"
 
 int main(int argc, char **argv) {
@@ -20,7 +20,7 @@ int main(int argc, char **argv) {
     return 0;
   }
 
-  auto parsed_ast = AST::parse(*args->file + ".i");
+  auto parsed_ast = parse(*args->file + ".i");
   if (!parsed_ast) {
     return 1;
   }

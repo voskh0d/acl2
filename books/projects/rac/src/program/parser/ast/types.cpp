@@ -159,14 +159,6 @@ void IntType::display(std::ostream &os) const {
   os << ">";
 }
 
-Sexpression *IntType::ACL2Eval(Sexpression *s) const {
-  if (isSigned_)
-    return new Plist(
-        { &s_si, s, new Integer(Location::dummy(), width()->evalConst()) });
-  else
-    return s;
-}
-
 unsigned IntType::ACL2ValWidth() const { return width()->evalConst(); }
 
 Sexpression *IntType::ACL2Assign(Expression *rval) const {

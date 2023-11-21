@@ -5,8 +5,6 @@
 #include "statements.h"
 #include "types.h"
 
-#include "../parser.h"
-
 AST::AST() {
   typeDefs.reserve(256);
   constDecs.reserve(256);
@@ -55,30 +53,6 @@ FunDef *AST::getFunDef(const std::string &name) {
   auto it = std::find_if(funDefs.begin(), funDefs.end(),
                          [&](FunDef *t) { return name == t->getname(); });
   return it == funDefs.end() ? nullptr : *it;
-}
-
-std::optional<AST> AST::parse(const std::string &file) {
-
-  yyin = fopen(file.c_str(), "r");
-
-  yyast.diag_.setup(yyin);
-
-  if (yyin == nullptr) {
-    std::cerr << "Failed to open file " << file << ": " << strerror(errno)
-              << '\n';
-    return {};
-  }
-
-  yylineno = 1;
-  yylloc = Location::from_file(file);
-  if (yyparse())
-    return {};
-
-  if (yyast.isEmpty())
-    puts("Warning: no function definitions found,"
-         " maybe you forgot the `// RAC begin` guard");
-
-  return { std::move(yyast) };
 }
 
 bool AST::isEmpty() const { return funDefs.size() == 0; }

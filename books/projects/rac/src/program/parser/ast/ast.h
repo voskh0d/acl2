@@ -14,10 +14,6 @@ public:
   AST();
   AST(AST &&ast);
 
-  // Parse the file given and store the result into this class. The program
-  // should be empty before calling it.
-  static std::optional<AST> parse(const std::string &file);
-
   DiagnosticHandler &diag() { return diag_; }
 
   // Add anew type/constant/function to the program. Those should only be
@@ -35,9 +31,9 @@ public:
   Template *getTemplate(const std::string &name);
   FunDef *getFunDef(const std::string &name);
 
-protected:
   bool isEmpty() const;
 
+protected:
   std::vector<DefinedType *> typeDefs;
   std::vector<ConstDec *> constDecs;
   std::vector<Template *> templates;

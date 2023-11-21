@@ -52,23 +52,14 @@ public:
   // Convert rval to an S-expression to be assigned to an object of this
   virtual Sexpression *ACL2Assign(Expression *rval) const;
 
+  // TODO refactore.
   // overridden by IntType
   virtual unsigned ACL2ValWidth() const {
-    // TODO: shady, we should probably have something to express unbounded,
-    // unknown and zero (imagine a case were translate an unknown size value
-    // like it was unbounded...)
-    //
+
+    UNREACHABLE();
     // Boundary on the width of the value of an object of this type.
-    // 0 indicates unknown or unbounded width.
     // Used to avoid unnecessary call to bits.
     return 0;
-  }
-
-  // overridden by IntType
-  virtual Sexpression *ACL2Eval(Sexpression *s) const {
-    // For a IntType, get the bit vector from the numerical value represented
-    // by s. For any other type, just return s.
-    return s;
   }
 
   virtual bool isEqual(const Type *other) const = 0;
@@ -178,10 +169,6 @@ public:
     return derefType()->ACL2ValWidth();
   }
 
-  Sexpression *ACL2Eval(Sexpression *s) const override {
-    return derefType()->ACL2Eval(s);
-  }
-
   void displayDef(std::ostream &os = std::cout) const {
     def_->makeDef(getname(), os);
   }
@@ -222,7 +209,6 @@ public:
   static IntType *FromPrimType(const PrimType *t);
 
   void display(std::ostream &os = std::cout) const override;
-  Sexpression *ACL2Eval(Sexpression *s) const override;
   Sexpression *ACL2Assign(Expression *rval) const override;
 
   unsigned ACL2ValWidth() const override;
@@ -383,10 +369,6 @@ public:
   }
 
   unsigned ACL2ValWidth() const override { return Type::ACL2ValWidth(); }
-
-  Sexpression *ACL2Eval(Sexpression *s) const override {
-    return Type::ACL2Eval(s);
-  }
 
   bool isEqual([[maybe_unused]] const Type *other) const override {
     return true;

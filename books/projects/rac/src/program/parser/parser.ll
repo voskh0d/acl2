@@ -7,7 +7,7 @@ Rac (rac|RAC|Rac)
 lineba ^"#"\ [0-9]+\ \"[^\"]*\".*\n
 
 %{
-#include "parser.h"
+#include "yyparser.h"
 #include "parser.tab.hpp"
 
 #include <stdio.h>

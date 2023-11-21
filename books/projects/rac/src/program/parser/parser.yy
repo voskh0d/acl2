@@ -1,5 +1,5 @@
 %{
-#include "parser.h"
+#include "yyparser.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wfree-nonheap-object"
