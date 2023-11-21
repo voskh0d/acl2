@@ -35,8 +35,3 @@ We will be using gcov and all those command are type in the src/ directory:
 * Run `python ../tests/testsuite.py parse` (this will run the binary multiple
   and each run will save the coverage information under gcno files).
 * Generate the report: `gcovr . --html --html-details -o report.html`.
-
-# TODO
-
-* Operator precedence
-* Error check parser

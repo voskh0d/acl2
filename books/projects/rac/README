@@ -140,6 +140,23 @@ Compiling RAC programs for simulation
     g++ -std=c++14 -I <this directory>/include prog.cpp
 
 
+Testing and debuging
+--------------------
+
+  To know how to run the regression test, see tests/README.md. Even if those
+  tests should covered most parts of the parse, it a good idea to test the
+  translations on some real life models (like the ones in examples).
+
+  By default, the parser will be compile in release mode (with all
+  optimisation and without the debuging symbol), to debug use 'make debug'.
+
+  For more in depth debuging, the -dump-ast is really usefull to understand
+  what's happening. For now, it only display the name of the nodes and the
+  expression's types. Fell free to add more information if needed. Also, the
+  "diagnostics" can be really usefull to know which parts of the input code
+  cause a bug.
+
+
 Contact
 -------
 
