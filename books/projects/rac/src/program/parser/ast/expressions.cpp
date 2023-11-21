@@ -432,6 +432,7 @@ Subrange::Subrange(Location loc, Expression *b, Expression *l, unsigned w)
     high = new Integer(loc_, l->evalConst() + w - 1);
   else {
     high = new BinaryExpr(loc_, l, new Integer(loc_, w - 1), strdup("+"));
+    high->set_type(&intType); // TODO: removing this makes an assertion fails.
   }
 }
 

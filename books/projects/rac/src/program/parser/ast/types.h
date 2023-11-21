@@ -56,7 +56,6 @@ public:
   // overridden by IntType
   virtual unsigned ACL2ValWidth() const {
 
-    UNREACHABLE();
     // Boundary on the width of the value of an object of this type.
     // Used to avoid unnecessary call to bits.
     return 0;
