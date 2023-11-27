@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstring>
 #include <deque>
+#include <limits>
 #include <memory>
 #include <ostream>
 #include <tuple>
@@ -271,5 +272,88 @@ std::string format(const std::string &format, Args... args) {
 }
 
 #pragma GCC diagnostic pop
+
+class BigInt {
+  public:
+  BigInt(int val)
+      : abs_val_(std::abs(val))
+      , sign_(val < 0)
+    {}
+    BigInt(unsigned int val)
+      : abs_val_(val)
+        , sign_(false)
+  {}
+    BigInt(long val)
+      : abs_val_(std::abs(val))
+        , sign_(val < 0)
+  {}
+    BigInt(unsigned long val)
+      : abs_val_(val)
+        , sign_(false)
+  {}
+
+    BigInt(unsigned long abs_val, bool sign)
+      : abs_val_(abs_val)
+        , sign_(sign)
+  {}
+
+  BigInt& operator=(long val) {
+    abs_val_ = std::abs(val);
+    sign_ = val < 0;
+    return *this;
+  }
+  BigInt& operator=(unsigned long val) {
+    abs_val_ = val;
+    sign_ = false;
+    return *this;
+  }
+
+  bool operator==(const BigInt& other) const { return cmp(other) == 0; }
+  bool operator>=(const BigInt& other) const { return cmp(other) >= 0; }
+  bool operator<=(const BigInt& other) const { return cmp(other) <= 0; }
+  bool operator>(const BigInt& other) const { return cmp(other) > 0; }
+  bool operator<(const BigInt& other) const { return cmp(other) < 0; }
+
+  // TODO remove
+  int eval() const {
+    assert(abs_val_ < 0xFFFFFFFFL);
+    return (sign_ ? -1 : 1) * abs_val_;
+  }
+
+  template <typename T>
+  bool can_fit_inside() const {
+    return *this <= std::numeric_limits<T>::max()
+      && *this >= std::numeric_limits<T>::min();
+  }
+
+
+  private:
+  // returns
+  //  1 if this > other
+  //  0 if this == other
+  // -1 if this < other
+  int cmp(const BigInt &other) const {
+
+    if (sign_ && !other.sign_) {
+      return -1;
+    }
+
+    if (!sign_ && other.sign_) {
+      return 1;
+    }
+
+    if (abs_val_ == other.abs_val_) {
+      return 0;
+    }
+
+    if (sign_) {
+      return abs_val_ > other.abs_val_ ? -1 : 1;
+    } else {
+      return abs_val_ > other.abs_val_ ? 1 : -1;
+    }
+  }
+    unsigned long abs_val_;
+    bool sign_;
+};
 
 #endif // UTILS_H

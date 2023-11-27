@@ -56,35 +56,31 @@ bool TypingAction::TraverseTemplate(Template *e) {
 }
 
 bool TypingAction::VisitInteger(Integer *e) {
-  // TODO for now, we does not support unsigned literal.
+
+  bool suffix_unsigned = e->has_suffix_unsigned();
+  bool suffix_long = e->has_suffix_long();
+  bool is_decimal = e->format() == Integer::Format::Decimal;
 
   // The type of the integer literal is the first type in which the value can
   // fit. If the literal is written in decimal, then it is always signed.
   // https://en.cppreference.com/w/cpp/language/integer_literal
-  if (e->format() == Integer::Format::Decimal) {
-    if (e->val_ <= std::numeric_limits<int>::max()
-        && e->val_ >= std::numeric_limits<int>::min())
-      e->set_type(&intType);
-    else
-      e->set_type(&int64Type);
+  if (!suffix_unsigned && !suffix_long && e->val_.can_fit_inside<int>()) {
+    e->set_type(&intType);
+  } else if ((!is_decimal || suffix_unsigned) && !suffix_long
+             && e->val_.can_fit_inside<unsigned>()) {
+    e->set_type(&uintType);
+  } else if (!suffix_unsigned && e->val_.can_fit_inside<long>()) {
+    e->set_type(&int64Type);
+  } else if ((!is_decimal || suffix_unsigned)
+             && e->val_.can_fit_inside<unsigned long>()) {
+    e->set_type(&uint64Type);
   } else {
-    if (e->val_ <= std::numeric_limits<int>::max()
-        && e->val_ >= std::numeric_limits<int>::min()) {
-      e->set_type(&intType);
-    } else if (e->val_ <= std::numeric_limits<unsigned>::max()
-               && e->val_ >= std::numeric_limits<unsigned>::min()) {
-      e->set_type(&uintType);
-    } else if (e->val_ < std::numeric_limits<long>::max()
-               && e->val_ >= std::numeric_limits<long>::min()) {
-      e->set_type(&int64Type);
-    } else if (static_cast<unsigned long>(e->val_)
-                   < std::numeric_limits<unsigned long>::max()
-               && static_cast<unsigned long>(e->val_)
-                      >= std::numeric_limits<unsigned long>::min()) {
-      e->set_type(&uint64Type);
-    } else {
-      UNREACHABLE();
-    }
+    diag_
+        .new_error(e->loc(),
+                   "Integer litteral cannot fit in any available types")
+        .note("Try some suffix (U or/and L)")
+        .report();
+    return false;
   }
   return true;
 }

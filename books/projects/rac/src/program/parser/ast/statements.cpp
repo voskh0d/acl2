@@ -171,7 +171,7 @@ Sexpression *VarDec::ACL2Expr() {
   } else if (init) {
     val = t->ACL2Assign(init);
   } else {
-    val = Integer::zero_v(loc_);
+    val = Integer::zero_v(loc_)->ACL2Expr();
   }
   return new Plist({ &s_declare, sym, val });
 }
@@ -292,7 +292,7 @@ TempParamDec::TempParamDec(Location loc, const char *n, Type *t)
 bool TempParamDec::isConst() { return true; }
 
 Sexpression *TempParamDec::ACL2SymExpr() {
-  return init ? type->ACL2Assign(init) : Integer::zero_v(loc_);
+  return init ? type->ACL2Assign(init) : Integer::zero_v(loc_)->ACL2Expr();
 }
 
 // class BreakStmt : public SimpleStatement

@@ -17,6 +17,13 @@
 
 typedef unsigned int uint;
 
+#ifdef __cpp_static_assert
+static_assert(sizeof(int) == 4, "int is not exactly 32 bits.");
+static_assert(sizeof(unsigned int) == 4, "uint is not exactly 32 bits.");
+static_assert(sizeof(long) == 8, "int64 is not 64 exactly bits.");
+static_assert(sizeof(unsigned long) == 8, "int64 is not 64 exactly bits.");
+#endif
+
 // Do we support C++11 ? If so don't redefine array and tuple.
 #if __cplusplus > 199711L
 

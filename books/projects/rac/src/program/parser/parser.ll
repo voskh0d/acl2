@@ -83,11 +83,19 @@ static void lineba();
 "true"                      {yylval.s = tokstr(); return TRUE;}
 "false"                     {yylval.s = tokstr(); return FALSE;}
 
-[a-zA-Z_][a-zA-Z_0-9]*      {yylval.s = tokstr(); return (yyast.getType(yytext))
-  ? TYPEID : (yyast.getTemplate(yytext)) ? TEMPLATEID : ID;}
+[a-zA-Z_][a-zA-Z_0-9]*      {yylval.s = tokstr();
+                             if (yyast.getType(yytext)) {
+                               return TYPEID;
+                             } else if (yyast.getTemplate(yytext)) {
+                               return TEMPLATEID;
+                             } else {
+                               return ID;
+                             }
+                            }
 
-[0-9]+ |
-"0x"[a-fA-F_0-9]+           {yylval.s = tokstr(); return NAT;}
+
+[0-9]+(("u"|"U")?("l"|"L")?|("l"|"L")?("u"|"U")) |
+"0x"[a-fA-F_0-9]+(("u"|"U")?("l"|"L")?|("l"|"L")?("u"|"U")) {yylval.s = tokstr(); return NAT;}
 
 ">>="            {yylval.s = tokstr(); return RSHFT_ASSIGN;}
 "<<="            {yylval.s = tokstr(); return LSHFT_ASSIGN;}

@@ -47,14 +47,20 @@ protected:
   const Location loc_;
 };
 
-class Constant : public Expression, public Symbol {
+class Constant : public Expression {
 public:
   Constant(NodesId id, Location loc, const char *n);
   Constant(NodesId id, Location loc, std::string &&n);
   Constant(NodesId id, Location loc, int n);
   bool isConst() override;
   bool isInteger() override { return true; }
+
   Sexpression *ACL2Expr() override;
+
+  const char *getname() const { return name_.c_str(); }
+
+protected:
+  std::string name_;
 };
 
 // For now, we does not support unsigned literal.
@@ -74,6 +80,7 @@ public:
 
   enum Format { Decimal, Hexadecimal };
   Format format() const {
+
     if (!strncmp(getname(), "0x", 2)) {
       return Format::Hexadecimal;
     } else if (!strncmp(getname(), "-0x", 3)) {
@@ -83,8 +90,26 @@ public:
     }
   }
 
-  // TODO: unsgined long to store the absolute value and bool to store sign
-  long val_;
+  bool has_suffix_unsigned() const {
+    for (char c : suffix_) {
+      if (c == 'U' || c == 'u') {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool has_suffix_long() const {
+    for (char c : suffix_) {
+      if (c == 'L' || c == 'l') {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  BigInt val_;
+  std::string suffix_;
 };
 
 class Boolean final : public Constant {

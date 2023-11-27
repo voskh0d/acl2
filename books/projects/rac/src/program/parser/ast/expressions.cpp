@@ -47,50 +47,70 @@ unsigned Expression::ACL2ValWidth() {
 // -------------------------------------------------
 
 Constant::Constant(NodesId id, Location loc, const char *n)
-    : Expression(id, loc), Symbol(n) {}
+    : Expression(id, loc), name_(n) {}
 Constant::Constant(NodesId id, Location loc, std::string &&n)
-    : Expression(id, loc), Symbol(std::move(n)) {}
+    : Expression(id, loc), name_(std::move(n)) {}
 
 Constant::Constant(NodesId id, Location loc, int n)
-    : Expression(id, loc), Symbol(n) {}
+    : Expression(id, loc), name_(std::to_string(n)) {}
 
 bool Constant::isConst() { return true; }
 
-Sexpression *Constant::ACL2Expr() { return this; }
+Sexpression *Constant::ACL2Expr() { return new Symbol(name_); }
 
 // class Integer : public Constant
 // -------------------------------
 
-Integer::Integer(Location loc, const char *n) : Constant(idOf(this), loc, n) {
-  if (!strncmp(getname(), "0x", 2)) {
-    val_ = strtoll(getname() + 2, nullptr, 16);
-  } else if (!strncmp(getname(), "-0x", 3)) {
-    val_ = -strtoll(getname() + 3, nullptr, 16);
-  } else {
-    val_ = atoi(getname());
+Integer::Integer(Location loc, const char *n)
+    : Constant(idOf(this), loc, n), val_(0UL) {
+
+  bool sign = false;
+  if (n[0] == '-') {
+    sign = true;
+    ++n;
   }
+
+  unsigned long abs_val;
+  char *suffix;
+  if (!strncmp(n, "0x", 2)) {
+    abs_val = strtol(n, &suffix, 16);
+  } else {
+    abs_val = strtol(n, &suffix, 10);
+  }
+
+  // If there is a suffix, we copy it and we set name_ to n without the suffix.
+  if (*suffix) {
+    suffix_ = suffix;
+    suffix[0] = '\0';
+    name_ = n;
+  }
+
+  val_ = BigInt(abs_val, sign);
 }
 
 Integer::Integer(Location loc, int n)
     : Constant(idOf(this), loc, n), val_(n) {}
 
-int Integer::evalConst() { return val_; }
+int Integer::evalConst() { return val_.eval(); }
 
 void Integer::display(std::ostream &os) const { os << getname(); }
 
 Sexpression *Integer::ACL2Expr() {
+
   if (!strncmp(getname(), "0x", 2)) {
     std::string new_name(getname());
     new_name[0] = '#';
     Symbol *result = new Symbol(std::move(new_name));
     return result;
+
   } else if (!strncmp(getname(), "-0x", 3)) {
     std::string new_name(getname() + 1);
     new_name[0] = '#';
     Symbol *result = new Symbol(std::move(new_name));
     return new Plist({ &s_minus, result });
+
   } else {
-    return this;
+    return new Symbol(name_);
   }
 }
 
@@ -240,7 +260,7 @@ void Initializer::display(std::ostream &os) const {
   os << "{";
   List<Constant> *ptr = vals;
   while (ptr) {
-    ptr->value->Symbol::display(os);
+    ptr->value->ACL2Expr()->display(os);
     if (ptr->next)
       os << ", ";
     ptr = ptr->next;
@@ -271,7 +291,7 @@ Sexpression *Initializer::ACL2ArrayExpr() {
 
   for_each(entries, [&](Sexpression *s) {
     if (strcmp(always_cast<Symbol *>(s)->getname(), "0")) {
-      res->add(new Cons(new Integer(loc_, i), s));
+      res->add(new Cons(Integer(loc_, i).ACL2Expr(), s));
     }
     i++;
   });
@@ -346,8 +366,8 @@ Sexpression *ArrayRef::ACL2Expr() {
 
     if (t->isSigned()) {
       unsigned n = t->width()->evalConst();
-      b = new Plist(
-          { &s_bits, b, new Integer(loc_, n - 1), Integer::zero_v(loc_) });
+      b = new Plist({ &s_bits, b, Integer(loc_, n - 1).ACL2Expr(),
+                      Integer::zero_v(loc_)->ACL2Expr() });
     }
 
     return new Plist({ &s_bitn, b, i });
@@ -367,16 +387,16 @@ Sexpression *ArrayRef::ACL2Assign(Sexpression *rval) {
 
     // If the register is signed, get its 2-complement representation.
     if (t->isSigned()) {
-      b = new Plist(
-          { &s_bits, b, new Integer(loc_, n - 1), Integer::zero_v(loc_) });
+      b = new Plist({ &s_bits, b, Integer(loc_, n - 1).ACL2Expr(),
+                      Integer::zero_v(loc_)->ACL2Expr() });
     }
 
-    Integer *s = new Integer(loc_, n);
+    Sexpression *s = Integer(loc_, n).ACL2Expr();
     Sexpression *val = new Plist({ &s_setbitn, b, s, i, rval });
 
     // If the register is signed, recover the signed value.
     if (t->isSigned()) {
-      val = new Plist({ &s_si, val, new Integer(loc_, n) });
+      val = new Plist({ &s_si, val, Integer(loc_, n).ACL2Expr() });
     }
 
     return array->ACL2Assign(val);
@@ -455,7 +475,7 @@ Sexpression *Subrange::ACL2Expr() {
   const IntType *t = always_cast<const IntType *>(base->get_type());
 
   if (t->isSigned()) {
-    return new Plist({ &s_si, bv_val, new Integer(loc_, width_) });
+    return new Plist({ &s_si, bv_val, Integer(loc_, width_).ACL2Expr() });
   } else {
     return bv_val;
   }
@@ -472,16 +492,16 @@ Sexpression *Subrange::ACL2Assign(Sexpression *rval) {
 
   // If the register is signed, get its 2-complement representation.
   if (t->isSigned()) {
-    b = new Plist(
-        { &s_bits, b, new Integer(loc_, n - 1), Integer::zero_v(loc_) });
+    b = new Plist({ &s_bits, b, Integer(loc_, n - 1).ACL2Expr(),
+                    Integer::zero_v(loc_)->ACL2Expr() });
   }
 
-  Integer *s = new Integer(loc_, n);
+  Sexpression *s = Integer(loc_, n).ACL2Expr();
   Sexpression *val = new Plist({ &s_setbits, b, s, hi, lo, rval });
 
   // If the register is signed, recover the signed value.
   if (t->isSigned()) {
-    val = new Plist({ &s_si, val, new Integer(loc_, n) });
+    val = new Plist({ &s_si, val, Integer(loc_, n).ACL2Expr() });
   }
 
   return base->ACL2Assign(val);

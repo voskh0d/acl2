@@ -363,7 +363,7 @@ Sexpression *EnumType::getEnumVal(Symbol *s) const {
     if (d->init)
       count = d->init->evalConst();
     if (d->sym == s)
-      return new Integer(Location::dummy(), count);
+      return Integer(Location::dummy(), count).ACL2Expr();
     else
       count++;
   }
@@ -509,8 +509,8 @@ Sexpression *numeric_cast(Sexpression *sexpr, std::optional<const Type *> src,
   // Bits alway does an signed to unsigned conversion, so we only need to add
   // a si if the destination is signed.
   if (needs_bits) {
-    res = new Plist(
-        { &s_bits, sexpr, new Integer(loc, w_dst - 1), Integer::zero_v(loc) });
+    res = new Plist({ &s_bits, sexpr, Integer(loc, w_dst - 1).ACL2Expr(),
+                      Integer::zero_v(loc)->ACL2Expr() });
   }
 
   // Two cases where we need si:
@@ -530,7 +530,7 @@ Sexpression *numeric_cast(Sexpression *sexpr, std::optional<const Type *> src,
   }();
 
   if (needs_si) {
-    res = new Plist({ &s_si, res, new Integer(loc, w_dst) });
+    res = new Plist({ &s_si, res, Integer(loc, w_dst).ACL2Expr() });
   }
 
   return res;

@@ -82,6 +82,7 @@ private:
 class Symbol : public Sexpression {
 public:
   Symbol(std::string &&s) : name_(s) {}
+  Symbol(const std::string &s) : name_(s) {}
 
   Symbol(const char *s) : name_(s) {}
 

@@ -9,10 +9,12 @@ CPPFLAGS +=
 CXXFLAGS += -Wall -Wextra -pedantic -std=c++17
 LDFLAGS +=
 
-OBJS += program/parser/ast/ast.o program/parser/ast/expressions.o program/parser/ast/functions.o program/parser/ast/statements.o program/parser/ast/types.o
-OBJS += program/parser/utils/diagnostics.o
-OBJS += program/parser/parser.o program/parser/lex.yy.o program/parser/parser.tab.o
-OBJS += program/process/typing.o program/process/racconstraint.o program/process/forconstraints.o
+OBJS += program/parser/ast/ast.o program/parser/ast/expressions.o
+OBJS += program/parser/ast/functions.o program/parser/ast/statements.o
+OBJS += program/parser/ast/types.o program/parser/utils/diagnostics.o
+OBJS += program/parser/parser.o program/parser/lex.yy.o
+OBJS += program/parser/parser.tab.o program/process/typing.o
+OBJS += program/process/racconstraint.o program/process/forconstraints.o
 OBJS += main.o program/astdumper.o program/program.o program/sexpressions.o
 
 # By default, build and install everything.
@@ -37,15 +39,10 @@ debug: CPPFLAGS += -DDEBUG
 debug: CXXFLAGS += -O0 -g
 debug: parse
 
-# Compile and generate dependencies (stored under .deps).
-DEPDIR := .deps
-CPPFLAGS += -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
+# Compile and generate dependencies.
+CPPFLAGS += -MT $@ -MMD -MP -MF $*.d
 
-# Copy the layout of the sources in the dependencies directory.
-$(DEPDIR):
-	@find -type d -links 2 -exec mkdir -p "$(DEPDIR)/{}" \;
-
-DEPFILES := $(SRCS:$*.cpp=$(DEPDIR)/$*.d)
+DEPFILES := $(SRCS:$*.cpp=$*.d)
 $(DEPFILES):
 include $(shell find $(DEPFILES) -name '*.d')
 
@@ -61,7 +58,7 @@ program/parser/lex.yy.cpp: program/parser/parser.ll program/parser/parser.tab.cp
 	flex -o program/parser/lex.yy.cpp program/parser/parser.ll
 
 # Build the binary.
-parse:  $(DEPDIR) | version.h ${OBJS}
+parse: version.h ${OBJS}
 	${CXX} -o parse $(LDFLAGS) ${OBJS}
 
 clean:
@@ -70,6 +67,6 @@ clean:
 	rm -f -r parse.dSym
 
 veryclean : clean
-	rm -rf rac parse .deps
+	rm -rf rac parse
 
 .PHONY : all clean veryclean install rac release debug
