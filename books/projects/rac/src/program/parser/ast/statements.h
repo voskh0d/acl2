@@ -64,6 +64,7 @@ public:
   void display(std::ostream &os, unsigned) override;
   void displaySimple(std::ostream &os) override { display(os, 0); }
   bool isConst() override;
+
   Sexpression *ACL2Expr() override;
   Sexpression *ACL2SymExpr() override;
 };

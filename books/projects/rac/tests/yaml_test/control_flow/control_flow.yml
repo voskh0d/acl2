@@ -38,6 +38,7 @@
 
 - name: for-loop
 - name: for-loop-uint
+- name: for-loop-long
 - name: for-loop-init-from-const
 - name: for-loop-invalid
   should_report_error: true

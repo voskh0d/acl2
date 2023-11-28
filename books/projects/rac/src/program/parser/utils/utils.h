@@ -7,6 +7,7 @@
 #include <limits>
 #include <memory>
 #include <ostream>
+#include <sstream>
 #include <tuple>
 #include <vector>
 
@@ -276,23 +277,23 @@ std::string format(const std::string &format, Args... args) {
 class BigInt {
   public:
   BigInt(int val)
-      : abs_val_(std::abs(val))
+      : abs_val_(std::abs(static_cast<long>(val)))
       , sign_(val < 0)
     {}
-    BigInt(unsigned int val)
+  BigInt(unsigned int val)
       : abs_val_(val)
         , sign_(false)
   {}
-    BigInt(long val)
+  BigInt(long val)
       : abs_val_(std::abs(val))
         , sign_(val < 0)
   {}
-    BigInt(unsigned long val)
+  BigInt(unsigned long val)
       : abs_val_(val)
-        , sign_(false)
+      , sign_(false)
   {}
 
-    BigInt(unsigned long abs_val, bool sign)
+  BigInt(unsigned long abs_val, bool sign)
       : abs_val_(abs_val)
         , sign_(sign)
   {}
@@ -316,7 +317,7 @@ class BigInt {
 
   // TODO remove
   int eval() const {
-    assert(abs_val_ < 0xFFFFFFFFL);
+    assert(abs_val_ < std::numeric_limits<int>::max());
     return (sign_ ? -1 : 1) * abs_val_;
   }
 
@@ -326,6 +327,7 @@ class BigInt {
       && *this >= std::numeric_limits<T>::min();
   }
 
+  friend std::string to_string(const BigInt& n);
 
   private:
   // returns
@@ -352,8 +354,18 @@ class BigInt {
       return abs_val_ > other.abs_val_ ? 1 : -1;
     }
   }
-    unsigned long abs_val_;
-    bool sign_;
+
+  unsigned long abs_val_;
+  bool sign_;
 };
+
+inline std::string to_string(const BigInt&n) {
+  std::stringstream ss;
+  if (n.sign_) {
+    ss << '-';
+  }
+  ss << n.abs_val_;
+  return ss.str();
+}
 
 #endif // UTILS_H

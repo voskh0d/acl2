@@ -358,7 +358,7 @@ void EnumType::display(std::ostream &os) const {
 }
 
 Sexpression *EnumType::getEnumVal(Symbol *s) const {
-  unsigned count = 0;
+  int count = 0;
   for (auto d : vals_) {
     if (d->init)
       count = d->init->evalConst();

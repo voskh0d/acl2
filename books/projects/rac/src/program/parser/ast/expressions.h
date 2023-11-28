@@ -67,7 +67,7 @@ protected:
 class Integer final : public Constant {
 public:
   Integer(Location loc, const char *n);
-  Integer(Location loc, int n);
+  Integer(Location loc, BigInt n, const std::string &suffix = "");
 
   // TODO if it is an uint/int64/uint64 this could overflow.
   int evalConst() override;

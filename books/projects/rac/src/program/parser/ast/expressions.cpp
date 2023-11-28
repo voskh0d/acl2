@@ -88,8 +88,8 @@ Integer::Integer(Location loc, const char *n)
   val_ = BigInt(abs_val, sign);
 }
 
-Integer::Integer(Location loc, int n)
-    : Constant(idOf(this), loc, n), val_(n) {}
+Integer::Integer(Location loc, BigInt n, const std::string &suffix)
+    : Constant(idOf(this), loc, to_string(n)), val_(n), suffix_(suffix) {}
 
 int Integer::evalConst() { return val_.eval(); }
 

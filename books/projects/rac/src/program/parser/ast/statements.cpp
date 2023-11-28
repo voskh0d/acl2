@@ -629,23 +629,26 @@ ForStmt::ForStmt(Location loc, SimpleStatement *v, Expression *t,
   auto add_constraints_for_sym_dec = [&](SymRef *sr) {
     if (isIntegerType(sr->get_type())) {
 
+      unsigned width = sr->get_type()->ACL2ValWidth();
+
       Expression *min_val;
       if (isSigned(sr->get_type())) {
-        min_val = new Integer(loc, "-2147483648");
+        min_val = new Integer(loc, BigInt(1UL << (width - 1), true), "L");
       } else {
         min_val = Integer::zero_v(loc);
       }
+      Expression *always_ge = new BinaryExpr(loc, sr, min_val, ">=");
 
       Expression *max_val;
       if (isSigned(sr->get_type())) {
-        max_val = new Integer(loc, "2147483648");
+        max_val
+            = new Integer(loc, BigInt((1UL << (width - 1)) - 1, false), "L");
       } else {
-        max_val = new Integer(loc, "4294967296");
+        // We do a right shift insted of the left one to avoid overflow.
+        max_val = new Integer(
+            loc, BigInt((0xFFFFFFFFFFFFFFFFUL >> (64 - width)), false), "UL");
       }
-
-      Expression *always_ge = new BinaryExpr(loc, sr, min_val, ">=");
-
-      Expression *always_lt = new BinaryExpr(loc, sr, max_val, "<");
+      Expression *always_lt = new BinaryExpr(loc, sr, max_val, "<=");
 
       test = new BinaryExpr(loc, test, always_ge, "&&");
       test = new BinaryExpr(loc, test, always_lt, "&&");
