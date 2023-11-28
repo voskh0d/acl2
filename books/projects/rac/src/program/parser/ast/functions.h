@@ -34,11 +34,11 @@ public:
 
   void display(std::ostream &, unsigned) override { assert(!"TODO"); }
 
-  Sexpression *ACL2Expr() override { assert(!"TODO"); }
+  Sexpression *ACL2Expr() override; // { assert(!"TODO"); }
 
   virtual void display(std::ostream &os, const char *prefix = "",
                        unsigned indent = 0);
-  virtual void displayACL2Expr(std::ostream &os);
+  virtual void displayACL2Expr(std::ostream &os) { ACL2Expr()->display(os); }
 
   Location get_decl_loc() const {
 

@@ -378,7 +378,7 @@ bool TypingAction::VisitCondExpr(CondExpr *e) {
     return error();
   }
 
-  // TODO they don't need to be exacly equal, for ex int and long works
+  // Both are primitive types but not necessarily the same.
   if (auto t1 = dynamic_cast<const PrimType *>(e->expr1->get_type())) {
     if (auto t2 = dynamic_cast<const PrimType *>(e->expr2->get_type())) {
       e->set_type(PrimType::usual_conversions(t1, t2, false));
@@ -386,27 +386,28 @@ bool TypingAction::VisitCondExpr(CondExpr *e) {
     }
   }
 
-  if (!e->expr1->get_type()->isEqual(e->expr2->get_type())) {
-    diag_
-        .new_error(
-            e->loc(),
-            format("Left and right do not share same type (left is `%s` "
-                   "and right `%s`).",
-                   e->expr1->get_type()->to_string().c_str(),
-                   e->expr2->get_type()->to_string().c_str()))
-        .report();
-
-    e->set_type(new ErrorType());
-    return error();
+  // They are exactly the same type, for ex: if both are arrays, they need to
+  // be array of the same type and size.
+  if (e->expr1->get_type()->isEqual(e->expr2->get_type())) {
+    e->set_type(e->expr1->get_type());
+    return true;
   }
 
-  e->set_type(e->expr1->get_type());
+  diag_
+      .new_error(e->loc(),
+                 format("Left and right do not share same type (left is `%s` "
+                        "and right `%s`).",
+                        e->expr1->get_type()->to_string().c_str(),
+                        e->expr2->get_type()->to_string().c_str()))
+      .report();
 
-  return true;
+  e->set_type(new ErrorType());
+  return error();
 }
 
 bool TypingAction::VisitMultipleValue(MultipleValue *e) {
 
+  // First, check if there number or argument is correct.
   if (e->expr.size() != e->type->size()) {
     diag_
         .new_error(
@@ -419,6 +420,7 @@ bool TypingAction::VisitMultipleValue(MultipleValue *e) {
     return error();
   }
 
+  // Then, if each argument is of correct type.
   bool has_failed = false;
   unsigned size = e->expr.size();
   for (unsigned i = 0; i < size; ++i) {
@@ -441,10 +443,13 @@ bool TypingAction::VisitMultipleValue(MultipleValue *e) {
     }
   }
 
-  e->set_type(e->type);
+  if (has_failed) {
+    e->set_type(new ErrorType());
+    return error();
+  }
 
-  e->set_type(new ErrorType());
-  return has_failed ? error() : true;
+  e->set_type(e->type);
+  return true;
 }
 
 // Statements:

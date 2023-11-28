@@ -58,13 +58,12 @@ void FunDef::display(std::ostream &os, const char *prefix, unsigned indent) {
 
 Symbol s_funcdef("funcdef");
 
-void FunDef::displayACL2Expr(std::ostream &os) {
+Sexpression *FunDef::ACL2Expr() {
 
-  Plist sparams;
-  for_each(params, [&sparams](VarDec *v) { sparams.add(v->sym); });
+  Plist *sparams = new Plist();
+  for_each(params, [&sparams](VarDec *v) { sparams->add(v->sym); });
 
-  Plist({ &s_funcdef, sym, &sparams, body->blockify()->ACL2Expr() })
-      .display(os);
+  return new Plist({ &s_funcdef, sym, sparams, body->blockify()->ACL2Expr() });
 }
 
 // class Template : public FunDef

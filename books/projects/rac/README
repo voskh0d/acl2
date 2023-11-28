@@ -164,10 +164,7 @@ TODOs and possible ameliorations
     * generalize template
     * generate a list of type usable in Lisp to generate bvecthm for each
       extracted functions.
-    * lift for restriction on the type of the variable (for now, only int can
-      be used).
     * continue to refactore and clean up the code, bison in C++ mode
-    * integer literal types (ex: 1ULL) and capable of storing more that int.
     * improve the display of location for typedef types.
 
 
