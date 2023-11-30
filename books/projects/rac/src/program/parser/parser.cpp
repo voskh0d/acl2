@@ -2,7 +2,7 @@
 
 #include "yyparser.h"
 
-std::optional<AST> parse(const std::string &file) {
+std::optional<AST> parse(const std::string &file, bool trace) {
 
   yyin = fopen(file.c_str(), "r");
 
@@ -14,6 +14,7 @@ std::optional<AST> parse(const std::string &file) {
     return {};
   }
 
+  yydebug = trace;
   yylineno = 1;
   yylloc = Location::from_file(file);
   if (yyparse())

@@ -12,6 +12,7 @@
 #include <variant>
 
 int yylex();
+extern int yydebug;
 extern int yylineno;
 extern Location yylloc;
 

@@ -154,6 +154,8 @@ while (0)
 %locations
 %define api.location.type { Location }
 
+%define parse.trace
+
 %token TYPEDEF CONST STRUCT ENUM TEMPLATE
 %token INT UINT INT64 UINT64 BOOL
 %token SLC SET_SLC
@@ -236,6 +238,14 @@ program_element
   yyast.registerConstDec(cd);
 }
     | func_def
+    | multiple_const_dec ';'
+{
+  for_each(static_cast<MulConstDec *>($1)->decs,
+    [&](ConstDec *cd) {
+      cd->setGlobal();
+      yyast.registerConstDec(cd);
+    });
+}
     ;
 
 //*************************************************************************************

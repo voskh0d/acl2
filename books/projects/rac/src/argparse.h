@@ -13,6 +13,7 @@ class CommandLine {
 public:
   struct Result {
     bool dump_ast = false;
+    bool trace_parser = false;
     std::optional<std::string> file = {};
     std::optional<DispMode> mode = std::nullopt;
   };
@@ -42,6 +43,8 @@ public:
         res.mode = DispMode::acl2;
       } else if (arg == "-dump-ast") {
         res.dump_ast = true;
+      } else if (arg == "-trace-parser") {
+        res.trace_parser = true;
       } else {
         if (arg.size() >= 1 && arg[0] == '-') {
           std::cerr << "Unknown option `" << arg << "`\n";
@@ -74,10 +77,11 @@ public:
            "Usage:\n"
            "  parse FILE [options]\n\n"
            "Options:\n"
-           "  -rac       convert to RAC pseudocode and write to file.pc\n"
-           "  -acl2      write ACL2 translation to file.ast.lsp\n"
-           "  -version   display the version (the commit hash).\n"
-           "  -dump-ast  display the intermediate AST in dot format\n";
+           "  -rac           convert to RAC pseudocode and write to file.pc\n"
+           "  -acl2          write ACL2 translation to file.ast.lsp\n"
+           "  -version       display the version (the commit hash)\n"
+           "  -dump-ast      display the intermediate AST in dot format\n"
+           "  -trace-parser  enable bison tracing, used to debug the parser\n";
   }
 
   void version() {

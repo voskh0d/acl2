@@ -71,11 +71,6 @@
 - name: global-constant
 - name: global-constant-enum
 - name: multiple-global-constant
-  should_report_error: true
-  bug: true
-  disabled-checks:
-    - stderr
-  description: Error syntax reported.
 
 - name: global-constant-redeclaration
   should_report_error: true

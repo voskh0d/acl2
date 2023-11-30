@@ -20,7 +20,7 @@ int main(int argc, char **argv) {
     return 0;
   }
 
-  auto parsed_ast = parse(*args->file + ".i");
+  auto parsed_ast = parse(*args->file + ".i", args->trace_parser);
   if (!parsed_ast) {
     return 1;
   }
