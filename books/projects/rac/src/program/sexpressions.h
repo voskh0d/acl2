@@ -109,7 +109,7 @@ extern Symbol s_declare;
 extern Symbol s_default;
 extern Symbol s_divide;
 extern Symbol s_expt;
-extern Symbol s_fl;
+extern Symbol s_truncate;
 extern Symbol s_false;
 extern Symbol s_true;
 extern Symbol s_if;

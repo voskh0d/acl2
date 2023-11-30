@@ -21,3 +21,7 @@ i32 mod_reg() {
 }
 
 // RAC end
+
+#include <iostream>
+
+int main() { std::cout << div_int() << '\n'; }

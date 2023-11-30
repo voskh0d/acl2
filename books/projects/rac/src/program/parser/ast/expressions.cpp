@@ -736,7 +736,8 @@ Sexpression *BinaryExpr::ACL2Expr() {
     break;
   case Op::Divide:
     // TODO
-    return new Plist({ &s_fl, new Plist({ &s_slash, sexpr1, sexpr2 }) });
+    return new Plist({ &s_truncate, new Plist({ &s_slash, sexpr1, sexpr2 }),
+                       Integer::one_v(loc_)->ACL2Expr() });
   case Op::Mod:
     // AC types are guranted to fit in their result type.
     need_narrowing = !isa<const IntType *>(get_type());

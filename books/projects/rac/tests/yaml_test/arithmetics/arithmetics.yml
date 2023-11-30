@@ -27,7 +27,6 @@
 - name: const-eval
 
 - name: integer-division-neg
-  bug: true
   description: In C++, the integer division trucate but in the lisp version, we
                use floor. This is wrong for negative value (for example, 10/-7
                will return -1 in C++ but -2 in lisp)

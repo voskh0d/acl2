@@ -44,7 +44,7 @@ Symbol s_declare("declare");
 Symbol s_default("default");
 Symbol s_divide("/");
 Symbol s_expt("expt");
-Symbol s_fl("fl");
+Symbol s_truncate("truncate");
 Symbol s_false("false$");
 Symbol s_true("true$");
 Symbol s_if("if");
