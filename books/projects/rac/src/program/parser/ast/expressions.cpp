@@ -303,6 +303,13 @@ Sexpression *Initializer::ACL2ArrayExpr() {
   return res;
 }
 
+Sexpression *Initializer::ACL2TupleExpr() {
+
+  Plist *res = new Plist({ &s_mv });
+  for_each(vals, [&](Constant *c) { res->add(c->ACL2Expr()); });
+  return res;
+}
+
 Sexpression *
 Initializer::ACL2StructExpr(const std::vector<StructField *> &fields) {
 

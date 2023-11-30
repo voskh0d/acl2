@@ -12,6 +12,8 @@ int set() {
   ss.a = 2;
   ss.b = 9;
 
+  S copied = ss;
+
   return ss.a + ss.b;
 }
 // RAC end

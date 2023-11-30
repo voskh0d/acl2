@@ -315,6 +315,7 @@ namespace priv {
     void display(std::ostream &os) const override;
 
     unsigned size() const { return types_.size(); }
+    const Type *get(unsigned n) const { return types_[n]; }
     const Type *get(unsigned n) { return types_[n]; }
     const std::vector<const Type *> &types() const { return types_; }
 

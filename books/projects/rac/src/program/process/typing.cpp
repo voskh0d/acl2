@@ -622,13 +622,37 @@ bool TypingAction::check_assignement(const Location &where, const Type *left,
 
       return is_correct ? true : error();
 
-    } else {
-      diag_
-          .new_error(where,
-                     format("Initializer list are not yet supported for %s",
-                            left->to_string().c_str()))
-          .report();
-      return error();
+    } else if (auto mv = dynamic_cast<const MvType *>(left)) {
+
+      if (t->size() != mv->size()) {
+        diag_
+            .new_error(
+                where,
+                format(
+                    "Too many arguments, %s, expected %d argument(s) got %d",
+                    mv->size(), t->size()))
+            .report();
+        return error();
+      }
+
+      unsigned i = 0;
+      auto is_correct = std::all_of(
+          t->types().begin(), t->types().end(), [&](const Type *t) {
+            if (!t->canBeImplicitlyCastTo(mv->get(i))) {
+              diag_
+                  .new_error(
+                      where,
+                      format("Wrong type provided, expected %s but got %s",
+                             mv->get(i)->to_string().c_str(),
+                             t->to_string().c_str()))
+                  .report();
+              return false;
+            }
+            ++i;
+            return true;
+          });
+
+      return is_correct ? true : error();
     }
   }
 

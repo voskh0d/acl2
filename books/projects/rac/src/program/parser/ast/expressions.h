@@ -197,6 +197,7 @@ public:
   Sexpression *ACL2Expr() override;
 
   Sexpression *ACL2ArrayExpr();
+  Sexpression *ACL2TupleExpr();
   Sexpression *ACL2StructExpr(const std::vector<StructField *> &fields);
 };
 

@@ -95,9 +95,6 @@
   should_report_error: true
 
 - name: initializer-list-tuple
-  should_report_error: true
-  bug: true
-  description: Not supported yet (missing translation and typing
 
 - name: initializer-list-nested-array
   should_report_error: true

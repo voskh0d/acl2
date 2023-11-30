@@ -157,8 +157,10 @@ Sexpression *VarDec::ACL2Expr() {
       val = new Plist();
     } else if (isROM()) {
       val = new Plist({ &s_quote, init->ACL2Expr() });
+    } else if (Initializer *i = dynamic_cast<Initializer *>(init)) {
+      val = i->ACL2ArrayExpr();
     } else {
-      val = always_cast<Initializer *>(init)->ACL2ArrayExpr();
+      val = init->ACL2Expr();
     }
   } else if (isa<const StructType *>(t)) {
     if (!init) {
@@ -166,12 +168,16 @@ Sexpression *VarDec::ACL2Expr() {
     } else if (Initializer *i = dynamic_cast<Initializer *>(init)) {
       val = i->ACL2StructExpr(always_cast<const StructType *>(t)->fields());
     } else {
-      val = always_cast<Initializer *>(init)->ACL2ArrayExpr();
+      val = init->ACL2Expr();
     }
-  } else if (init) {
-    val = t->ACL2Assign(init);
+  } else if (isa<const MvType *>(t)) {
+    if (Initializer *i = dynamic_cast<Initializer *>(init)) {
+      val = i->ACL2TupleExpr();
+    } else {
+      val = init->ACL2Expr();
+    }
   } else {
-    val = Integer::zero_v(loc_)->ACL2Expr();
+    val = t->ACL2Assign(init);
   }
   return new Plist({ &s_declare, sym, val });
 }
