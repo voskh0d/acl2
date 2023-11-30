@@ -1,3 +1,0 @@
-div-assign.cpp:5 (5-6): syntax error, unexpected '='
-  5 |   a /= 2;
-    |      ^

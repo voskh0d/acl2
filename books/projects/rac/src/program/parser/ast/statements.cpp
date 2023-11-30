@@ -432,6 +432,8 @@ void Assignment::desugar() {
     rval = new BinaryExpr(loc_, lval, rval, "-");
   } else if (!strcmp(op, "*=")) {
     rval = new BinaryExpr(loc_, lval, rval, "*");
+  } else if (!strcmp(op, "/=")) {
+    rval = new BinaryExpr(loc_, lval, rval, "/");
   } else if (!strcmp(op, "%=")) {
     rval = new BinaryExpr(loc_, lval, rval, "%");
   } else if (!strcmp(op, "&=")) {

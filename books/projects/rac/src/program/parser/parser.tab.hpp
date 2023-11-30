@@ -82,26 +82,27 @@ extern int yydebug;
     ADD_ASSIGN = 288,
     SUB_ASSIGN = 289,
     MUL_ASSIGN = 290,
-    MOD_ASSIGN = 291,
-    AND_ASSIGN = 292,
-    XOR_ASSIGN = 293,
-    OR_ASSIGN = 294,
-    INC_OP = 295,
-    DEC_OP = 296,
-    RSHFT_OP = 297,
-    LSHFT_OP = 298,
-    AND_OP = 299,
-    OR_OP = 300,
-    LE_OP = 301,
-    GE_OP = 302,
-    EQ_OP = 303,
-    NE_OP = 304,
-    ID = 305,
-    NAT = 306,
-    TRUE = 307,
-    FALSE = 308,
-    TYPEID = 309,
-    TEMPLATEID = 310
+    DIV_ASSIGN = 291,
+    MOD_ASSIGN = 292,
+    AND_ASSIGN = 293,
+    XOR_ASSIGN = 294,
+    OR_ASSIGN = 295,
+    INC_OP = 296,
+    DEC_OP = 297,
+    RSHFT_OP = 298,
+    LSHFT_OP = 299,
+    AND_OP = 300,
+    OR_OP = 301,
+    LE_OP = 302,
+    GE_OP = 303,
+    EQ_OP = 304,
+    NE_OP = 305,
+    ID = 306,
+    NAT = 307,
+    TRUE = 308,
+    FALSE = 309,
+    TYPEID = 310,
+    TEMPLATEID = 311
   };
 #endif
 
@@ -137,7 +138,7 @@ union YYSTYPE
   Boolean *b;
   MvType *mvtype;
 
-#line 141 "program/parser/parser.tab.hpp"
+#line 142 "program/parser/parser.tab.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;

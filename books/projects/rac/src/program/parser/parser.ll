@@ -102,6 +102,7 @@ static void lineba();
 "+="             {yylval.s = tokstr(); return ADD_ASSIGN;}
 "-="             {yylval.s = tokstr(); return SUB_ASSIGN;}
 "*="             {yylval.s = tokstr(); return MUL_ASSIGN;}
+"/="             {yylval.s = tokstr(); return DIV_ASSIGN;}
 "%="             {yylval.s = tokstr(); return MOD_ASSIGN;}
 "&="             {yylval.s = tokstr(); return AND_ASSIGN;}
 "^="             {yylval.s = tokstr(); return XOR_ASSIGN;}
