@@ -86,7 +86,7 @@ void SymDec::displaySymDec(std::ostream &os) const {
   }
 }
 
-bool SymDec::isConst() {
+bool SymDec::isStaticallyEvaluable() {
   return false;
 } // overridden by EnumConstDec and ConstDec
 
@@ -119,7 +119,7 @@ void EnumConstDec::display(std::ostream &os, unsigned) {
   }
 }
 
-bool EnumConstDec::isConst() { return true; }
+bool EnumConstDec::isStaticallyEvaluable() { return true; }
 
 Sexpression *EnumConstDec::ACL2Expr() {
   if (init) {
@@ -195,7 +195,7 @@ void ConstDec::displaySimple(std::ostream &os) {
   VarDec::displaySimple(os);
 }
 
-bool ConstDec::isConst() { return isIntegerType(type); }
+bool ConstDec::isStaticallyEvaluable() { return isIntegerType(type); }
 
 bool ConstDec::isGlobal() { return isGlobal_; }
 
@@ -295,7 +295,7 @@ void MulConstDec::displaySimple(std::ostream &os) {
 TempParamDec::TempParamDec(Location loc, const char *n, Type *t)
     : SymDec(idOf(this), loc, n, t) {}
 
-bool TempParamDec::isConst() { return true; }
+bool TempParamDec::isStaticallyEvaluable() { return true; }
 
 Sexpression *TempParamDec::ACL2SymExpr() {
   return init ? type->ACL2Assign(init) : Integer::zero_v(loc_)->ACL2Expr();

@@ -16,7 +16,7 @@ class Expression {
 public:
   Expression(NodesId id, Location loc) : id_(id), loc_(loc){};
 
-  virtual bool isConst();
+  virtual bool isStaticallyEvaluable();
   virtual int evalConst();
 
   virtual bool isInteger();
@@ -52,7 +52,7 @@ public:
   Constant(NodesId id, Location loc, const char *n);
   Constant(NodesId id, Location loc, std::string &&n);
   Constant(NodesId id, Location loc, int n);
-  bool isConst() override;
+  bool isStaticallyEvaluable() override;
   bool isInteger() override { return true; }
 
   Sexpression *ACL2Expr() override;
@@ -136,7 +136,9 @@ public:
     assert(e);
   }
 
-  bool isConst() override { return expr_->isConst(); }
+  bool isStaticallyEvaluable() override {
+    return expr_->isStaticallyEvaluable();
+  }
   int evalConst() override { return expr_->evalConst(); }
   bool isInteger() override { return expr_->isInteger(); }
 
@@ -158,7 +160,7 @@ public:
   SymDec *symDec;
 
   SymRef(Location loc, SymDec *s);
-  virtual bool isConst() override;
+  virtual bool isStaticallyEvaluable() override;
   virtual int evalConst() override;
   bool isInteger() override;
   void display(std::ostream &os) const override;
@@ -263,7 +265,7 @@ public:
   static Op parseOp(const char *o);
 
   PrefixExpr(Location loc, Expression *e, const char *o);
-  bool isConst() override;
+  bool isStaticallyEvaluable() override;
   int evalConst() override;
   bool isInteger() override;
   void display(std::ostream &os) const override;
@@ -278,7 +280,7 @@ public:
   Expression *expr;
   Type *type;
   CastExpr(Location loc, Expression *e, Type *t);
-  bool isConst() override;
+  bool isStaticallyEvaluable() override;
   int evalConst() override;
   bool isInteger() override;
   void display(std::ostream &os) const override;
@@ -302,7 +304,7 @@ public:
   Op op;
 
   BinaryExpr(Location loc, Expression *e1, Expression *e2, const char *o);
-  bool isConst() override;
+  bool isStaticallyEvaluable() override;
   int evalConst() override;
   bool isInteger() override;
   void display(std::ostream &os) const override;

@@ -501,6 +501,21 @@ bool TypingAction::VisitSwitchStmt(SwitchStmt *s) {
 
 bool TypingAction::VisitAssignment(Assignment *s) {
 
+  if (auto symRef = dynamic_cast<SymRef *>(s->lval)) {
+    if (isa<MulConstDec *>(symRef->symDec)
+        || isa<ConstDec *>(symRef->symDec)) {
+      diag_
+          .new_error(s->lval->loc(),
+                     format("Assignment of read-only variable %s",
+                            symRef->symDec->getname()))
+          .context(s->loc())
+          .note("defined here")
+          .note_location(symRef->symDec->loc())
+          .report();
+      return error();
+    }
+  }
+
   if (!strcmp(s->op, "set_slc")) {
 
     if (!isa<const IntType *>(s->lval->get_type())) {

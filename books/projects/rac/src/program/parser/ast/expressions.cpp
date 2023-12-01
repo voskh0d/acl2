@@ -10,7 +10,7 @@
 // class Expression
 //***********************************************************************************
 
-bool Expression::isConst() { return false; } // virtual
+bool Expression::isStaticallyEvaluable() { return false; } // virtual
 
 // Value of expression, applicable to a limited variety of integer-valued
 // constant expressions:
@@ -54,7 +54,7 @@ Constant::Constant(NodesId id, Location loc, std::string &&n)
 Constant::Constant(NodesId id, Location loc, int n)
     : Expression(id, loc), name_(std::to_string(n)) {}
 
-bool Constant::isConst() { return true; }
+bool Constant::isStaticallyEvaluable() { return true; }
 
 Sexpression *Constant::ACL2Expr() { return new Symbol(name_); }
 
@@ -141,10 +141,12 @@ SymRef::SymRef(Location loc, SymDec *s) : Expression(idOf(this), loc) {
   symDec = s;
 }
 
-bool SymRef::isConst() { return symDec->isConst(); }
+bool SymRef::isStaticallyEvaluable() {
+  return symDec->isStaticallyEvaluable();
+}
 
 int SymRef::evalConst() {
-  if (isConst()) {
+  if (isStaticallyEvaluable()) {
     return symDec->evalConst();
   } else {
     assert(!"Attempt to evaluate a non-constant symbol reference.");
@@ -455,7 +457,7 @@ Sexpression *StructRef::ACL2Assign(Sexpression *rval) {
 
 Subrange::Subrange(Location loc, Expression *b, Expression *l, unsigned w)
     : Expression(idOf(this), loc), base(b), low(l), width_(w) {
-  if (l->isConst())
+  if (l->isStaticallyEvaluable())
     high = new Integer(loc_, l->evalConst() + w - 1);
   else {
     high = new BinaryExpr(loc_, l, new Integer(loc_, w - 1), strdup("+"));
@@ -536,7 +538,9 @@ PrefixExpr::Op PrefixExpr::parseOp(const char *o) {
     UNREACHABLE();
 }
 
-bool PrefixExpr::isConst() { return expr->isConst(); }
+bool PrefixExpr::isStaticallyEvaluable() {
+  return expr->isStaticallyEvaluable();
+}
 
 int PrefixExpr::evalConst() {
   int val = expr->evalConst();
@@ -610,7 +614,9 @@ CastExpr::CastExpr(Location loc, Expression *e, Type *t)
   type = t;
 }
 
-bool CastExpr::isConst() { return expr->isConst(); }
+bool CastExpr::isStaticallyEvaluable() {
+  return expr->isStaticallyEvaluable();
+}
 
 int CastExpr::evalConst() { return expr->evalConst(); }
 
@@ -644,7 +650,9 @@ BinaryExpr::Op BinaryExpr::parseOp(const char *o) {
     UNREACHABLE();
 }
 
-bool BinaryExpr::isConst() { return expr1->isConst() && expr2->isConst(); }
+bool BinaryExpr::isStaticallyEvaluable() {
+  return expr1->isStaticallyEvaluable() && expr2->isStaticallyEvaluable();
+}
 
 int BinaryExpr::evalConst() {
   int val1 = expr1->evalConst();

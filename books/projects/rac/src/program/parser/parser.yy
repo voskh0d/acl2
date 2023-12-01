@@ -270,7 +270,7 @@ typedef_dec
 }
     | typedef_dec '[' arithmetic_expression ']'
 {
-  if ($3->isConst () && $3->evalConst () > 0)
+  if ($3->isStaticallyEvaluable () && $3->evalConst () > 0)
     {
       auto at = new ArrayType (@$, $3, $1->getdef ());
       $$ = new DefinedType(@$, $1->getname(), at);
@@ -325,7 +325,7 @@ register_type
 }
     | AC_INT '<' arithmetic_expression ',' boolean '>'
 {
-  if ($3->isConst () && $3->isInteger () && $3->evalConst () >= 0)
+  if ($3->isStaticallyEvaluable () && $3->isInteger () && $3->evalConst () >= 0)
     {
       $$ = new IntType (@$, $3, $5->evalConst());
       delete $5;
@@ -333,7 +333,7 @@ register_type
   else
     {
       const char *expected = [&]() {
-        if (!$3->isConst ()) {
+        if (!$3->isStaticallyEvaluable ()) {
           return "constant";
         } else if (!$3->isInteger ()) {
           return "an integer";
@@ -355,7 +355,7 @@ register_type
 array_param_type
     : ARRAY '<' type_spec ',' arithmetic_expression '>'
 {
-  if ($5->isConst () && $5->evalConst () > 0)
+  if ($5->isStaticallyEvaluable () && $5->evalConst () > 0)
     {
       $$ = new ArrayType (@$, $5, $3);
     }
@@ -828,7 +828,7 @@ untyped_var_dec
 }
     | ID '[' arithmetic_expression ']'
 {
-  if (!$3->isConst () || $3->evalConst () <= 0)
+  if (!$3->isStaticallyEvaluable () || $3->evalConst () <= 0)
     {
       yyast.diag()
           .new_error(@3, "Invalid array size (it shoud be a constant, stricly "
@@ -848,7 +848,7 @@ untyped_var_dec
 }
     | ID '[' arithmetic_expression ']' '=' array_or_struct_init
 {
-  if (!$3->isConst () || $3->evalConst () <= 0)
+  if (!$3->isStaticallyEvaluable () || $3->evalConst () <= 0)
     {
       yyast.diag()
           .new_error(@3, "Invalid array size (it shoud be a constant,"
@@ -921,7 +921,7 @@ untyped_const_dec
 }
     | ID '[' arithmetic_expression ']' '=' array_or_struct_init
 {
-  if (!$3->isConst () || $3->evalConst () <= 0)
+  if (!$3->isStaticallyEvaluable () || $3->evalConst () <= 0)
     {
       yyast.diag()
           .new_error(@$, "Invalid array size (it shoud be a constant, "

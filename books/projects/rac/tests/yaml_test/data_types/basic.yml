@@ -99,3 +99,6 @@
   env: {RAC_BYPASS_ERROR: 'true'}
   disabled-checks:
     - generated_code
+
+- name: const-assign
+  should_report_error: true

@@ -52,8 +52,12 @@ public:
   virtual void displaySymDec(std::ostream &os) const;
   virtual bool isGlobal();
   virtual bool isROM();
-  virtual bool isConst();
+
+  //  virtual bool isConst();
+
+  virtual bool isStaticallyEvaluable();
   virtual int evalConst();
+
   virtual Sexpression *ACL2SymExpr();
 };
 
@@ -63,7 +67,7 @@ public:
   // TODO indent.
   void display(std::ostream &os, unsigned) override;
   void displaySimple(std::ostream &os) override { display(os, 0); }
-  bool isConst() override;
+  bool isStaticallyEvaluable() override;
 
   Sexpression *ACL2Expr() override;
   Sexpression *ACL2SymExpr() override;
@@ -83,7 +87,7 @@ class ConstDec : public VarDec {
 public:
   ConstDec(Location loc, const char *n, Type *t, Expression *i);
   void displaySimple(std::ostream &os) override;
-  bool isConst() override;
+  bool isStaticallyEvaluable() override;
   bool isGlobal() override;
   bool isROM() override;
   Sexpression *ACL2SymExpr() override;
@@ -115,7 +119,7 @@ public:
 class TempParamDec final : public SymDec {
 public:
   TempParamDec(Location loc, const char *n, Type *t);
-  bool isConst() override;
+  bool isStaticallyEvaluable() override;
   Sexpression *ACL2SymExpr() override;
 
   // TODO
