@@ -30,6 +30,7 @@ public:
   // ConstDecs. For the variable defined for the function parameter, disable
   // this check.
   bool TraverseFunDef(FunDef *f);
+  bool TraverseTemplate(Template *f);
   bool VisitVarDec(VarDec *s);
   bool VisitMulConstDec(MulConstDec *s);
   bool VisitMulVarDec(MulVarDec *s);

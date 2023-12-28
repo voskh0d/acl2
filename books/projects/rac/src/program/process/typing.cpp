@@ -17,6 +17,11 @@ bool TypingAction::TraverseExpression(Expression *e) {
   // ... and deref its type.
   if (e) {
     e->set_type(deref(e->get_type()));
+
+    if (auto i = dynamic_cast<const IntType *>(e->get_type())) {
+      TraverseExpression(i->width());
+      TraverseExpression(i->isSigned());
+    }
   }
 
   return true;
@@ -44,15 +49,14 @@ bool TypingAction::TraverseTemplate(Template *e) {
   // Same as FunDef, since template are not really
   assert(!type_of_scope);
   type_of_scope = e->returnType;
+  template_function_ = true;
 
-  if (!base_t::TraverseTemplate(e)) {
-    type_of_scope = nullptr;
-    return error();
-  }
+  bool success = base_t::TraverseTemplate(e);
 
   type_of_scope = nullptr;
+  template_function_ = false;
 
-  return true;
+  return success ? true : error();
 }
 
 bool TypingAction::VisitInteger(Integer *e) {
@@ -97,6 +101,12 @@ bool TypingAction::VisitParenthesis(Parenthesis *e) {
 
 bool TypingAction::VisitSymRef(SymRef *e) {
   e->set_type(deref(e->symDec->type));
+
+  if (auto i = dynamic_cast<const IntType *>(e->get_type())) {
+    TraverseExpression(i->width());
+    TraverseExpression(i->isSigned());
+  }
+
   return true;
 }
 
@@ -106,14 +116,43 @@ bool TypingAction::VisitFunCall(FunCall *e) {
 }
 
 bool TypingAction::VisitTempCall(TempCall *e) {
-  e->set_type(e->func->returnType);
+
+  auto type_of_current_scope = type_of_scope;
+  type_of_scope = nullptr;
+
+  // TODO something with template_function_
+  // Template are fully type checked for each call with their bindings.
+  auto temp = dynamic_cast<Template *>(e->func);
+  temp->bindParams(e->params);
+  //  TraverseTemplate(temp);
+  //  HERE since returntype MUST be instaciated (evalConst).
+
+  if (auto i = dynamic_cast<const IntType *>(e->func->returnType)) {
+    auto w = i->width()->evalConst();
+    auto s = i->isSigned()->evalConst();
+
+    auto ww = new Integer(e->loc(), w);
+    auto ss = new Boolean(e->loc(), s);
+
+    TraverseExpression(ww);
+    TraverseExpression(ss);
+
+    e->set_type(new IntType(e->loc(), ww, ss));
+  } else {
+    e->set_type(e->func->returnType);
+  }
+
+  temp->resetParams();
+
+  type_of_scope = type_of_current_scope;
+
   return true;
 }
 
 bool TypingAction::VisitInitializer(Initializer *e) {
 
   // Infer type.
-  std::vector<const Type *> types;
+  std::vector<Type *> types;
   for_each(e->vals, [&](Constant *c) { types.push_back(c->get_type()); });
   e->set_type(new InitializerType({ e->loc() }, std::move(types)));
 
@@ -121,9 +160,14 @@ bool TypingAction::VisitInitializer(Initializer *e) {
 }
 
 bool TypingAction::VisitArrayRef(ArrayRef *e) {
-  if (auto array_type
-      = dynamic_cast<const ArrayType *>(e->array->get_type())) {
+  if (auto array_type = dynamic_cast<ArrayType *>(e->array->get_type())) {
     e->set_type(deref(array_type->getBaseType()));
+
+    if (auto i = dynamic_cast<const IntType *>(e->get_type())) {
+      TraverseExpression(i->width());
+      TraverseExpression(i->isSigned());
+    }
+
   } else {
     e->set_type(&boolType);
   }
@@ -139,8 +183,8 @@ bool TypingAction::VisitStructRef(StructRef *e) {
 bool TypingAction::VisitSubrange(Subrange *e) {
 
   if (const IntType *t = dynamic_cast<const IntType *>(e->base->get_type())) {
-    Integer *width = new Integer(e->loc(), e->width());
-    e->set_type(new IntType(e->loc(), width, t->isSigned()));
+
+    e->set_type(new IntType(e->loc(), e->width(), t->isSigned()));
   } else {
     diag_
         .new_error(e->base->loc(),
@@ -155,16 +199,16 @@ bool TypingAction::VisitSubrange(Subrange *e) {
 
 bool TypingAction::VisitPrefixExpr(PrefixExpr *e) {
 
-  const Type *expr_type = e->expr->get_type();
+  Type *expr_type = e->expr->get_type();
 
   // Convert an unscoped enum (scoped enum are not supported) to int.
-  if (isa<const EnumType *>(expr_type)) {
+  if (isa<EnumType *>(expr_type)) {
     expr_type = &intType;
   }
 
   // Type primtive type according to section: "Unary arithmetic operators" of
   // https://en.cppreference.com/w/cpp/language/operator_arithmetic
-  if (auto t = dynamic_cast<const PrimType *>(expr_type)) {
+  if (auto t = dynamic_cast<PrimType *>(expr_type)) {
 
     if (e->op == PrefixExpr::Op::Not) {
       e->set_type(&boolType);
@@ -178,21 +222,25 @@ bool TypingAction::VisitPrefixExpr(PrefixExpr *e) {
   }
 
   // Type integer register type according to ac_datatypes_ref section 2.3.4.
-  if (auto t = dynamic_cast<const IntType *>(expr_type)) {
+  if (auto t = dynamic_cast<IntType *>(expr_type)) {
     switch (e->op) {
     case PrefixExpr::Op::UnaryPlus:
       e->set_type(t);
       break;
     case PrefixExpr::Op::UnaryMinus:
       e->set_type(new IntType(
-          e->loc(), new Integer(e->loc(), t->width()->evalConst() + 1),
+          e->loc(),
+          new BinaryExpr(e->loc(), t->width(), Integer::one_v(e->loc()), "+"),
           t->isSigned()));
       break;
     case PrefixExpr::Op::BitNot:
+      // ac_int<W+!S, true>
       e->set_type(new IntType(
           e->loc(),
-          new Integer(e->loc(), t->isSigned() ? t->width()->evalConst()
-                                              : t->width()->evalConst() + 1),
+          new CondExpr(e->loc(), t->width(),
+                       new BinaryExpr(e->loc(), t->width(),
+                                      Integer::one_v(e->loc()), "+"),
+                       t->isSigned()),
           t->isSigned()));
       break;
     case PrefixExpr::Op::Not:
@@ -219,7 +267,14 @@ bool TypingAction::VisitPrefixExpr(PrefixExpr *e) {
 }
 
 bool TypingAction::VisitCastExpr(CastExpr *e) {
-  const Type *t = deref(e->type);
+
+  Type *t = deref(e->type);
+
+  if (auto i = dynamic_cast<IntType *>(e->get_type())) {
+    TraverseExpression(i->width());
+    TraverseExpression(i->isSigned());
+  }
+
   e->set_type(t);
   if (!e->expr->get_type()->canBeImplicitlyCastTo(t)) {
     diag_
@@ -312,31 +367,68 @@ bool TypingAction::VisitBinaryExpr(BinaryExpr *e) {
       return error();
     }
 
-    int w1 = t1_promoted->width()->evalConst();
-    bool s1 = t1_promoted->isSigned();
-    int w2 = t2_promoted->width()->evalConst();
-    bool s2 = t2_promoted->isSigned();
+    Expression *w1 = t1_promoted->width();
+    Expression *s1 = t1_promoted->isSigned();
+    Expression *w2 = t2_promoted->width();
+    Expression *s2 = t2_promoted->isSigned();
 
-    int w_res = -1;
-    bool s_res;
+    Expression *w_res = nullptr;
+    Expression *s_res = nullptr;
 
     if (BinaryExpr::isOpShift(e->op)) {
       w_res = w1;
       s_res = s1;
     } else if (BinaryExpr::isOpBitwise(e->op)) {
       w_res = std::max(w1 + (!s1 && s2), w2 + (!s2 && s1));
-      s_res = (e->op == BinaryExpr::Op::Minus) ? true : s1 || s2;
+      s_res = (e->op == BinaryExpr::Op::Minus)
+                  ? static_cast<Expression *>(Boolean::true_v(e->loc()))
+                  : new BinaryExpr(e->loc(), s1, s2, "||");
     } else if (e->op == BinaryExpr::Op::Plus
                || e->op == BinaryExpr::Op::Minus) {
       w_res = std::max(w1 + (!s1 && s2), w2 + (!s2 && s1)) + 1;
-      s_res = (e->op == BinaryExpr::Op::Minus) ? true : s1 || s2;
+
+      // w1 + (!s1 && s2)
+      Expression *left = new BinaryExpr(
+          e->loc(), w1,
+          new BinaryExpr(e->loc(), new PrefixExpr(e->loc(), s1, "!"), s2,
+                         "&&"),
+          "+");
+
+      // w2 + (!s2 && s1)
+      Expression *right = new BinaryExpr(
+          e->loc(), w2,
+          new BinaryExpr(e->loc(), new PrefixExpr(e->loc(), s2, "!"), s1,
+                         "&&"),
+          "+");
+
+      // max(left, right)
+      w_res = new CondExpr(e->loc(), left, right,
+                           new BinaryExpr(e->loc(), left, right, ">="));
+
+      s_res = (e->op == BinaryExpr::Op::Minus)
+                  ? static_cast<Expression *>(Boolean::true_v(e->loc()))
+                  : new BinaryExpr(e->loc(), s1, s2, "||");
+
     } else if (e->op == BinaryExpr::Op::Times
                || e->op == BinaryExpr::Op::Divide) {
-      w_res = w1 + w2;
-      s_res = s1 || s2;
+      w_res = new BinaryExpr(e->loc(), w1, w2, "+");
+      s_res = new BinaryExpr(e->loc(), s1, s2, "||");
+
     } else if (e->op == BinaryExpr::Op::Mod) {
-      w_res = std::min(w1, w2 + (!s2 && s1));
+
+      // w2 + (!s2 && s1)
+      Expression *right = new BinaryExpr(
+          e->loc(), w2,
+          new BinaryExpr(e->loc(), new PrefixExpr(e->loc(), s2, "!"), s1,
+                         "&&"),
+          "+");
+
+      // min(w1, w2 + (!s2 && s1));
+      w_res = new CondExpr(e->loc(), w2, right,
+                           new BinaryExpr(e->loc(), w2, right, ">="));
+
       s_res = s1;
+
     } else if (BinaryExpr::isOpCompare(e->op)
                || BinaryExpr::isOpLogical(e->op)) {
       e->set_type(&boolType);
@@ -344,7 +436,12 @@ bool TypingAction::VisitBinaryExpr(BinaryExpr *e) {
     } else {
       UNREACHABLE();
     }
-    e->set_type(new IntType(e->loc(), new Integer(e->loc(), w_res), s_res));
+
+    TraverseExpression(w_res);
+    TraverseExpression(s_res);
+
+    e->set_type(new IntType(e->loc(), w_res, s_res));
+
     return true;
   }
 
@@ -457,7 +554,18 @@ bool TypingAction::VisitMultipleValue(MultipleValue *e) {
 bool TypingAction::VisitReturnStmt(ReturnStmt *s) {
 
   s->returnType = deref(type_of_scope);
-  return check_assignement(s->loc(), s->returnType, s->value->get_type());
+  assert(s->returnType);
+
+  if (auto i = dynamic_cast<const IntType *>(type_of_scope)) {
+    TraverseExpression(i->width());
+    TraverseExpression(i->isSigned());
+  }
+
+  if (!template_function_) {
+    return check_assignement(s->loc(), s->returnType, s->value->get_type());
+  } else {
+    return true;
+  }
 }
 
 bool TypingAction::VisitSwitchStmt(SwitchStmt *s) {
@@ -486,7 +594,7 @@ bool TypingAction::VisitSwitchStmt(SwitchStmt *s) {
 
     // A label is either an enum value or a constant primtive.
     const Type *t = c->label->get_type();
-    if (!(isa<const PrimType *>(t) && isa<Constant *>(c->label))
+    if (!(isa<const PrimType *>(t) && c->label->isStaticallyEvaluable())
         && !isa<const EnumType *>(t)) {
       diag_
           .new_error(c->label->loc(),
@@ -549,16 +657,48 @@ bool TypingAction::VisitAssignment(Assignment *s) {
       return error();
     }
 
+    s->resolveOverload();
+    // We force to retype lval since it was been modified in resolveOverload().
+    TraverseExpression(s->lval);
+
     return true;
   }
 
-  return check_assignement(s->loc(), s->lval->get_type(), s->rval->get_type());
+  if (!template_function_) {
+    return check_assignement(s->loc(), s->lval->get_type(),
+                             s->rval->get_type());
+  } else {
+    return true;
+  }
 }
 
 bool TypingAction::VisitSymDec(SymDec *s) {
 
-  if (s->init) {
-    return check_assignement(s->loc(), deref(s->type), s->init->get_type());
+  if (s->init && !template_function_) {
+
+    if (auto i = dynamic_cast<const IntType *>(s->type)) {
+      TraverseExpression(i->width());
+      TraverseExpression(i->isSigned());
+    }
+
+    auto sym_type = deref(s->type);
+
+    if (isa<const EnumType *>(s->type)) {
+      sym_type = &intType;
+
+      if (!s->init->isStaticallyEvaluable()) {
+        diag_
+            .new_error(
+                s->init->loc(),
+                format("Expected an integral constant expression, got % s.",
+                       s->init->get_type()->to_string().c_str()))
+            .context(s->loc())
+            .report();
+        return error();
+      }
+    }
+
+    return check_assignement(s->loc(), sym_type, s->init->get_type());
   }
   return true;
 }
@@ -685,7 +825,7 @@ bool TypingAction::check_assignement(const Location &where, const Type *left,
   return true;
 }
 
-const Type *TypingAction::deref(const Type *t) {
+Type *TypingAction::deref(Type *t) {
 
   if (const DefinedType *dt = dynamic_cast<const DefinedType *>(t)) {
     return dt->derefType();

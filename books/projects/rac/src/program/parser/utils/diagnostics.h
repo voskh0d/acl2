@@ -82,6 +82,10 @@ public:
 
   void setup(FILE *f) { file_ = f; }
 
+  // TODO
+  // enum class Severity { Error, Warning };
+  // #define ERROR_NAME_IMPL() __FILE_NAME__[0] + std::to_string(__COUNTER__)
+
   [[nodiscard]] Diagnostic new_error(const Location &loc,
                                      const std::string &msg) {
     return Diagnostic(*this, loc, msg);

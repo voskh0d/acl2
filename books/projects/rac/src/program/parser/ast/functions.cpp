@@ -103,25 +103,38 @@ void Template::bindParams(const std::vector<Expression *> &actuals) {
   });
 }
 
+void Template::resetParams() {
+
+  for_each(tempParams, [&](TempParamDec *formal) { formal->init = nullptr; });
+}
+
 void Template::displayACL2Expr(std::ostream &os) {
 
-  unsigned numCalls = 0;
-  Symbol *saveSym = sym;
+  Plist *sparams = new Plist();
+  for_each(tempParams, [&sparams](TempParamDec *v) { sparams->add(v->sym); });
+  for_each(params, [&sparams](VarDec *v) { sparams->add(v->sym); });
+  auto res
+      = new Plist({ &s_funcdef, sym, sparams, body->blockify()->ACL2Expr() });
+  res->display(os);
 
-  std::for_each(calls.begin(), calls.end(), [&](TempCall *c) {
-    // Generate a new name for each template instanciation and tranform this
-    // into the instanciated function.
-    std::ostringstream ostr;
-    ostr << saveSym->getname() << "-" << numCalls++;
-    sym = new Symbol(ostr.str());
-
-    // Change the caller to call the instanciated function (this).
-    c->instanceSym = sym;
-
-    // Bind params and display this as a standard function.
-    bindParams(c->params);
-    FunDef::displayACL2Expr(os);
-  });
-
-  sym = saveSym;
+  //  unsigned numCalls = 0;
+  //  Symbol *saveSym = sym;
+  //
+  //  std::for_each(calls.begin(), calls.end(), [&](TempCall *c) {
+  //    // Generate a new name for each template instanciation and tranform
+  //    this
+  //    // into the instanciated function.
+  //    std::ostringstream ostr;
+  //    ostr << saveSym->getname() << "-" << numCalls++;
+  //    sym = new Symbol(ostr.str());
+  //
+  //    // Change the caller to call the instanciated function (this).
+  //    c->instanceSym = sym;
+  //
+  //    // Bind params and display this as a standard function.
+  //    bindParams(c->params);
+  //    FunDef::displayACL2Expr(os);
+  //  });
+  //
+  //  sym = saveSym;
 }

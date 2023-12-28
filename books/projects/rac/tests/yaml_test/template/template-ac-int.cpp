@@ -3,8 +3,8 @@
 // RAC begin
 
 template <int n>
-ac_int<n, false> foo() {
+ac_int<n, false> slc_test() {
   return ac_int<n, false>(4);
 }
 
-int main() { return foo<4>(); }
+int main() { return slc_test<4>(); }

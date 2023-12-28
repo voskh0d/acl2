@@ -43,7 +43,7 @@ public:
 class SymDec : public SimpleStatement {
 public:
   Symbol *sym;
-  const Type *type;
+  Type *type;
   Expression *init;
   SymDec(NodesId id, Location loc, const char *n, Type *t,
          Expression *i = nullptr);
@@ -56,7 +56,7 @@ public:
   //  virtual bool isConst();
 
   virtual bool isStaticallyEvaluable();
-  virtual int evalConst();
+  int evalConst();
 
   virtual Sexpression *ACL2SymExpr();
 };
@@ -125,6 +125,7 @@ public:
   // TODO
   void display(std::ostream &, unsigned) override{};
   void displaySimple(std::ostream &) override{};
+
   Sexpression *ACL2Expr() override {
     assert(false);
     return nullptr;
@@ -141,7 +142,7 @@ public:
 class ReturnStmt final : public SimpleStatement {
 public:
   Expression *value;
-  const Type *returnType;
+  Type *returnType = nullptr;
   ReturnStmt(Location loc, Expression *v);
   void displaySimple(std::ostream &os) override;
   Sexpression *ACL2Expr() override;
@@ -171,7 +172,6 @@ public:
   Expression *index = nullptr;
 
   Assignment(Location loc, Expression *l, const char *o, Expression *r);
-  // set_slc
   Assignment(Location loc, Expression *l, Expression *r, Expression *i)
       : SimpleStatement(idOf(this), loc), lval(l), op("set_slc"), rval(r),
         index(i) {}
@@ -179,6 +179,7 @@ public:
   void displaySimple(std::ostream &os) override;
   Sexpression *ACL2Expr() override;
 
+  void resolveOverload();
   void desugar();
 };
 

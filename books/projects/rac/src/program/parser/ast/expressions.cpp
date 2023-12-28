@@ -199,7 +199,7 @@ Sexpression *FunCall::ACL2Expr() {
   List<VarDec> *p = func->params;
 
   for (Expression *a : args) {
-    result->add(p->value->type->ACL2Assign(a));
+    result->add(p->value->type->cast(a));
     p = p->next;
   }
 
@@ -242,9 +242,24 @@ void TempCall::display(std::ostream &os) const {
 }
 
 Sexpression *TempCall::ACL2Expr() {
+
   dynamic_cast<Template *>(func)->bindParams(params);
-  Plist *result = dynamic_cast<Plist *>(FunCall::ACL2Expr());
-  result->list->value = instanceSym;
+
+  Plist *result = new Plist({ new Symbol(func->getname()) });
+
+  auto paramsDec = always_cast<Template *>(func)->tempParams;
+  for (unsigned i = 0; i < paramsDec->length(); ++i) {
+    result->add(paramsDec->nth(i)->type->cast(params[i]));
+  }
+
+  List<VarDec> *p = func->params;
+  for (Expression *a : args) {
+    result->add(p->value->type->cast(a));
+    p = p->next;
+  }
+
+  dynamic_cast<Template *>(func)->resetParams();
+
   return result;
 }
 
@@ -373,7 +388,8 @@ Sexpression *ArrayRef::ACL2Expr() {
     // If the register is signed, get its 2-complement representation.
     const IntType *t = always_cast<const IntType *>(array->get_type());
 
-    if (t->isSigned()) {
+    // TODO 2
+    if (t->isSigned()->evalConst()) {
       unsigned n = t->width()->evalConst();
       b = new Plist({ &s_bits, b, Integer(loc_, n - 1).ACL2Expr(),
                       Integer::zero_v(loc_)->ACL2Expr() });
@@ -391,11 +407,12 @@ Sexpression *ArrayRef::ACL2Assign(Sexpression *rval) {
     Sexpression *b = array->ACL2Expr();
     Sexpression *i = index->ACL2Expr();
 
+    // TODO 2
     const IntType *t = always_cast<const IntType *>(array->get_type());
     unsigned n = t->width()->evalConst();
 
     // If the register is signed, get its 2-complement representation.
-    if (t->isSigned()) {
+    if (t->isSigned()->evalConst()) {
       b = new Plist({ &s_bits, b, Integer(loc_, n - 1).ACL2Expr(),
                       Integer::zero_v(loc_)->ACL2Expr() });
     }
@@ -404,7 +421,7 @@ Sexpression *ArrayRef::ACL2Assign(Sexpression *rval) {
     Sexpression *val = new Plist({ &s_setbitn, b, s, i, rval });
 
     // If the register is signed, recover the signed value.
-    if (t->isSigned()) {
+    if (t->isSigned()->evalConst()) {
       val = new Plist({ &s_si, val, Integer(loc_, n).ACL2Expr() });
     }
 
@@ -455,13 +472,15 @@ Sexpression *StructRef::ACL2Assign(Sexpression *rval) {
 
 // Data members: Expression *base; Expression *high; Expression *low;
 
-Subrange::Subrange(Location loc, Expression *b, Expression *l, unsigned w)
+Subrange::Subrange(Location loc, Expression *b, Expression *l, Expression *w)
     : Expression(idOf(this), loc), base(b), low(l), width_(w) {
-  if (l->isStaticallyEvaluable())
-    high = new Integer(loc_, l->evalConst() + w - 1);
+  if (l->isStaticallyEvaluable() && w->isStaticallyEvaluable())
+    // TODO 2
+    high = new Integer(loc_, l->evalConst() + w->evalConst() - 1);
   else {
-    high = new BinaryExpr(loc_, l, new Integer(loc_, w - 1), strdup("+"));
-    high->set_type(&intType); // TODO: removing this makes an assertion fails.
+    high = new BinaryExpr(loc_, l,
+                          new BinaryExpr(loc_, w, Integer::one_v(loc_), "-"),
+                          strdup("+"));
   }
 }
 
@@ -483,8 +502,8 @@ Sexpression *Subrange::ACL2Expr() {
 
   const IntType *t = always_cast<const IntType *>(base->get_type());
 
-  if (t->isSigned()) {
-    return new Plist({ &s_si, bv_val, Integer(loc_, width_).ACL2Expr() });
+  if (t->isSigned()->evalConst()) {
+    return new Plist({ &s_si, bv_val, width_->ACL2Expr() });
   } else {
     return bv_val;
   }
@@ -496,21 +515,29 @@ Sexpression *Subrange::ACL2Assign(Sexpression *rval) {
   Sexpression *hi = high->ACL2Expr();
   Sexpression *lo = low->ACL2Expr();
 
+  // TODO 2
   const IntType *t = always_cast<const IntType *>(base->get_type());
-  unsigned n = t->width()->evalConst();
 
   // If the register is signed, get its 2-complement representation.
-  if (t->isSigned()) {
-    b = new Plist({ &s_bits, b, Integer(loc_, n - 1).ACL2Expr(),
-                    Integer::zero_v(loc_)->ACL2Expr() });
+  if (t->isSigned()->evalConst()) {
+    if (t->width()->isStaticallyEvaluable()) {
+      unsigned n = t->width()->evalConst();
+      b = new Plist({ &s_bits, b, Integer(loc_, n - 1).ACL2Expr(),
+                      Integer::zero_v(loc_)->ACL2Expr() });
+    } else {
+      b = new Plist(
+          { &s_bits, b,
+            new Plist({ &s_minus, t->width()->ACL2Expr(), new Symbol("1") }),
+            Integer::zero_v(loc_)->ACL2Expr() });
+    }
   }
 
-  Sexpression *s = Integer(loc_, n).ACL2Expr();
+  Sexpression *s = t->width()->ACL2Expr();
   Sexpression *val = new Plist({ &s_setbits, b, s, hi, lo, rval });
 
   // If the register is signed, recover the signed value.
-  if (t->isSigned()) {
-    val = new Plist({ &s_si, val, Integer(loc_, n).ACL2Expr() });
+  if (t->isSigned()->evalConst()) {
+    val = new Plist({ &s_si, val, t->width()->ACL2Expr() });
   }
 
   return base->ACL2Assign(val);
@@ -624,7 +651,7 @@ bool CastExpr::isInteger() { return expr->isInteger(); }
 
 void CastExpr::display(std::ostream &os) const { expr->display(os); }
 
-Sexpression *CastExpr::ACL2Expr() { return type->ACL2Assign(expr); }
+Sexpression *CastExpr::ACL2Expr() { return type->cast(expr); }
 
 // class BinaryExpr : public Expression
 // ------------------------------------
@@ -825,7 +852,11 @@ Sexpression *BinaryExpr::ACL2Expr() {
   // TODO why is it needed ? Maybe should be transform to an assert ? But this
   // could make RAC_BYPASS_ERRORS fails. At least, the message should be
   // better.
-  assert(get_type());
+  //  if (!get_type()) {
+  //    (this + 3)->ACL2Expr();
+  //    std::cerr << loc();
+  //    assert(!"missing type");
+  //  }
 
   Sexpression *val = new Plist({ ptr, sexpr1, sexpr2 });
 
@@ -863,6 +894,10 @@ Sexpression *CondExpr::ACL2Expr() {
       { &s_if1, test->ACL2Expr(), expr1->ACL2Expr(), expr2->ACL2Expr() });
 }
 
+int CondExpr::evalConst() {
+  return test->evalConst() ? expr1->evalConst() : expr2->evalConst();
+}
+
 // class MultipleValue : public Expression
 // ---------------------------------------
 
@@ -887,6 +922,6 @@ Sexpression *MultipleValue::ACL2Expr() {
   Plist *result = new Plist({ &s_mv });
 
   for (unsigned i = 0; i < expr.size(); ++i)
-    result->add(type->get(i)->ACL2Assign(expr[i]));
+    result->add(type->get(i)->cast(expr[i]));
   return result;
 }

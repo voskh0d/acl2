@@ -8,10 +8,11 @@ bool RecursiveASTVisitor<Derived>::dispatchTraverse(AbstractBase *e) {
 #define APPLY(CLASS, _)                                                       \
   case NodesId::CLASS:                                                        \
     if constexpr (std::is_base_of_v<AbstractBase, CLASS>)                     \
-      return derived().Traverse##CLASS(reinterpret_cast<CLASS *>(e));         \
+      return derived().Traverse##CLASS(static_cast<CLASS *>(e));              \
     else                                                                      \
       UNREACHABLE();
 #include "../parser/ast/astnodes.def"
+#include "../parser/ast/types.def"
 #undef APPLY
   }
   UNREACHABLE();
@@ -19,7 +20,14 @@ bool RecursiveASTVisitor<Derived>::dispatchTraverse(AbstractBase *e) {
 
 template <typename Derived>
 bool RecursiveASTVisitor<Derived>::TraverseExpression(Expression *e) {
-  return dispatchTraverse(e);
+  if (!dispatchTraverse(e))
+    return false;
+
+  if (e && !derived().TraverseType(e->get_type())) {
+    return false;
+  }
+
+  return true;
 }
 
 template <typename Derived>
@@ -32,6 +40,12 @@ bool RecursiveASTVisitor<Derived>::TraverseSimpleStatement(
     SimpleStatement *s) {
   return dispatchTraverse(s);
 }
+
+template <typename Derived>
+bool RecursiveASTVisitor<Derived>::TraverseType(Type *t) {
+  return dispatchTraverse(t);
+}
+
 
 template <typename Derived>
 bool RecursiveASTVisitor<Derived>::TraverseConstant(Constant *e) {
@@ -101,6 +115,10 @@ bool RecursiveASTVisitor<Derived>::TraverseTempCall(TempCall *e) {
   if (!derived().postfixTraversal())
     if (!derived().WalkUpTempCall(e))
       return false;
+
+  if (!std::all_of(e->args.begin(), e->args.end(),
+        [&](Expression *e) { return derived().TraverseExpression(e); }))
+    return false;
 
   if (!std::all_of(e->params.begin(), e->params.end(),
         [&](Expression *e) { return derived().TraverseExpression(e); }))
@@ -216,6 +234,9 @@ bool RecursiveASTVisitor<Derived>::TraverseCastExpr(CastExpr *e) {
   if (!derived().TraverseExpression(e->expr))
     return true;
 
+  if (!derived().TraverseType(e->type))
+    return true;
+
   if (derived().postfixTraversal())
     if (!derived().WalkUpCastExpr(e))
       return false;
@@ -271,6 +292,9 @@ bool RecursiveASTVisitor<Derived>::TraverseMultipleValue(MultipleValue *e) {
         [this](Expression *e) { return derived().TraverseExpression(e); }))
     return false;
 
+  if (!derived().TraverseType(e->type))
+    return false;
+
   if (derived().postfixTraversal())
     if (!derived().WalkUpMultipleValue(e))
       return false;
@@ -286,6 +310,9 @@ bool RecursiveASTVisitor<Derived>::TraverseSymDec(SymDec *s) {
       return false;
 
   if (!derived().TraverseExpression(s->init))
+    return false;
+
+  if (!derived().TraverseType(s->type))
     return false;
 
   if (derived().postfixTraversal())
@@ -305,6 +332,9 @@ bool RecursiveASTVisitor<Derived>::TraverseEnumConstDec(EnumConstDec *s) {
   if (!derived().TraverseExpression(s->init))
     return false;
 
+  // We do not traverse its type since it is always processed first.
+  // TODO if we overload symdec, we are still looping.
+
   if (derived().postfixTraversal())
     if (!derived().WalkUpEnumConstDec(s))
       return false;
@@ -322,6 +352,9 @@ bool RecursiveASTVisitor<Derived>::TraverseVarDec(VarDec *s) {
   if (!derived().TraverseExpression(s->init))
     return false;
 
+  if (!derived().TraverseType(s->type))
+    return false;
+
   if (derived().postfixTraversal())
     if (!derived().WalkUpVarDec(s))
       return false;
@@ -337,6 +370,9 @@ bool RecursiveASTVisitor<Derived>::TraverseConstDec(ConstDec *s) {
       return false;
 
   if (!derived().TraverseExpression(s->init))
+    return false;
+
+  if (!derived().TraverseType(s->type))
     return false;
 
   if (derived().postfixTraversal())
@@ -421,6 +457,9 @@ bool RecursiveASTVisitor<Derived>::TraverseReturnStmt(ReturnStmt *s) {
       return false;
 
   if (!derived().TraverseExpression(s->value))
+    return false;
+
+  if (!derived().TraverseType(s->returnType))
     return false;
 
   if (derived().postfixTraversal())
@@ -621,6 +660,9 @@ bool RecursiveASTVisitor<Derived>::TraverseFunDef(FunDef *s) {
   if (!b)
     return false;
 
+  if (!derived().TraverseType(s->returnType))
+    return false;
+
   if (!derived().TraverseStatement(s->body))
     return false;
 
@@ -649,6 +691,9 @@ bool RecursiveASTVisitor<Derived>::TraverseBuiltin(Builtin *s) {
   if (!derived().TraverseStatement(s->body))
     return false;
 
+  if (!derived().TraverseType(s->returnType))
+    return false;
+
   if (derived().postfixTraversal())
     if (!derived().WalkUpBuiltin(s))
       return false;
@@ -674,6 +719,9 @@ bool RecursiveASTVisitor<Derived>::TraverseTemplate(Template *s) {
   if (!derived().TraverseStatement(s->body))
     return false;
 
+  if (!derived().TraverseType(s->returnType))
+    return false;
+
   for_each(s->tempParams, [&](TempParamDec *s) {
     if (b && !derived().TraverseStatement(s))
       b = false;
@@ -689,6 +737,145 @@ bool RecursiveASTVisitor<Derived>::TraverseTemplate(Template *s) {
 }
 
 template <typename Derived>
+bool RecursiveASTVisitor<Derived>::TraversePrimType(PrimType *t) {
+  return derived().WalkUpPrimType(t);
+}
+
+template <typename Derived>
+bool RecursiveASTVisitor<Derived>::TraverseDefinedType(DefinedType *t) {
+
+  if (!derived().postfixTraversal())
+    if (!derived().WalkUpDefinedType(t))
+      return false;
+
+  if (!derived().TraverseType(t->getdef()))
+    return false;
+
+  if (derived().postfixTraversal())
+    if (!derived().WalkUpDefinedType(t))
+      return false;
+
+  return true;
+}
+
+template <typename Derived>
+bool RecursiveASTVisitor<Derived>::TraverseIntType(IntType *t) {
+
+  if (!derived().postfixTraversal())
+    if (!derived().WalkUpIntType(t))
+      return false;
+
+  if (!derived().TraverseExpression(t->width()))
+    return false;
+
+  if (!derived().TraverseExpression(t->isSigned()))
+    return false;
+
+  if (derived().postfixTraversal())
+    if (!derived().WalkUpIntType(t))
+      return false;
+
+  return true;
+}
+
+template <typename Derived>
+bool RecursiveASTVisitor<Derived>::TraverseArrayType(ArrayType *t) {
+
+  if (!derived().postfixTraversal())
+    if (!derived().WalkUpArrayType(t))
+      return false;
+
+  if (!derived().TraverseType(t->baseType))
+    return false;
+
+  if (!derived().TraverseExpression(t->dim))
+    return false;
+
+  if (derived().postfixTraversal())
+    if (!derived().WalkUpArrayType(t))
+      return false;
+
+  return true;
+}
+
+template <typename Derived>
+bool RecursiveASTVisitor<Derived>::TraverseStructType(StructType *t) {
+
+  if (!derived().postfixTraversal())
+    if (!derived().WalkUpStructType(t))
+      return false;
+
+  if (!std::all_of(t->fields().begin(), t->fields().end(), [&](StructField *sf)
+        { return derived().TraverseType(sf->type); }))
+    return false;
+
+  if (derived().postfixTraversal())
+    if (!derived().WalkUpStructType(t))
+      return false;
+
+  return true;
+}
+
+template <typename Derived>
+bool RecursiveASTVisitor<Derived>::TraverseEnumType(EnumType *t) {
+
+  if (!derived().postfixTraversal())
+    if (!derived().WalkUpEnumType(t))
+      return false;
+
+  if (!std::all_of(t->values().begin(), t->values().end(), [&](EnumConstDec *d)
+        { return derived().TraverseStatement(d); }))
+    return false;
+
+  if (derived().postfixTraversal())
+    if (!derived().WalkUpEnumType(t))
+      return false;
+
+  return true;
+}
+
+template <typename Derived>
+bool RecursiveASTVisitor<Derived>::TraverseMvType(MvType *t) {
+
+  if (!derived().postfixTraversal())
+    if (!derived().WalkUpMvType(t))
+      return false;
+
+  if (!std::all_of(t->types().begin(), t->types().end(), [&](Type *t)
+        { return derived().TraverseType(t); }))
+    return false;
+
+  if (derived().postfixTraversal())
+    if (!derived().WalkUpMvType(t))
+      return false;
+
+  return true;
+}
+
+template <typename Derived>
+bool RecursiveASTVisitor<Derived>::TraverseInitializerType(InitializerType *t) {
+
+  if (!derived().postfixTraversal())
+    if (!derived().WalkUpInitializerType(t))
+      return false;
+
+  if (!std::all_of(t->types().begin(), t->types().end(), [&](Type *t)
+        { return derived().TraverseType(t); }))
+    return false;
+
+  if (derived().postfixTraversal())
+    if (!derived().WalkUpInitializerType(t))
+      return false;
+
+  return true;
+}
+
+template <typename Derived>
+bool RecursiveASTVisitor<Derived>::TraverseErrorType(ErrorType *t) {
+  return derived().WalkUpErrorType(t);
+}
+
+template <typename Derived>
 bool RecursiveASTVisitor<Derived>::WalkUpExpression(Expression *e) {
   return derived().VisitExpression(e);
 }
@@ -696,6 +883,11 @@ bool RecursiveASTVisitor<Derived>::WalkUpExpression(Expression *e) {
 template <typename Derived>
 bool RecursiveASTVisitor<Derived>::WalkUpStatement(Statement *s) {
   return derived().VisitStatement(s);
+}
+
+template <typename Derived>
+bool RecursiveASTVisitor<Derived>::WalkUpType(Type *t) {
+  return derived().VisitType(t);
 }
 
 #define APPLY(CLASS, PARENT)                                                  \
@@ -706,6 +898,7 @@ bool RecursiveASTVisitor<Derived>::WalkUpStatement(Statement *s) {
     return derived().Visit##CLASS(c);                                         \
   }
 #include "../parser/ast/astnodes.def"
+#include "../parser/ast/types.def"
 #undef APPLY
 
 template <typename Derived>
@@ -718,10 +911,16 @@ bool RecursiveASTVisitor<Derived>::VisitStatement(Statement *) {
   return true;
 }
 
+template <typename Derived>
+bool RecursiveASTVisitor<Derived>::VisitType(Type *) {
+  return true;
+}
+
 #define APPLY(CLASS, PARENT)                                                  \
   template <typename Derived>                                                 \
   bool RecursiveASTVisitor<Derived>::Visit##CLASS(CLASS *) {                  \
     return true;                                                              \
   }
 #include "../parser/ast/astnodes.def"
+#include "../parser/ast/types.def"
 #undef APPLY

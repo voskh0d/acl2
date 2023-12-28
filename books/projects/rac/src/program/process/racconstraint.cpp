@@ -118,6 +118,36 @@ bool RACConstraint::TraverseFunDef(FunDef *s) {
   return true;
 }
 
+bool RACConstraint::TraverseTemplate(Template *s) {
+  // Copy and pasted from visitor.hxx.
+
+  if (!postfixTraversal())
+    if (!WalkUpFunDef(s))
+      return false;
+
+  disable_assignement_check_ = true;
+
+  bool b = true;
+  for_each(s->params, [&](VarDec *s) {
+    if (b && !TraverseStatement(s))
+      b = false;
+  });
+
+  disable_assignement_check_ = false;
+
+  if (!b)
+    return false;
+
+  if (!TraverseStatement(s->body))
+    return false;
+
+  if (postfixTraversal())
+    if (!WalkUpFunDef(s))
+      return false;
+
+  return true;
+}
+
 bool RACConstraint::VisitVarDec(VarDec *s) {
 
   if (disable_assignement_check_) {

@@ -21,7 +21,8 @@ public:
 
   virtual bool isInteger();
 
-  const Type *get_type() { return t_; }
+  const Type *get_type() const { return t_; }
+  Type *get_type() { return t_; }
 
   virtual void display(std::ostream &os) const = 0;
 
@@ -35,12 +36,12 @@ public:
   inline const Location &loc() { return loc_; }
 
   // Only during the type passs we are allowed to modify the type.
-  void set_type(const Type *t) { t_ = t; }
+  void set_type(Type *t) { t_ = t; }
 
 private:
   // The type of the expression. Null means not yet typed, but after the type
   // pass, it should be always set with a concrete type (not a typedef).
-  const Type *t_ = nullptr;
+  Type *t_ = nullptr;
 
 protected:
   const NodesId id_;
@@ -233,9 +234,9 @@ public:
   Expression *high;
   Expression *low;
 
-  unsigned width() { return width_; }
+  Expression *width() { return width_; }
 
-  Subrange(Location loc, Expression *b, Expression *l, unsigned w);
+  Subrange(Location loc, Expression *b, Expression *l, Expression *w);
 
   bool isInteger() override { return true; }
   void display(std::ostream &os) const override;
@@ -244,7 +245,7 @@ public:
   Sexpression *ACL2Assign(Sexpression *rval) override;
 
 private:
-  unsigned width_;
+  Expression *width_;
 };
 
 class PrefixExpr final : public Expression {
@@ -332,6 +333,8 @@ public:
   bool isInteger() override;
   void display(std::ostream &os) const override;
   Sexpression *ACL2Expr() override;
+
+  int evalConst() override;
 };
 
 class MultipleValue final : public Expression {

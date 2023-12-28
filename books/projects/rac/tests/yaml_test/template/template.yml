@@ -10,5 +10,6 @@
   bug: true
 
 - name: template-ac-int
-  should_report_error: true
+- name: template-ac-int-set
 
+- name: template-nan-demo

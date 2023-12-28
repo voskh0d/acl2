@@ -27,7 +27,7 @@ std::string Type::to_string() const {
 }
 
 Sexpression *
-Type::ACL2Assign(Expression *rval) const { // virtual (overridden by IntType)
+Type::cast(Expression *rval) const { // virtual (overridden by IntType)
   // Convert rval to an S-expression to be assigned to an object of this type.
   return rval->ACL2Expr();
 }
@@ -58,7 +58,7 @@ PrimType uintType = PrimType::Uint();
 PrimType int64Type = PrimType::Int64();
 PrimType uint64Type = PrimType::Uint64();
 
-Sexpression *PrimType::ACL2Assign(Expression *rval) const {
+Sexpression *PrimType::cast(Expression *rval) const {
 
   const Type *rval_type = rval->get_type();
   return numeric_cast(rval->ACL2Expr(), { rval_type }, this);
@@ -149,19 +149,25 @@ bool PrimType::canBeImplicitlyCastTo(const Type *target) const {
 
 IntType *IntType::FromPrimType(const PrimType *t) {
   return new IntType(
-      t->loc(), new Integer(Location::dummy(), static_cast<int>(t->rank_)),
-      t->signed_);
+      { t->loc() }, new Integer(Location::dummy(), static_cast<int>(t->rank_)),
+      new Boolean(Location::dummy(), t->signed_));
 }
 
 void IntType::display(std::ostream &os) const {
-  os << (isSigned_ ? "sc_int<" : "sc_uint<");
+  os << (isSigned_->evalConst() ? "sc_int<" : "sc_uint<");
   width()->display(os);
   os << ">";
 }
 
-unsigned IntType::ACL2ValWidth() const { return width()->evalConst(); }
+unsigned IntType::ACL2ValWidth() const {
+  if (width()->isStaticallyEvaluable()) {
+    return width()->evalConst();
+  } else {
+    return 0; // TODO
+  }
+}
 
-Sexpression *IntType::ACL2Assign(Expression *rval) const {
+Sexpression *IntType::cast(Expression *rval) const {
 
   const Type *rval_type = rval->get_type();
   return numeric_cast(rval->ACL2Expr(), { rval_type }, this);
@@ -175,7 +181,7 @@ bool IntType::isEqual(const Type *other) const {
 
   if (auto o = dynamic_cast<const IntType *>(other)) {
     return width_->evalConst() == o->width_->evalConst()
-           && isSigned_ == o->isSigned_;
+           && isSigned_->evalConst() == o->isSigned_->evalConst();
   } else {
     return false;
   }
@@ -267,7 +273,7 @@ void StructField::display(std::ostream &os, unsigned indent) const {
 // Data member:  List<StructField> *fields;
 
 StructType::StructType(origin_t loc, std::vector<StructField *> f)
-    : Type(loc), fields_(f) {}
+    : Type(loc, idOf(this)), fields_(f) {}
 
 void StructType::displayFields(std::ostream &os) const {
   os << "{";
@@ -328,7 +334,7 @@ bool StructType::isEqual(const Type *other) const {
 // Data member:  List<EnumConstDec> *vals;
 
 EnumType::EnumType(origin_t loc, std::vector<EnumConstDec *> v)
-    : Type(loc), vals_(v) {
+    : Type(loc, idOf(this)), vals_(v) {
   std::for_each(vals_.begin(), vals_.end(),
                 [this](EnumConstDec *e) { e->type = this; });
 }
@@ -407,9 +413,6 @@ namespace priv {
 
   void CompositeType::display(std::ostream &os) const {
 
-    assert(types_.size() >= 2
-           && "It does not make sense to have a mv with 1 or 0 elem");
-
     os << "<";
     bool first = true;
     for (const auto t : types_) {
@@ -445,8 +448,32 @@ namespace priv {
   }
 }
 
+// TODO remove this is awful.
+bool isSigned(const Type *t) {
+
+  if (auto rt = dynamic_cast<const IntType *>(t)) {
+    return rt->isSigned()->evalConst();
+  }
+
+  if (auto pt = dynamic_cast<const PrimType *>(t)) {
+    return pt->signed_;
+  }
+
+  // An enum is just an int.
+  if (dynamic_cast<const EnumType *>(t)) {
+    return true;
+  }
+
+  return false;
+}
+
 Sexpression *numeric_cast(Sexpression *sexpr, std::optional<const Type *> src,
                           const Type *dst) {
+
+  // If type are exactly the same, no conversion is needed.
+  if (src && *src == dst) {
+    return sexpr;
+  }
 
   // TODO
   auto loc = Location::dummy();
@@ -469,7 +496,9 @@ Sexpression *numeric_cast(Sexpression *sexpr, std::optional<const Type *> src,
     }
   }
 
+  // TODO
   unsigned w_dst = dst->ACL2ValWidth();
+
   bool s_dst = isSigned(dst);
 
   // A bits block is needed in two cases:
@@ -493,8 +522,10 @@ Sexpression *numeric_cast(Sexpression *sexpr, std::optional<const Type *> src,
   // ----------------+---------------+---------------+---------------
   //
   bool needs_bits = [&]() {
-    // Unbounded value.
-    if (!src) {
+    // If !src: unbounded value
+    // If w_dst: the width is zero then we don't know yet its size (for example
+    // when the expression involve template).
+    if (!src || w_dst == 0) {
       return true;
     }
 
@@ -506,11 +537,25 @@ Sexpression *numeric_cast(Sexpression *sexpr, std::optional<const Type *> src,
 
   Sexpression *res = sexpr;
 
+  Sexpression *upper_bound = nullptr;
+  if (auto i = dynamic_cast<const IntType *>(dst)) {
+    upper_bound = i->width()->isStaticallyEvaluable()
+                      ? Integer(loc, w_dst - 1).ACL2Expr()
+                      : new Plist({ &s_minus, i->width()->ACL2Expr(),
+                                    new Symbol("1") });
+    //                      : BinaryExpr(i->width()->loc(), i->width(),
+    //                                   Integer::one_v(i->width()->loc()),
+    //                                   "-")
+    //                            .ACL2Expr(); // <- TODO HERE
+  } else {
+    upper_bound = Integer(loc, w_dst - 1).ACL2Expr(); // <- TODO HERE
+  }
+
   // Bits alway does an signed to unsigned conversion, so we only need to add
   // a si if the destination is signed.
   if (needs_bits) {
-    res = new Plist({ &s_bits, sexpr, Integer(loc, w_dst - 1).ACL2Expr(),
-                      Integer::zero_v(loc)->ACL2Expr() });
+    res = new Plist(
+        { &s_bits, sexpr, upper_bound, Integer::zero_v(loc)->ACL2Expr() });
   }
 
   // Two cases where we need si:
@@ -530,7 +575,17 @@ Sexpression *numeric_cast(Sexpression *sexpr, std::optional<const Type *> src,
   }();
 
   if (needs_si) {
-    res = new Plist({ &s_si, res, Integer(loc, w_dst).ACL2Expr() });
+
+    Sexpression *vector_length = nullptr;
+    if (auto i = dynamic_cast<const IntType *>(dst)) {
+      vector_length = i->width()->isStaticallyEvaluable()
+                          ? Integer(loc, w_dst).ACL2Expr()
+                          : i->width()->ACL2Expr();
+    } else {
+      vector_length = Integer(loc, w_dst).ACL2Expr();
+    }
+
+    res = new Plist({ &s_si, res, vector_length });
   }
 
   return res;

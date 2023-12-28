@@ -134,7 +134,7 @@ union YYSTYPE
   Case *c;
   std::vector<Case *> *cl;
 
-  std::vector<const Type *> *vl;
+  std::vector<Type *> *vl;
   Boolean *b;
   MvType *mvtype;
 

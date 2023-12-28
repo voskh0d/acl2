@@ -4,6 +4,7 @@
 #include "process/visitor.h"
 
 #include <iostream>
+#include <set>
 #include <vector>
 
 // Display the AST as a dot graph (https://graphviz.org/). This is mainly use
@@ -22,32 +23,27 @@ public:
   // For each node, we want to track its parents. The node at the end of the
   // parents_ vector is the current node and the one before is the direct
   // parent.
-  bool TraverseExpression(Expression *e) {
-    parents_.push_back(e);
-    bool b = base_t::TraverseExpression(e);
-    parents_.pop_back();
-    return b;
-  }
-
-  bool TraverseStatement(Statement *s) {
-    parents_.push_back(s);
-    bool b = base_t::TraverseStatement(s);
-    parents_.pop_back();
-    return b;
-  }
+  bool TraverseExpression(Expression *e);
+  bool TraverseStatement(Statement *s);
+  bool TraverseType(Type *t);
 
 // Edge declaration: ID -> ID;
-// Since we define Visit* for all classes, most of the edges will be doubled:
-// take for example the node Integer: we will run first VisitInteger, then
-// VisitConstant and finaly, VisitInteger.
 #define APPLY(CLASS, PARENT) bool Visit##CLASS(CLASS *ptr);
 #include "parser/ast/astnodes.def"
+#include "parser/ast/types.def"
 #undef APPLY
 
 private:
   using base_t = RecursiveASTVisitor;
   // We don't need type info, the address is enough.
   std::vector<void *> parents_;
+
+  // Keep track of the already declared edges to avoid multiple edge between
+  // the same nodes.
+  // Since we define Visit* for all classes, most of the edges will be doubled:
+  // take for example the node Integer: we will run first VisitInteger, then
+  // VisitConstant and finaly, VisitInteger.
+  std::set<std::pair<void *, void *> > edges_;
 };
 
 #endif // ASTDUMPER_H

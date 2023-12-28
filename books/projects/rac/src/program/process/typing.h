@@ -54,9 +54,11 @@ private:
 
   // The return type of the current function. We assume there are no nested
   // functions.
-  const Type *type_of_scope = nullptr;
+  Type *type_of_scope = nullptr;
 
-  static inline const Type *deref(const Type *t);
+  bool template_function_ = false;
+
+  static inline Type *deref(Type *t);
 
   bool check_assignement(const Location &where, const Type *left,
                          const Type *right);

@@ -151,7 +151,7 @@ Sexpression *VarDec::ACL2Expr() {
     t = dt->derefType();
   }
 
-  Sexpression *val;
+  Sexpression *val = nullptr;
   if (isa<const ArrayType *>(t)) {
     if (!init) {
       val = new Plist();
@@ -177,7 +177,7 @@ Sexpression *VarDec::ACL2Expr() {
       val = init->ACL2Expr();
     }
   } else {
-    val = t->ACL2Assign(init);
+    val = t->cast(init);
   }
   return new Plist({ &s_declare, sym, val });
 }
@@ -295,10 +295,10 @@ void MulConstDec::displaySimple(std::ostream &os) {
 TempParamDec::TempParamDec(Location loc, const char *n, Type *t)
     : SymDec(idOf(this), loc, n, t) {}
 
-bool TempParamDec::isStaticallyEvaluable() { return true; }
+bool TempParamDec::isStaticallyEvaluable() { return init; }
 
 Sexpression *TempParamDec::ACL2SymExpr() {
-  return init ? type->ACL2Assign(init) : Integer::zero_v(loc_)->ACL2Expr();
+  return init ? type->cast(init) : sym;
 }
 
 // class BreakStmt : public SimpleStatement
@@ -324,7 +324,7 @@ void ReturnStmt::displaySimple(std::ostream &os) {
 }
 
 Sexpression *ReturnStmt::ACL2Expr() {
-  return new Plist({ &s_return, returnType->ACL2Assign(value) });
+  return new Plist({ &s_return, returnType->cast(value) });
 }
 
 // class Assertion : public SimpleStatement
@@ -358,23 +358,6 @@ Assignment::Assignment(Location loc, Expression *l, const char *o,
 
 void Assignment::displaySimple(std::ostream &os) {
 
-  if (!strcmp(op, "set_slc")) {
-
-    const Type *rval_type = rval->get_type();
-    if (!isa<const IntType *>(rval_type)) {
-      // TODO this should be check during typing.
-      assert(!"Second arg of set_slc must have a defined width");
-    }
-    unsigned w = always_cast<const IntType *>(rval_type)->width()->evalConst();
-    Subrange lval_slc(loc_, lval, index, w);
-    lval_slc.display(os);
-
-    os << " = ";
-
-    rval->display(os);
-    return;
-  }
-
   lval->display(os);
 
   if (!strcmp(op, "++") || !strcmp(op, "--")) {
@@ -389,34 +372,14 @@ void Assignment::displaySimple(std::ostream &os) {
 }
 
 Sexpression *Assignment::ACL2Expr() {
-
-  if (!strcmp(op, "set_slc")) {
-
-    const Type *rval_type = rval->get_type();
-    if (!isa<const IntType *>(rval_type)) {
-      // TODO this should be check during typing.
-      assert(!"Second arg of set_slc must have a defined width");
-    }
-
-    unsigned w = always_cast<const IntType *>(rval_type)->width()->evalConst();
-
-    auto lval_slc = new Subrange(loc_, lval, index, w);
-
-    auto width = new Integer(Location::dummy(), w);
-
-    // TODO not sure about the false.
-    auto t = new IntType(Location::dummy(), width, false);
-    lval_slc->set_type(t);
-
-    return lval_slc->ACL2Assign(rval->ACL2Expr());
-  }
-
-  // TODO shady why are we doing assing twice ?
-  const Type *lval_type = lval->get_type();
-  Sexpression *sexpr
-      = lval_type ? lval_type->ACL2Assign(rval) : rval->ACL2Expr();
-
+  Sexpression *sexpr = lval->get_type()->cast(rval);
   return lval->ACL2Assign(sexpr);
+}
+
+void Assignment::resolveOverload() {
+  auto w = always_cast<const IntType *>(rval->get_type())->width();
+  lval = new Subrange(loc_, lval, index, w);
+  op = "=";
 }
 
 void Assignment::desugar() {

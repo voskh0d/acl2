@@ -32,11 +32,13 @@ public:
   void display(std::ostream &os, DispMode mode = DispMode::rac) const;
 
   // Run an action (implemented by v) on the full program in the following
-  // order: constant declarations, template fuctions and functions.
+  // order: types, constant declarations, template fuctions and functions.
   template <typename Visitor>
   bool runAction(Visitor *v) {
-    return std::all_of(constDecs.begin(), constDecs.end(),
-                       [&](auto e) { return v->TraverseStatement(e); })
+    return std::all_of(typeDefs.begin(), typeDefs.end(),
+                       [&](auto e) { return v->TraverseType(e); })
+           && std::all_of(constDecs.begin(), constDecs.end(),
+                          [&](auto e) { return v->TraverseStatement(e); })
            && std::all_of(templates.begin(), templates.end(),
                           [&](auto e) { return v->TraverseStatement(e); })
            && std::all_of(funDefs.begin(), funDefs.end(),

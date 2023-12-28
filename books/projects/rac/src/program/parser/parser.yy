@@ -143,7 +143,7 @@ while (0)
   Case *c;
   std::vector<Case *> *cl;
 
-  std::vector<const Type *> *vl;
+  std::vector<Type *> *vl;
   Boolean *b;
   MvType *mvtype;
 }
@@ -325,31 +325,30 @@ register_type
 }
     | AC_INT '<' arithmetic_expression ',' boolean '>'
 {
-  if ($3->isStaticallyEvaluable () && $3->isInteger () && $3->evalConst () >= 0)
-    {
-      $$ = new IntType (@$, $3, $5->evalConst());
-      delete $5;
-    }
-  else
-    {
-      const char *expected = [&]() {
-        if (!$3->isStaticallyEvaluable ()) {
-          return "constant";
-        } else if (!$3->isInteger ()) {
-          return "an integer";
-        } else {
-          return "positive";
-        }
-      }();
-
-      auto message = format("Illegal parameter of ac_int, expected this to be "
-                            "%s but is not.", expected);
-      yyast.diag()
-          .new_error(@3, message)
-          .context(@$)
-          .report();
-      YYERROR;
-    }
+//  if ($3->isStaticallyEvaluable () && $3->isInteger () && $3->evalConst () >= 0)
+//    {
+      $$ = new IntType (@$, $3, $5);
+//    }
+//  else
+//    {
+//      const char *expected = [&]() {
+//        if (!$3->isStaticallyEvaluable ()) {
+//          return "constant";
+//        } else if (!$3->isInteger ()) {
+//          return "an integer";
+//        } else {
+//          return "positive";
+//        }
+//      }();
+//
+//      auto message = format("Illegal parameter of ac_int, expected this to be "
+//                            "%s but is not.", expected);
+//      yyast.diag()
+//          .new_error(@3, message)
+//          .context(@$)
+//          .report();
+//      YYERROR;
+//    }
 };
 
 array_param_type
@@ -444,7 +443,7 @@ mv_type
 mv_type_rest
     : '>'
 {
-  $$ = new std::vector<const Type *>();
+  $$ = new std::vector<Type *>();
 }
     | ',' type_spec mv_type_rest
 {
@@ -562,8 +561,12 @@ struct_ref
 subrange
     : postfix_expression '.' SLC '<' NAT '>' '(' expression ')'
 {
-  $$ = new Subrange (@$, $1, $8, Integer (@$, $5).evalConst ());
+  $$ = new Subrange (@$, $1, $8, new Integer (@$, $5));
 }
+    | postfix_expression '.' TEMPLATE SLC '<' arithmetic_expression '>' '(' expression ')'
+{
+  $$ = new Subrange (@$, $1, $9, $6);
+};
 
 prefix_expression
     : postfix_expression
@@ -781,7 +784,7 @@ var_dec
     : type_spec untyped_var_dec
 {
   $$ = $2;
-  const Type *t = ((VarDec *)$$)->type;
+  Type *t = ((VarDec *)$$)->type;
   if (t)
     {
       ((ArrayType *)t)->baseType = $1;
@@ -885,7 +888,7 @@ const_dec
     : CONST type_spec untyped_const_dec
 {
   $$ = $3;
-  const Type *t = ((ConstDec *)$$)->type;
+  Type *t = ((ConstDec *)$$)->type;
   if (t)
     {
       ((ArrayType *)t)->baseType = $2;

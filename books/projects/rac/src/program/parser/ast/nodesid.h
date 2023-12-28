@@ -6,12 +6,14 @@
 
 #define APPLY(CLASS, _) class CLASS;
 #include "astnodes.def"
+#include "types.def"
 #undef APPLY
 
 // Enumeration representing each AST node type (used for the visitor dispatch).
 enum class NodesId {
 #define APPLY(CLASS, _) CLASS,
 #include "astnodes.def"
+#include "types.def"
 #undef APPLY
 };
 
@@ -23,6 +25,7 @@ constexpr NodesId idOf(const NodeType *) {
 #define APPLY(CLASS, _)                                                       \
   else if constexpr (std::is_same_v<NodeType, CLASS>) return NodesId::CLASS;
 #include "astnodes.def"
+#include "types.def"
 #undef APPLY
   else
     assert(!"Uknown type");

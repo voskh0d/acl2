@@ -4,6 +4,8 @@
 #include "../../sexpressions.h"
 #include "../utils/diagnostics.h"
 
+#include "nodesid.h"
+
 #include <algorithm>
 #include <iostream>
 #include <optional>
@@ -32,7 +34,7 @@ class Type {
 public:
   using origin_t = std::variant<const DefinedType *, Location>;
 
-  Type(origin_t loc) : origin_(loc) {}
+  Type(origin_t loc, NodesId id) : origin_(loc), id_(id) {}
 
   // Display the type (but not it is not the C++ representation).
   virtual void display(std::ostream &os = std::cout) const = 0;
@@ -50,7 +52,7 @@ public:
 
   // overridden by IntType
   // Convert rval to an S-expression to be assigned to an object of this
-  virtual Sexpression *ACL2Assign(Expression *rval) const;
+  virtual Sexpression *cast(Expression *rval) const;
 
   // TODO refactore.
   // overridden by IntType
@@ -68,6 +70,11 @@ public:
   const origin_t &loc() const { return origin_; }
 
   origin_t origin_;
+
+  NodesId id() const { return id_; }
+
+private:
+  const NodesId id_;
 };
 
 class PrimType final : public Symbol, public Type {
@@ -80,7 +87,7 @@ public:
   };
 
   PrimType(origin_t loc, const char *name, const char *m, Rank r, bool s)
-      : Symbol(name), Type(loc),
+      : Symbol(name), Type(loc, idOf(this)),
         RACname_(m ? std::optional(std::string(m)) : std::nullopt), rank_(r),
         signed_(s) {}
 
@@ -100,7 +107,7 @@ public:
     return PrimType(Location::dummy(), "uint64", "uint64", Rank::Long, false);
   }
 
-  Sexpression *ACL2Assign(Expression *rval) const override;
+  Sexpression *cast(Expression *rval) const override;
 
   void display(std::ostream &os) const override {
     if (RACname_) {
@@ -143,7 +150,7 @@ extern PrimType uint64Type;
 class DefinedType : public Symbol, public Type {
 public:
   DefinedType(origin_t loc, const char *s, Type *t)
-      : Symbol(s), Type(loc), def_(t) {}
+      : Symbol(s), Type(loc, idOf(this)), def_(t) {}
 
   void display(std::ostream &os) const override { Symbol::display(os); }
 
@@ -160,8 +167,8 @@ public:
     derefType()->makeDef(name, os);
   }
 
-  virtual Sexpression *ACL2Assign(Expression *rval) const override {
-    return derefType()->ACL2Assign(rval);
+  virtual Sexpression *cast(Expression *rval) const override {
+    return derefType()->cast(rval);
   }
 
   unsigned ACL2ValWidth() const override {
@@ -201,18 +208,18 @@ private:
 
 class IntType final : public Type {
 public:
-  IntType(origin_t loc, Expression *w, bool s)
-      : Type(loc), width_(w), isSigned_(s) {}
+  IntType(origin_t loc, Expression *w, Expression *s)
+      : Type(loc, idOf(this)), width_(w), isSigned_(s) {}
 
   // Return an ac_int of the same sign and width as t.
   static IntType *FromPrimType(const PrimType *t);
 
   void display(std::ostream &os = std::cout) const override;
-  Sexpression *ACL2Assign(Expression *rval) const override;
+  Sexpression *cast(Expression *rval) const override;
 
   unsigned ACL2ValWidth() const override;
 
-  bool isSigned() const { return isSigned_; }
+  Expression *isSigned() const { return isSigned_; }
   Expression *width() const { return width_; }
 
   bool isEqual(const Type *other) const override;
@@ -220,7 +227,7 @@ public:
 
 private:
   Expression *width_;
-  bool isSigned_;
+  Expression *isSigned_;
 };
 
 class ArrayType : public Type {
@@ -229,8 +236,9 @@ public:
   Expression *dim;
 
   ArrayType(origin_t loc, Expression *d, Type *t)
-      : Type(loc), baseType(t), dim(d) {}
+      : Type(loc, idOf(this)), baseType(t), dim(d) {}
 
+  Type *getBaseType() { return baseType; }
   const Type *getBaseType() const { return baseType; }
 
   void display(std::ostream &os) const override;
@@ -302,6 +310,8 @@ public:
 
   bool isEqual(const Type *) const override;
 
+  const std::vector<EnumConstDec *> &values() { return vals_; }
+
 private:
   std::vector<EnumConstDec *> vals_;
 };
@@ -309,15 +319,15 @@ private:
 namespace priv {
   class CompositeType : public Type {
   public:
-    CompositeType(origin_t loc, std::vector<const Type *> &&t)
-        : Type(loc), types_(t) {}
+    CompositeType(origin_t loc, NodesId id, std::vector<Type *> &&t)
+        : Type(loc, id), types_(t) {}
 
     void display(std::ostream &os) const override;
 
     unsigned size() const { return types_.size(); }
     const Type *get(unsigned n) const { return types_[n]; }
     const Type *get(unsigned n) { return types_[n]; }
-    const std::vector<const Type *> &types() const { return types_; }
+    const std::vector<Type *> &types() const { return types_; }
 
     bool isEqual(const Type *other) const override;
 
@@ -327,26 +337,26 @@ namespace priv {
     }
 
   private:
-    std::vector<const Type *> types_;
+    std::vector<Type *> types_;
   };
 }
 
 class MvType final : public priv::CompositeType {
 public:
-  MvType(origin_t loc, std::vector<const Type *> &&t)
-      : CompositeType(loc, std::move(t)) {}
+  MvType(origin_t loc, std::vector<Type *> &&t)
+      : CompositeType(loc, idOf(this), std::move(t)) {}
 };
 
 class InitializerType final : public priv::CompositeType {
 public:
-  InitializerType(origin_t loc, std::vector<const Type *> &&t)
-      : CompositeType(loc, std::move(t)) {}
+  InitializerType(origin_t loc, std::vector<Type *> &&t)
+      : CompositeType(loc, idOf(this), std::move(t)) {}
 };
 
 // Type used to recover from error during the type pass.
 class ErrorType final : public Type {
 public:
-  ErrorType() : Type(Location::dummy()) {}
+  ErrorType() : Type(Location::dummy(), idOf(this)) {}
 
   void display(std::ostream &os = std::cout) const override {
     os << "error_type";
@@ -364,8 +374,8 @@ public:
     Type::makeDef(name, os);
   }
 
-  Sexpression *ACL2Assign(Expression *rval) const override {
-    return Type::ACL2Assign(rval);
+  Sexpression *cast(Expression *rval) const override {
+    return Type::cast(rval);
   }
 
   unsigned ACL2ValWidth() const override { return Type::ACL2ValWidth(); }
@@ -385,23 +395,7 @@ inline bool isIntegerType(const Type *t) {
 }
 
 // TODO remove this is awful.
-inline bool isSigned(const Type *t) {
-
-  if (auto rt = dynamic_cast<const IntType *>(t)) {
-    return rt->isSigned();
-  }
-
-  if (auto pt = dynamic_cast<const PrimType *>(t)) {
-    return pt->signed_;
-  }
-
-  // An enum is just an int.
-  if (dynamic_cast<const EnumType *>(t)) {
-    return true;
-  }
-
-  return false;
-}
+bool isSigned(const Type *t);
 
 Sexpression *numeric_cast(Sexpression *sexpr, std::optional<const Type *> src,
                           const Type *dst);
