@@ -1,10 +1,12 @@
-#
+# 28/12/23
 
-## Short:
-
+* Template parameter can now be used in ac_int and set_slc.
+* Add tracing to the parser (used for debugging).
+* Fix translation of integer division (now we use trucation instead of floor).
 * Now every nodes are typed and the parser should translated correctly the
   arithmetics operation that can overflow.
 * Improve greatly error messages.
+* Assinging a const variable now raise an error.
 * Check the RAC restrictions, variables must be initialized and two variables
   share the same name with different cases, now it reports an error.
 * Fix a bug in PrefixExpr::evalConst where the ! operator was doing a bool conversion
@@ -16,40 +18,6 @@
 * Initialier list are more genreal.
 * ac_fixed is deprecated.
 * Add RAC_BYPASS_ERROR.
-
-## Details:
-
-In program/parser/utils:
-* diagnostics.h/cpp: New.
-
-In program/parser/:
-* parser.yy/ll: improve diagnostics, add deprecated error when using ac_fixed.
-  report and error when upper/lower case are mixed.
-
-In program/parser/ast:
-* types.h/cpp: Fix some regression in pseucode mode, add
-  PrimType::ACL2Assign, MvType support any number of arguments
-  ac_fixed removed. Add initializer type.
-* expressions.h/cpp: remove subs which has never used,
-  merge bitref and arrayref (to remove the need for type in the parser), move
-  markAssertions to its own pass, Simplify bin operator (x-macros)
-  Fix bug in PrefixExpr evalConst (operator! was doing a bool conversion
-  instead of bool conversion + not).
-* statements.h/cpp: Remove dead code (AssignBit, AssignRange, AssignFull)
-
-In program/process/
-* visitor.h/hxx: new.
-* typing.h/cpp: New, all expressions are now typed.
-* racconstraints.h/cpp: New, add checks specific to RAC programs.
-  Switch fallthrough fixed. Check all restrictions on Switch.
-  Add error message for non initialized variable.
-* forconstraints.h/cpp: New add checks for loops. TODO remove the type
-  restriction on the variable.
-* markassertions.h/cpp: New, extracted from expressions.h/cpp
-
-In tests/
-* testsuite.py: Add preprocess, env, out_generated, ref_generated yaml keys.
-
 
 # 6/07/23
 
