@@ -241,8 +241,7 @@ bool TypingAction::VisitPrefixExpr(PrefixExpr *e) {
                        new BinaryExpr(e->loc(), t->width(),
                                       Integer::one_v(e->loc()), "+"),
                        t->isSigned()),
-          Boolean::true_v(e->loc()) // t->isSigned()
-          ));
+          Boolean::true_v(e->loc())));
       break;
     case PrefixExpr::Op::Not:
       e->set_type(&boolType);
