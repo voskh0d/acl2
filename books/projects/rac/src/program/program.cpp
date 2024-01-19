@@ -13,7 +13,7 @@
 
 #include <algorithm>
 
-std::optional<Program> Program::process(AST &&ast) {
+std::optional<Program> Program::process(AST &&ast, bool all_warnings) {
 
   Program processed_ast(std::move(ast));
 
@@ -26,8 +26,12 @@ std::optional<Program> Program::process(AST &&ast) {
   }
 
   RUNPASS(TypingAction);
-  RUNPASS(RACConstraint);
-  RUNPASS(ForConstraints);
+
+  if (all_warnings) {
+    RUNPASS(RACConstraint);
+    RUNPASS(ForConstraints);
+  }
+
   RUNPASS(MarkAssertionAction);
 
   return { std::move(processed_ast) };

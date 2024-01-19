@@ -17,7 +17,8 @@ class Program : public AST {
 public:
   // Apply all required passes (type check, desugarization, ...) to the
   // program.
-  static std::optional<Program> process(AST &&ast);
+  enum class Warning { All, Minimal };
+  static std::optional<Program> process(AST &&ast, bool all_warnings);
 
   void dumpAsDot();
 

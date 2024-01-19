@@ -16,6 +16,7 @@ public:
     bool trace_parser = false;
     std::optional<std::string> file = {};
     std::optional<DispMode> mode = std::nullopt;
+    bool all_warnings = false;
   };
 
   // Parse argv directly (the name of the program is still at argv[0]). If an
@@ -41,6 +42,8 @@ public:
         res.mode = DispMode::rac;
       } else if (arg == "-acl2") {
         res.mode = DispMode::acl2;
+      } else if (arg == "-Wall") {
+        res.all_warnings = true;
       } else if (arg == "-dump-ast") {
         res.dump_ast = true;
       } else if (arg == "-trace-parser") {
@@ -79,6 +82,7 @@ public:
            "Options:\n"
            "  -rac           convert to RAC pseudocode and write to file.pc\n"
            "  -acl2          write ACL2 translation to file.ast.lsp\n"
+           "  -Wall          enable all possible warnings/errors.\n"
            "  -version       display the version (the commit hash)\n"
            "  -dump-ast      display the intermediate AST in dot format\n"
            "  -trace-parser  enable bison tracing, used to debug the parser\n";

@@ -25,7 +25,7 @@ def run_parser(bin_path, working_dir, input, timeout, env):
 
     preprocess(working_dir, input)
 
-    return sp.run(['../../../' / bin_path, input, '-acl2'], capture_output=True, text=True,
+    return sp.run(['../../../' / bin_path, input, '-acl2', '-Wall'], capture_output=True, text=True,
         timeout=timeout, cwd=working_dir, env=env)
 
 def run_parser_raw(bin_path, working_dir, args, timeout):

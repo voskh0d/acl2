@@ -25,7 +25,8 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  auto processed_ast = Program::process(std::move(*parsed_ast));
+  auto processed_ast
+      = Program::process(std::move(*parsed_ast), args->all_warnings);
   if (!processed_ast) {
     return 1;
   }
