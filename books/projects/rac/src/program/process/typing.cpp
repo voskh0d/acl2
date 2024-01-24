@@ -329,7 +329,7 @@ bool TypingAction::VisitBinaryExpr(BinaryExpr *e) {
 
   if (isa<const IntType *>(t1) || isa<const IntType *>(t2)) {
 
-    // If e1 if not a intType, try to convert int.
+    // If e1 if not a intType, try to convert to t2.
     IntType *t1_promoted = nullptr;
     if (auto int_type = dynamic_cast<const IntType *>(t1)) {
       t1_promoted = new IntType(*int_type);
@@ -379,13 +379,31 @@ bool TypingAction::VisitBinaryExpr(BinaryExpr *e) {
       w_res = w1;
       s_res = s1;
     } else if (BinaryExpr::isOpBitwise(e->op)) {
-      w_res = std::max(w1 + (!s1 && s2), w2 + (!s2 && s1));
+      // w_res = std::max(w1 + (!s1 && s2), w2 + (!s2 && s1));
+      // w1 + (!s1 && s2)
+      Expression *left = new BinaryExpr(
+          e->loc(), w1,
+          new BinaryExpr(e->loc(), new PrefixExpr(e->loc(), s1, "!"), s2,
+                         "&&"),
+          "+");
+
+      // w2 + (!s2 && s1)
+      Expression *right = new BinaryExpr(
+          e->loc(), w2,
+          new BinaryExpr(e->loc(), new PrefixExpr(e->loc(), s2, "!"), s1,
+                         "&&"),
+          "+");
+
+      // max(left, right)
+      w_res = new CondExpr(e->loc(), left, right,
+                           new BinaryExpr(e->loc(), left, right, ">="));
+
       s_res = (e->op == BinaryExpr::Op::Minus)
                   ? static_cast<Expression *>(Boolean::true_v(e->loc()))
                   : new BinaryExpr(e->loc(), s1, s2, "||");
     } else if (e->op == BinaryExpr::Op::Plus
                || e->op == BinaryExpr::Op::Minus) {
-      w_res = std::max(w1 + (!s1 && s2), w2 + (!s2 && s1)) + 1;
+      // w_res = std::max(w1 + (!s1 && s2), w2 + (!s2 && s1)) + 1;
 
       // w1 + (!s1 && s2)
       Expression *left = new BinaryExpr(
@@ -404,6 +422,9 @@ bool TypingAction::VisitBinaryExpr(BinaryExpr *e) {
       // max(left, right)
       w_res = new CondExpr(e->loc(), left, right,
                            new BinaryExpr(e->loc(), left, right, ">="));
+
+      // w_res + 1
+      w_res = new BinaryExpr(e->loc(), w_res, Integer::one_v(e->loc()), "+");
 
       s_res = (e->op == BinaryExpr::Op::Minus)
                   ? static_cast<Expression *>(Boolean::true_v(e->loc()))

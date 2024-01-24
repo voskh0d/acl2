@@ -173,8 +173,25 @@ Sexpression *IntType::cast(Expression *rval) const {
   return numeric_cast(rval->ACL2Expr(), { rval_type }, this);
 }
 
-bool IntType::isEqual(const Type *other) const {
+Sexpression *IntType::eval(Sexpression *sexpr) const {
 
+  //  auto s = isSigned_->evalConst();
+  if (isSigned_->isStaticallyEvaluable()) {
+    if (isSigned_->evalConst()) {
+      auto w = width_->isStaticallyEvaluable()
+                   ? new Integer(Location::dummy(), width_->evalConst())
+                   : width_;
+      return new Plist({ &s_si, sexpr, w->ACL2Expr() });
+    } else {
+      return sexpr;
+    }
+  }
+
+  return new Plist({ &s_if1, isSigned_->ACL2Expr(),
+                     new Plist({ &s_si, sexpr, width_->ACL2Expr() }), sexpr });
+}
+
+bool IntType::isEqual(const Type *other) const {
   if (auto o = dynamic_cast<const DefinedType *>(other)) {
     other = o->derefType();
   }
@@ -220,7 +237,6 @@ void ArrayType::displayVarName(const char *name, std::ostream &os) const {
 }
 
 void ArrayType::makeDef(const char *name, std::ostream &os) const {
-
   os << "\ntypedef ";
   baseType->display(os);
   os << " " << name;
@@ -240,7 +256,6 @@ void ArrayType::makeDef(const char *name, std::ostream &os) const {
 }
 
 bool ArrayType::isEqual(const Type *other) const {
-
   if (auto o = dynamic_cast<const DefinedType *>(other)) {
     other = o->derefType();
   }
@@ -306,7 +321,6 @@ const StructField *StructType::getField(const std::string &name) const {
 }
 
 bool StructType::isEqual(const Type *other) const {
-
   if (auto o = dynamic_cast<const DefinedType *>(other)) {
     other = o->derefType();
   }
@@ -384,7 +398,6 @@ void EnumType::makeDef(const char *name, std::ostream &os) const {
 }
 
 bool EnumType::isEqual(const Type *other) const {
-
   if (auto o = dynamic_cast<const DefinedType *>(other)) {
     other = o->derefType();
   }
@@ -407,7 +420,6 @@ bool EnumType::isEqual(const Type *other) const {
 }
 
 namespace priv {
-
   // class CompositeType : public Type (multiple-value type)
   // -------------------------------------------
 
@@ -450,7 +462,6 @@ namespace priv {
 
 // TODO remove this is awful.
 bool isSigned(const Type *t) {
-
   if (auto rt = dynamic_cast<const IntType *>(t)) {
     return rt->isSigned()->evalConst();
   }
@@ -469,7 +480,6 @@ bool isSigned(const Type *t) {
 
 Sexpression *numeric_cast(Sexpression *sexpr, std::optional<const Type *> src,
                           const Type *dst) {
-
   // If type are exactly the same, no conversion is needed.
   if (src && *src == dst) {
     return sexpr;
@@ -478,37 +488,51 @@ Sexpression *numeric_cast(Sexpression *sexpr, std::optional<const Type *> src,
   // TODO
   auto loc = Location::dummy();
 
-  if (auto pt = dynamic_cast<const PrimType *>(dst)) {
-    if (pt->rank_ == PrimType::Rank::Bool) {
+  if (isa<const PrimType *>(dst)) {
 
-      // If the source is also a bool, return sexpr.
-      if (src) {
-        if (auto ppt = dynamic_cast<const PrimType *>(*src)) {
-          if (ppt->rank_ == PrimType::Rank::Bool) {
-            return sexpr;
-          }
-        }
-      }
+    // We assume that the source will always fit inside a primitive type.
+    // If the source is signed, we evaluate it.
 
-      // Else we add this conversion to ensure that the value is alway 1 or 0.
-      return new Plist(
-          { &s_if1, sexpr, new Plist({ &s_true }), new Plist({ &s_false }) });
+    if (src) {
+      return (*src)->eval(sexpr);
+    } else {
+      return sexpr;
     }
+
+    //    if (pt->rank_ == PrimType::Rank::Bool) {
+    //
+    //      // If the source is also a bool, return sexpr.
+    //      if (src) {
+    //        if (auto ppt = dynamic_cast<const PrimType *>(*src)) {
+    //          if (ppt->rank_ == PrimType::Rank::Bool) {
+    //            return sexpr;
+    //          }
+    //        }
+    //      }
+    //
+    //      // Else we add this conversion to ensure that the value is alway
+    //      1 or
+    //      // 0.
+    //      return new Plist(
+    //          { &s_if1, sexpr, new Plist({ &s_true }), new Plist({ &s_false
+    //          }) });
+    //    }
   }
 
   // TODO
   unsigned w_dst = dst->ACL2ValWidth();
 
-  bool s_dst = isSigned(dst);
-
+  //  bool s_dst = isSigned(dst);
+  //
   // A bits block is needed in two cases:
   //
   //  * when dealing with unbounded value (like when generating the result of
-  //  an arithmetic expression). In that case, src is nullopt.
+  //    an arithmetic expression). In that case, src is nullopt.
   //
-  //  * to perform narrowing conversion (either signed or unsigned).
+  //  * to perform narrowing conversion for register (either signed or
+  //    unsigned).
   //
-  //  * to perform a signed -> unsigned conversion.
+  //  * to perform a signed register -> primitive.
   //
   //                 | w_src > w_dst | w_src = w_dst | w_src < w_dst
   // ================+===============+===============+===============
@@ -523,16 +547,20 @@ Sexpression *numeric_cast(Sexpression *sexpr, std::optional<const Type *> src,
   //
   bool needs_bits = [&]() {
     // If !src: unbounded value
-    // If w_dst: the width is zero then we don't know yet its size (for example
-    // when the expression involve template).
+    // If w_dst: the width is zero then we don't know yet its size (for
+    // example when the expression involve template).
     if (!src || w_dst == 0) {
       return true;
     }
 
     unsigned w_src = (*src)->ACL2ValWidth();
-    bool s_src = isSigned(*src);
+    if (w_src == 0) {
+      return true;
+    }
+
+    //    bool s_src = isSigned(*src);
     // Narrowing or signed to unsigned conversion.
-    return w_src > w_dst || (s_src && !s_dst);
+    return w_src > w_dst; // || (s_src && !s_dst);
   }();
 
   Sexpression *res = sexpr;
@@ -561,32 +589,33 @@ Sexpression *numeric_cast(Sexpression *sexpr, std::optional<const Type *> src,
   // Two cases where we need si:
   //  * we are after a bits
   //  * the source is unsigned
-  bool needs_si = [&]() {
-    if (!s_dst) {
-      return false;
-    }
-    if (needs_bits) {
-      return true;
-    }
-    unsigned w_src = (*src)->ACL2ValWidth();
-    bool s_src = isSigned(*src);
-    // If w_dst > w_src then all the positive value of src can fit inside dst.
-    return !s_src && w_dst == w_src;
-  }();
-
-  if (needs_si) {
-
-    Sexpression *vector_length = nullptr;
-    if (auto i = dynamic_cast<const IntType *>(dst)) {
-      vector_length = i->width()->isStaticallyEvaluable()
-                          ? Integer(loc, w_dst).ACL2Expr()
-                          : i->width()->ACL2Expr();
-    } else {
-      vector_length = Integer(loc, w_dst).ACL2Expr();
-    }
-
-    res = new Plist({ &s_si, res, vector_length });
-  }
+  //  bool needs_si = [&]() {
+  //    if (!s_dst) {
+  //      return false;
+  //    }
+  //    if (needs_bits) {
+  //      return true;
+  //    }
+  //    unsigned w_src = (*src)->ACL2ValWidth();
+  //    bool s_src = isSigned(*src);
+  //    // If w_dst > w_src then all the positive value of src can fit inside
+  //    // dst.
+  //    return !s_src && w_dst == w_src;
+  //  }();
+  //
+  //  if (needs_si) {
+  //
+  //    Sexpression *vector_length = nullptr;
+  //    if (auto i = dynamic_cast<const IntType *>(dst)) {
+  //      vector_length = i->width()->isStaticallyEvaluable()
+  //                          ? Integer(loc, w_dst).ACL2Expr()
+  //                          : i->width()->ACL2Expr();
+  //    } else {
+  //      vector_length = Integer(loc, w_dst).ACL2Expr();
+  //    }
+  //
+  //    res = new Plist({ &s_si, res, vector_length });
+  //  }
 
   return res;
 }

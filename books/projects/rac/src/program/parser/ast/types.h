@@ -66,6 +66,8 @@ public:
   virtual bool isEqual(const Type *other) const = 0;
   virtual bool canBeImplicitlyCastTo(const Type *target) const = 0;
 
+  virtual Sexpression *eval(Sexpression *sexpr) const { return sexpr; }
+
   origin_t &loc() { return origin_; }
   const origin_t &loc() const { return origin_; }
 
@@ -221,6 +223,8 @@ public:
 
   Expression *isSigned() const { return isSigned_; }
   Expression *width() const { return width_; }
+
+  Sexpression *eval(Sexpression *sexpr) const override;
 
   bool isEqual(const Type *other) const override;
   bool canBeImplicitlyCastTo(const Type *target) const override;

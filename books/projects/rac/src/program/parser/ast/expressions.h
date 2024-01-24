@@ -335,6 +335,10 @@ public:
   Sexpression *ACL2Expr() override;
 
   int evalConst() override;
+  bool isStaticallyEvaluable() override {
+    return expr1->isStaticallyEvaluable() && expr2->isStaticallyEvaluable()
+           && test->isStaticallyEvaluable();
+  }
 };
 
 class MultipleValue final : public Expression {
