@@ -39,18 +39,17 @@ def diff(ref, out):
 
     ref = ref.splitlines(keepends=True)
     out = out.splitlines(keepends=True)
-    return ''.join(unified_diff(ref, out, fromfile="ref", tofile="out"))
-
-# This will match the unicode whitespace, maybe we should only match
-# ascii's ones ?
-RE_COMBINE_WHITESPACE = re.compile(r"[ \n]+")
+    return ''.join(unified_diff(ref, out, n=1, fromfile="ref", tofile="out"))
 
 def load(path, allow_empty):
     try:
         with open(path, "r") as f:
             content = f.read()
+            content = '\n(funcdef'.join(content.split("(funcdef"))
+            content = '\n  (block'.join(content.split("(block"))
+            content = '\n    (declare'.join(content.split("(declare")) 
+            content = '\n    (assign'.join(content.split("(assign")) 
             return content
-            return RE_COMBINE_WHITESPACE.sub(" ", content) + '\n'
 
     except OSError as err:
         if allow_empty:
