@@ -2,9 +2,8 @@
 
 * Template parameter can now be used in ac_int and set_slc.
 * Add tracing to the parser (used for debugging).
-* Fix translation of integer division (now we use trucation instead of floor).
-* Now every nodes are typed and the parser should translated correctly the
-  arithmetics operation that can overflow.
+* Fix translation of integer division (now we use truncation instead of floor).
+* Now every nodes are typed.
 * Improve greatly error messages.
 * Assinging a const variable now raise an error.
 * Check the RAC restrictions, variables must be initialized and two variables

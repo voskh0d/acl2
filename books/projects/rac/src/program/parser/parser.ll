@@ -94,8 +94,8 @@ static void lineba();
                             }
 
 
-[0-9]+(("u"|"U")?("l"|"L")?|("l"|"L")?("u"|"U")) |
-"0x"[a-fA-F_0-9]+(("u"|"U")?("l"|"L")?|("l"|"L")?("u"|"U")) {yylval.s = tokstr(); return NAT;}
+[0-9]+(("u"|"U")?("ll"|"LL")?|("ll"|"LL")?("u"|"U")) |
+"0x"[a-fA-F_0-9]+(("u"|"U")?("ll"|"LL")?|("ll"|"LL")?("u"|"U")) {yylval.s = tokstr(); return NAT;}
 
 ">>="            {yylval.s = tokstr(); return RSHFT_ASSIGN;}
 "<<="            {yylval.s = tokstr(); return LSHFT_ASSIGN;}

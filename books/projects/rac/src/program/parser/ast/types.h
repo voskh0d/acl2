@@ -79,7 +79,7 @@ private:
   const NodesId id_;
 };
 
-class PrimType final : public Symbol, public Type {
+class PrimType : public Symbol, public Type {
 
 public:
   enum class Rank {
@@ -92,6 +92,14 @@ public:
       : Symbol(name), Type(loc, idOf(this)),
         RACname_(m ? std::optional(std::string(m)) : std::nullopt), rank_(r),
         signed_(s) {}
+
+  PrimType(origin_t loc, NodesId id, const char *name, const char *m, Rank r,
+           bool s)
+      : Symbol(name), Type(loc, id),
+        RACname_(m ? std::optional(std::string(m)) : std::nullopt), rank_(r),
+        signed_(s) {}
+
+  virtual ~PrimType() {}
 
   static PrimType Bool() {
     return PrimType(Location::dummy(), "bool", nullptr, Rank::Bool, false);
@@ -111,7 +119,7 @@ public:
 
   Sexpression *cast(Expression *rval) const override;
 
-  void display(std::ostream &os) const override {
+  virtual void display(std::ostream &os) const override {
     if (RACname_) {
       os << *RACname_;
     } else {
@@ -126,12 +134,12 @@ public:
     }
   }
 
-  unsigned ACL2ValWidth() const override {
+  virtual unsigned ACL2ValWidth() const override {
     return static_cast<unsigned>(rank_);
   }
 
-  bool isEqual(const Type *other) const override;
-  bool canBeImplicitlyCastTo(const Type *target) const override;
+  virtual bool isEqual(const Type *other) const override;
+  virtual bool canBeImplicitlyCastTo(const Type *target) const override;
 
   // https://en.cppreference.com/w/cpp/language/usual_arithmetic_conversions
   // Return a new type.
@@ -296,7 +304,7 @@ private:
   std::vector<StructField *> fields_;
 };
 
-class EnumType : public Type {
+class EnumType : public PrimType {
 public:
   EnumType(origin_t loc, std::vector<EnumConstDec *> v);
 

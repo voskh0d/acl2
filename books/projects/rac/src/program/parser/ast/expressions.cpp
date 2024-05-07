@@ -20,6 +20,15 @@ int Expression::evalConst() { // virtual (overridden by constant expressions)
   return 0;
 }
 
+Expression *Expression::tryEvalConst() {
+  if (this->isStaticallyEvaluable()) {
+    int res = this->evalConst();
+    return new Integer(this->loc(), res);
+  } else {
+    return this;
+  }
+}
+
 bool Expression::isInteger() { // virtual
   return false;
 }
@@ -404,11 +413,6 @@ Sexpression *ArrayRef::ACL2Assign(Sexpression *rval) {
     Sexpression *s = Integer(loc_, n).ACL2Expr();
     Sexpression *val = new Plist({ &s_setbitn, b, s, i, rval });
 
-    // If the register is signed, recover the signed value.
-    if (t->isSigned()->evalConst()) {
-      val = new Plist({ &s_si, val, Integer(loc_, n).ACL2Expr() });
-    }
-
     return array->ACL2Assign(val);
   }
 }
@@ -496,11 +500,6 @@ Sexpression *Subrange::ACL2Assign(Sexpression *rval) {
   Sexpression *s = t->width()->ACL2Expr();
   Sexpression *val = new Plist({ &s_setbits, b, s, hi, lo, rval });
 
-  // If the register is signed, recover the signed value.
-  if (t->isSigned()->evalConst()) {
-    val = new Plist({ &s_si, val, t->width()->ACL2Expr() });
-  }
-
   return base->ACL2Assign(val);
 }
 
@@ -582,17 +581,14 @@ Sexpression *PrefixExpr::ACL2Expr() {
     return s;
   } else if (op == Op::UnaryMinus) {
     Sexpression *s_val = expr->get_type()->eval(s);
-    Plist *val = new Plist({ &s_minus, s_val });
-    return numeric_cast(val, {}, get_type());
+    return new Plist({ &s_minus, s_val });
 
   } else if (op == Op::Not) {
     return new Plist({ &s_lognot1, s });
   } else if (op == Op::BitNot) {
 
     Plist *val = new Plist({ &s_lognot, expr->ACL2Expr() });
-    // HERE for David
-    // return val // <- uncomment this
-    return numeric_cast(val, {}, get_type()); // and remove this
+    return val;
   } else
     UNREACHABLE();
 }
@@ -722,6 +718,7 @@ void BinaryExpr::display(std::ostream &os) const {
 Sexpression *BinaryExpr::ACL2Expr() {
 
   Symbol *ptr = nullptr;
+
   Sexpression *sexpr1 = expr1->ACL2Expr();
   Sexpression *sexpr2 = expr2->ACL2Expr();
 
@@ -747,7 +744,6 @@ Sexpression *BinaryExpr::ACL2Expr() {
     need_narrowing = !isa<const IntType *>(get_type());
     break;
   case Op::Divide:
-    // TODO
     return new Plist({ &s_truncate,
                        new Plist({ &s_slash, sexpr1_val, sexpr2_val }),
                        Integer::one_v(loc_)->ACL2Expr() });
@@ -837,10 +833,6 @@ Sexpression *BinaryExpr::ACL2Expr() {
 
   // For now, we ingore primitive type overflows.
   need_narrowing &= !isa<const PrimType *>(get_type());
-
-  if (need_narrowing) {
-    val = numeric_cast(val, {}, get_type());
-  }
 
   return val;
 }

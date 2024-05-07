@@ -18,6 +18,7 @@ public:
 
   virtual bool isStaticallyEvaluable();
   virtual int evalConst();
+  Expression *tryEvalConst();
 
   virtual bool isInteger();
 
@@ -100,10 +101,16 @@ public:
     return false;
   }
 
+  // We consider long means 64 bits. When we use slec, long is 32 bits and long
+  // long 64.
   bool has_suffix_long() const {
+    bool more_than_one = false;
     for (char c : suffix_) {
       if (c == 'L' || c == 'l') {
-        return true;
+        if (more_than_one)
+          return true;
+        else
+          more_than_one = true;
       }
     }
     return false;
