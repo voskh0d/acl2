@@ -51,12 +51,12 @@ public:
         res.trace_parser = true;
       } else {
         if (arg.size() >= 1 && arg[0] == '-') {
-          std::cerr << "Unknown option `" << arg << "`\n";
+          std::cout << "Unknown option `" << arg << "`\n";
           help();
           return std::nullopt;
         }
         if (res.file && arg != "") {
-          std::cerr << "Duplicate file name\n";
+          std::cout << "Duplicate file name\n";
           help();
           return std::nullopt;
         }
@@ -65,7 +65,7 @@ public:
     }
 
     if ((res.dump_ast || res.mode) && !res.file) {
-      std::cerr << "Missing file name";
+      std::cout << "Missing file name";
       help();
       return std::nullopt;
     }

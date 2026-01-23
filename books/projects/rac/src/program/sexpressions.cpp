@@ -83,3 +83,4 @@ Symbol s_setbitn("setbitn");
 Symbol s_setbits("setbits");
 Symbol s_si("si");
 Symbol s_switch("switch");
+Symbol s_rac_type_info("rac-type-info");

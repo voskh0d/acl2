@@ -352,6 +352,12 @@ Sexpression *IntType::cast(Expression *rval) const {
   return res;
 }
 
+
+Sexpression *IntType::ACL2Type() const {
+  assert(width_->isStaticallyEvaluable());
+  return new Plist({ new Symbol("bvec"), width_->ACL2Expr()});
+}
+
 bool IntType::isEqual(const Type *other) const {
   if (auto o = dynamic_cast<const DefinedType *>(other)) {
     other = o->derefType();
@@ -424,6 +430,15 @@ void ArrayType::displayVarName(const char *name, std::ostream &os) const {
   os << name << '[';
   dim->display(os);
   os << ']';
+}
+
+Sexpression *ArrayType::ACL2Type() const {
+
+  assert(dim->isStaticallyEvaluable());
+  return new Plist({
+      new Symbol("array"),
+      baseType->ACL2Type(),
+      dim->ACL2Expr()});
 }
 
 void ArrayType::makeDef(const char *name, std::ostream &os) const {

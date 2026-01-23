@@ -147,7 +147,10 @@ Sexpression *VarDec::ACL2Expr() {
   } else {
     val = t->default_initializer_value();
   }
-  return new Plist({&s_declare, sym, val});
+
+  auto val_with_type_info = new Plist({ &s_rac_type_info, val, new Plist({ &s_quote, t->ACL2Type() }) });
+
+  return new Plist({&s_declare, sym, val_with_type_info});
 }
 
 Sexpression *VarDec::ACL2SymExpr() {

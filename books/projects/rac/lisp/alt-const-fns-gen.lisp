@@ -176,7 +176,7 @@
 
  (defun convert-var-in-term (var var-alt term pkg-name)
    ;;; Convert var -> var-alt in term.
-   (cond ((and (true-listp term)
+   (cond (((and (true-listp term)
                (eql (car term) 'quote))
           term)
           ((and (true-listp term)
@@ -412,6 +412,9 @@
        (mvl-body (convert-vars-in-term var-alist mvl-body pkg-name)))
     (mv fn-defs mvl-body)))
 
+
+ (set-ignore-ok t)
+
 (mutual-recursion
  (defun extract-fns-from-bindings (bindings let-body pkg-name)
    ;;; Extract functions from a list of bindings.
@@ -444,7 +447,9 @@
          (extract-fns-from-term let-body pkg-name)))
 
  (defun extract-fns-from-let (term pkg-name)
-   (b* (((list ?let-type bindings let-body) term))
+   (b* (((list ?let-type bindings let-body) term)
+        ((mv a b)(extract-fns-from-bindings bindings let-body pkg-name))
+        )
      (extract-fns-from-bindings bindings let-body pkg-name)))
 
  (defun extract-fns-from-mv-let (term pkg-name)
@@ -605,7 +610,87 @@
       (cons (flatten-fn (car fns)) (flatten-fns (cdr fns)))
     nil))
 
-(defun alt-const-fns-gen (fn-name-alt fn-def)
+
+(mutual-recursion
+
+
+(defun gen-type-expr-struct (name struct-expr)
+  (if (not struct-expr)
+    ()
+    (b* ((field (car struct-expr))
+         (field-name (car field))
+         (field-type (cadr field))
+         (type-thm (gen-type-expr (list 'RTL::ag (list 'quote field-name) name) field-type)))
+        (cons type-thm
+              (gen-type-expr-struct name (cdr struct-expr))))))
+              
+
+(defun gen-type-expr (name type-expr)
+  (b* ((type (car type-expr)))
+      (cond ((equal type 'RTL::bvec)
+             (list 'RTL::bvecp name (cadr type-expr)))
+            ((or (equal type 'RTL::int) (equal type 'RTL::long))
+             (list 'RTL::integerp name))
+            ((equal type 'RTL::bool)
+             (list 'RTL::bitp name))
+            ((equal type 'RTL::array)
+             ;; TODO refine ? if i >= N; then (ag i val) is 0
+             (gen-type-expr (list 'RTL::ag 'i name) (cadr type-expr)))
+            ((equal type 'RTL::struct)
+             (cons 'and (gen-type-expr-struct name (cdr type-expr))))
+            (t (cw "WARNING: unsuported type ~x0 for variable ~x1.~%" type name)))))
+
+)
+
+(defun gen-sym (var suffix)
+  (intern-in-package-of-symbol
+    (string-append (symbol-name var) suffix)
+    `bits))
+
+;; It is possible to have multipler RAC-TYPE-INFO for example:
+;;  (B* ((A (RAC-TYPE-INFO ...))
+;;       (B (RAC-TYPE-INFO ...))
+;;    (MV-NTH 0
+;;            (MV-LIST 2
+;;                     (LANE-LOOP-7 ... A B)))))
+
+;; Returns (type-info ...) of variable "name"
+(defun search-type-info-from-b* (body name)
+  (if (not body)
+    nil
+    (if (and (car body) (caar body)
+             (or (cw "caar body: ~x0 ~%" (caar body))
+                 (equal (caar body) name)))
+      (cadar body)
+      (search-type-info-from-b* (cdr body) name))))
+
+
+(defun extract-type-info (body name)
+  (caddr (if (equal (car body) 'b*)
+           (search-type-info-from-b* (cadr body) name)
+           body)))
+
+(defun gen-type-thm (fn pkg-name)
+  (b* ((name (cadr fn))
+       (body (cadddr fn))
+       (w (cw "name ~x0 body: ~x1 ~%" name body))
+       (type (extract-type-info body name))
+       (thm-name (intern$ (concatenate 'string (symbol-name name) "-TYPE") pkg-name))
+       (thm-body (gen-type-expr (list name) (car (cdr type))))) ;; remove quote
+      (if thm-body
+       (list 'defthm thm-name
+                  thm-body
+                  :hints (list (list "Goal"
+                           :in-theory (list 'enable name 'RTL::ag 'RTL::ag-aux))))
+       ())))
+
+(defun gen-type-thms (fns pkg-name)
+  (if (not fns)
+    ()
+    (cons (gen-type-thm (car fns) pkg-name)
+          (gen-type-thms (cdr fns) pkg-name))))
+
+(defun alt-const-fns-gen (fn-name-alt type-thm-gen fn-def)
   (b* ((fn-name (cadr fn-def))
        (pkg-name (symbol-package-name fn-name))
        ;; (fn-name-alt (intern$ (concatenate 'string (symbol-name fn-name) "-RESULT") pkg-name))
@@ -617,12 +702,15 @@
        (res-fn (make-fn fn-name-alt res-pterm))
        (extracted-fn-names (fn-names-of-fns extracted-fns))
        (theory-list (cons fn-name-alt extracted-fn-names))
+       (extracted-fns-flat (flatten-fns extracted-fns))
+       (type-thms (if type-thm-gen (gen-type-thms extracted-fns-flat pkg-name) nil))
        ;; (theory-name (intern$ (concatenate 'string (symbol-name fn-name) "-ALL-FNS") pkg-name))
        (main-lemma-name (intern$ (concatenate 'string (symbol-name fn-name) "-LEMMA") pkg-name)))
     `(encapsulate ()
-       (set-ignore-ok t)
-       ,@(flatten-fns extracted-fns)
+;       (set-ignore-ok t)
+       ,@extracted-fns-flat
        ,(flatten-fn res-fn)
+       ,@type-thms
        ;; (deftheory ,theory-name
        ;;   ',theory-list)
        (defthmd ,main-lemma-name
@@ -635,4 +723,4 @@
                   :in-theory nil
                   :do-not '(preprocess)
                   :clause-processor
-                  (expand-reduce-cp clause '(nil ,@theory-list ,fn-name) state)))))))
+                  (expand-reduce-cp clause '(t ,@theory-list ,fn-name) state)))))))

@@ -122,5 +122,6 @@ extern Symbol s_setbitn;
 extern Symbol s_setbits;
 extern Symbol s_si;
 extern Symbol s_switch;
+extern Symbol s_rac_type_info;
 
 #endif // SEXPRESSIONS_H

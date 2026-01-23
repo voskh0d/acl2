@@ -61,6 +61,17 @@ public:
   virtual void makeDef([[maybe_unused]] const char *name,
                        std::ostream &os = std::cout) const;
 
+  // Type don't have an expression but we generate a dummy function to give
+  // type information to the Lisp translation.
+  //
+  // (int)
+  // (bool)
+  // (bvecp n)
+  // (array T n)
+  // (struct (N T) ...)
+  //
+  virtual Sexpression *ACL2Type() const = 0;
+
   // overridden by IntType
   // Convert rval to an S-expression to be assigned to an object of this
   virtual bool canBeImplicitlyCastTo(const Type *target) const = 0;
@@ -143,6 +154,16 @@ public:
     }
   }
 
+  Sexpression *ACL2Type() const override {
+    std::string s;
+    switch (rank_) {
+      case Rank::Bool: s = "bool"; break;
+      case Rank::Int: s = "int"; break;
+      case Rank::Long: s = "long"; break;
+    }
+    return new Plist ({ new Symbol(std::move(s)) });
+  }
+
   // Integer promotion: all the type below int are transformed to an int.
   void integerPromtion() {
     if (rank_ < Rank::Int) {
@@ -214,6 +235,10 @@ public:
     derefType()->makeDef(name, os);
   }
 
+  Sexpression *ACL2Type() const override {
+    return def_->ACL2Type();
+  }
+
   virtual Sexpression *cast(Expression *rval) const override {
     return derefType()->cast(rval);
   }
@@ -274,6 +299,8 @@ public:
 
   unsigned ACL2ValWidth() const override;
 
+  Sexpression *ACL2Type() const override;
+
   Expression *isSigned() const { return isSigned_; }
   Expression *width() const { return width_; }
 
@@ -315,6 +342,9 @@ public:
   void displayVarType(std::ostream &os = std::cout) const override;
   void displayVarName(const char *name,
                       std::ostream &os = std::cout) const override;
+
+  Sexpression *ACL2Type() const override;
+
   void makeDef(const char *name, std::ostream &os) const override;
 
   bool isEqual(const Type *other) const override;
@@ -380,6 +410,19 @@ public:
   void display(std::ostream &os) const override;
   void makeDef(const char *name, std::ostream &os = std::cout) const override;
 
+  Sexpression *ACL2Type() const override {
+
+    auto s = new Plist({new Symbol("struct")});
+
+    for (auto f : fields_) {
+
+      auto s_f = new Plist({f->get_sym(), f->get_type()->ACL2Type()});
+      s->add(s_f);
+    }
+
+    return s;
+  }
+
   const std::vector<StructField *> &fields() const { return fields_; }
 
   const StructField *getField(const std::string &name) const;
@@ -409,6 +452,10 @@ public:
   void displayConsts(std::ostream &os) const;
   void display(std::ostream &os) const override;
   void makeDef(const char *name, std::ostream &os = std::cout) const override;
+
+  Sexpression *ACL2Type() const override {
+    return new Symbol("enum");
+  }
 
   Sexpression *ACL2Expr();
 
@@ -473,6 +520,14 @@ public:
     return new MvType(loc(), std::move(tmp));
   }
 
+  Sexpression *ACL2Type() const override {
+    auto s = new Plist({new Symbol("mv-type")});
+    for (unsigned i = 0; i < size(); ++i) {
+      s->add(get(i)->ACL2Type());
+    }
+    return s;
+  }
+
   Sexpression *cast(Expression *rval) const override;
 
   Sexpression *default_initializer_value() const override;
@@ -495,6 +550,14 @@ public:
       }
     }
     return new InitializerType(loc(), std::move(tmp));
+  }
+
+  Sexpression *ACL2Type() const override {
+    auto s = new Plist({new Symbol("type")});
+    for (unsigned i = 0; i < size(); ++i) {
+      s->add(get(i)->ACL2Type());
+    }
+    return s;
   }
 
   Sexpression *default_initializer_value() const override { UNREACHABLE(); }
@@ -522,6 +585,10 @@ public:
   void makeDef([[maybe_unused]] const char *name,
                std::ostream &os = std::cout) const override {
     Type::makeDef(name, os);
+  }
+
+  Sexpression *ACL2Type() const override {
+    return new Symbol("error-type");
   }
 
   Sexpression *cast(Expression *rval) const override {
