@@ -176,7 +176,7 @@
 
  (defun convert-var-in-term (var var-alt term pkg-name)
    ;;; Convert var -> var-alt in term.
-   (cond (((and (true-listp term)
+   (cond ((and (true-listp term)
                (eql (car term) 'quote))
           term)
           ((and (true-listp term)
@@ -610,42 +610,47 @@
       (cons (flatten-fn (car fns)) (flatten-fns (cdr fns)))
     nil))
 
-
-(mutual-recursion
-
-
-(defun gen-type-expr-struct (name struct-expr)
-  (if (not struct-expr)
-    ()
-    (b* ((field (car struct-expr))
-         (field-name (car field))
-         (field-type (cadr field))
-         (type-thm (gen-type-expr (list 'RTL::ag (list 'quote field-name) name) field-type)))
-        (cons type-thm
-              (gen-type-expr-struct name (cdr struct-expr))))))
-              
-
-(defun gen-type-expr (name type-expr)
-  (b* ((type (car type-expr)))
-      (cond ((equal type 'RTL::bvec)
-             (list 'RTL::bvecp name (cadr type-expr)))
-            ((or (equal type 'RTL::int) (equal type 'RTL::long))
-             (list 'RTL::integerp name))
-            ((equal type 'RTL::bool)
-             (list 'RTL::bitp name))
-            ((equal type 'RTL::array)
-             ;; TODO refine ? if i >= N; then (ag i val) is 0
-             (gen-type-expr (list 'RTL::ag 'i name) (cadr type-expr)))
-            ((equal type 'RTL::struct)
-             (cons 'and (gen-type-expr-struct name (cdr type-expr))))
-            (t (cw "WARNING: unsuported type ~x0 for variable ~x1.~%" type name)))))
-
-)
-
 (defun gen-sym (var suffix)
   (intern-in-package-of-symbol
     (string-append (symbol-name var) suffix)
     `bits))
+
+;; TODO rename depth in ID and explain it
+
+(mutual-recursion
+
+
+  (defun gen-type-expr-struct (name struct-expr depth)
+    (if (not struct-expr)
+      ()
+      (b* ((field (car struct-expr))
+           (field-name (car field))
+           (field-type (cadr field))
+           (type-thm (gen-type-expr (list 'RTL::ag (list 'quote field-name) name) field-type depth)))
+          (cons type-thm
+                (gen-type-expr-struct name (cdr struct-expr) (* depth 2))))))
+
+  (defun gen-type-expr (name type-expr depth)
+    (b* ((type (car type-expr))
+         (depth (1+ depth)))
+        (cond ((equal type 'RTL::bvec)
+               (list 'RTL::bvecp name (cadr type-expr)))
+              ((or (equal type 'RTL::int) (equal type 'RTL::long))
+               (list 'RTL::integerp name))
+              ((equal type 'RTL::bool)
+               (list 'RTL::bitp name))
+              ((equal type 'RTL::array)
+               ;; TODO refine ? if i >= N; then (ag i val) is 0
+               ;; TODO when types are nested (for example with an array of
+               ;; array, we need to have distinct indexes.
+               (gen-type-expr (list 'RTL::ag (gen-sym 'i (str::int-to-dec-string depth)) name)
+                              (cadr type-expr)
+                              depth))
+              ((equal type 'RTL::struct)
+               (cons 'and (gen-type-expr-struct name (cdr type-expr) depth)))
+              (t (cw "WARNING: unsuported type ~x0 for variable ~x1.~%" type name)))))
+
+)
 
 ;; It is possible to have multipler RAC-TYPE-INFO for example:
 ;;  (B* ((A (RAC-TYPE-INFO ...))
@@ -670,25 +675,24 @@
            (search-type-info-from-b* (cadr body) name)
            body)))
 
-(defun gen-type-thm (fn pkg-name)
+(defun gen-type-thm (fn pkg-name extracted-fn-names)
   (b* ((name (cadr fn))
        (body (cadddr fn))
        (w (cw "name ~x0 body: ~x1 ~%" name body))
        (type (extract-type-info body name))
        (thm-name (intern$ (concatenate 'string (symbol-name name) "-TYPE") pkg-name))
-       (thm-body (gen-type-expr (list name) (car (cdr type))))) ;; remove quote
+       (thm-body (gen-type-expr (list name) (car (cdr type)) 0))) ;; remove quote
       (if thm-body
-       (list 'defthm thm-name
+       (list 'RTL::defthm-using-fgl thm-name
                   thm-body
-                  :hints (list (list "Goal"
-                           :in-theory (list 'enable name 'RTL::ag 'RTL::ag-aux))))
+                  :expand-fns extracted-fn-names)
        ())))
 
-(defun gen-type-thms (fns pkg-name)
+(defun gen-type-thms (fns pkg-name extracted-fn-names)
   (if (not fns)
     ()
-    (cons (gen-type-thm (car fns) pkg-name)
-          (gen-type-thms (cdr fns) pkg-name))))
+    (cons (gen-type-thm (car fns) pkg-name extracted-fn-names)
+          (gen-type-thms (cdr fns) pkg-name extracted-fn-names))))
 
 (defun alt-const-fns-gen (fn-name-alt type-thm-gen fn-def)
   (b* ((fn-name (cadr fn-def))
@@ -703,7 +707,7 @@
        (extracted-fn-names (fn-names-of-fns extracted-fns))
        (theory-list (cons fn-name-alt extracted-fn-names))
        (extracted-fns-flat (flatten-fns extracted-fns))
-       (type-thms (if type-thm-gen (gen-type-thms extracted-fns-flat pkg-name) nil))
+       (type-thms (if type-thm-gen (gen-type-thms extracted-fns-flat pkg-name extracted-fn-names) nil))
        ;; (theory-name (intern$ (concatenate 'string (symbol-name fn-name) "-ALL-FNS") pkg-name))
        (main-lemma-name (intern$ (concatenate 'string (symbol-name fn-name) "-LEMMA") pkg-name)))
     `(encapsulate ()
