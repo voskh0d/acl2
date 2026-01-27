@@ -1,0 +1,893 @@
+((0 :RULE (:FORMULA NFIX)
+    :PHASE 0
+    :MINOR-FRAMES ((0 :TERM
+                      (IF (IF (INTEGERP X) (NOT (< X '0)) 'NIL)
+                          X
+                        '0)
+                      :SUBTERM '0)))
+ (1 :RULE (:FORMULA NONNEGATIVE-INTEGER-QUOTIENT)
+    :PHASE 0
+    :MINOR-FRAMES
+    ((0 :TERM
+        (IF (IF (= (NFIX J) '0)
+                (= (NFIX J) '0)
+              (< (IFIX I) J))
+            '0
+          (BINARY-+ '1
+                    (NONNEGATIVE-INTEGER-QUOTIENT (BINARY-+ I (UNARY-- J))
+                                                  J)))
+        :SUBTERM J)))
+ (2
+  :RULE (:FORMULA FLOOR)
+  :PHASE 0
+  :MINOR-FRAMES
+  ((0
+    :TERM
+    ((LAMBDA (Q)
+       ((LAMBDA (N Q)
+          ((LAMBDA (D N)
+             (IF (= D '1)
+                 N
+               (IF (NOT (< N '0))
+                   (NONNEGATIVE-INTEGER-QUOTIENT N D)
+                 (BINARY-+ (UNARY-- (NONNEGATIVE-INTEGER-QUOTIENT (UNARY-- N)
+                                                                  D))
+                           '-1))))
+           (DENOMINATOR Q)
+           N))
+        (NUMERATOR Q)
+        Q))
+     (BINARY-* I (UNARY-/ J)))
+    :SUBTERM D)
+   (1
+    :TERM
+    ((LAMBDA (Q)
+       ((LAMBDA (N Q)
+          ((LAMBDA (D N)
+             (IF (= D '1)
+                 N
+               (IF (NOT (< N '0))
+                   (NONNEGATIVE-INTEGER-QUOTIENT N D)
+                 (BINARY-+ (UNARY-- (NONNEGATIVE-INTEGER-QUOTIENT (UNARY-- N)
+                                                                  D))
+                           '-1))))
+           (DENOMINATOR Q)
+           N))
+        (NUMERATOR Q)
+        Q))
+     (BINARY-* I (UNARY-/ J)))
+    :SUBTERM
+    ((LAMBDA (Q)
+       ((LAMBDA (N Q)
+          ((LAMBDA (D N)
+             (IF (= D '1)
+                 N
+               (IF (NOT (< N '0))
+                   (NONNEGATIVE-INTEGER-QUOTIENT N D)
+                 (BINARY-+ (UNARY-- (NONNEGATIVE-INTEGER-QUOTIENT (UNARY-- N)
+                                                                  D))
+                           '-1))))
+           (DENOMINATOR Q)
+           N))
+        (NUMERATOR Q)
+        Q))
+     (BINARY-* I (UNARY-/ J))))))
+ (3 :RULE (:FORMULA MOD)
+    :PHASE 0
+    :MINOR-FRAMES ((0 :TERM (BINARY-+ X (UNARY-- (BINARY-* (FLOOR X Y) Y)))
+                      :SUBTERM Y)))
+ (4
+  :RULE (:FORMULA BITS-FOR-GL)
+  :PHASE 0
+  :MINOR-FRAMES
+  ((0
+    :TERM
+    ((LAMBDA (MSG X J I)
+       (IF (IF (NOT (INTEGERP I))
+               (NOT (INTEGERP I))
+             (NOT (INTEGERP J)))
+           '0
+         (FL (BINARY-* (MOD X (EXPT '2 (BINARY-+ '1 I)))
+                       (UNARY-/ (EXPT '2 J))))))
+     (HIDE
+      (FMT-TO-COMMENT-WINDOW
+       '"WARNING: guard violation for the function BITS during a GL proof:~%(BITS ~x0 ~x1 ~x2)~%"
+       (PAIRLIS2 '(#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+                 (CONS X (CONS I (CONS J 'NIL))))
+       '0
+       'NIL
+       'NIL))
+     X J I)
+    :SUBTERM I)
+   (1
+    :TERM
+    (IF
+     (IF (INTEGERP X)
+         (IF (INTEGERP I) (INTEGERP J) 'NIL)
+       'NIL)
+     (IF (< I J)
+         '0
+       (BINARY-LOGAND (ASH X (UNARY-- J))
+                      (BINARY-+ '-1
+                                (ASH '1
+                                     (BINARY-+ '1
+                                               (BINARY-+ I (UNARY-- J)))))))
+     ((LAMBDA (MSG X J I)
+        (IF (IF (NOT (INTEGERP I))
+                (NOT (INTEGERP I))
+              (NOT (INTEGERP J)))
+            '0
+          (FL (BINARY-* (MOD X (EXPT '2 (BINARY-+ '1 I)))
+                        (UNARY-/ (EXPT '2 J))))))
+      (HIDE
+       (FMT-TO-COMMENT-WINDOW
+        '"WARNING: guard violation for the function BITS during a GL proof:~%(BITS ~x0 ~x1 ~x2)~%"
+        (PAIRLIS2 '(#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+                  (CONS X (CONS I (CONS J 'NIL))))
+        '0
+        'NIL
+        'NIL))
+      X J I))
+    :SUBTERM
+    ((LAMBDA (MSG X J I)
+       (IF (IF (NOT (INTEGERP I))
+               (NOT (INTEGERP I))
+             (NOT (INTEGERP J)))
+           '0
+         (FL (BINARY-* (MOD X (EXPT '2 (BINARY-+ '1 I)))
+                       (UNARY-/ (EXPT '2 J))))))
+     (HIDE
+      (FMT-TO-COMMENT-WINDOW
+       '"WARNING: guard violation for the function BITS during a GL proof:~%(BITS ~x0 ~x1 ~x2)~%"
+       (PAIRLIS2 '(#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+                 (CONS X (CONS I (CONS J 'NIL))))
+       '0
+       'NIL
+       'NIL))
+     X J I))))
+ (5 :RULE (:FORMULA LANE-LOOP-7)
+    :PHASE 0
+    :MINOR-FRAMES ((0 :TERM ((LAMBDA (A B OPB OPA ELEM)
+                               (LANE-LOOP-7 (BINARY-+ ELEM '1)
+                                            OPA OPB A B))
+                             (AS ELEM
+                                 (BITS OPA
+                                       (BINARY-+ (BINARY-* ELEM '16)
+                                                 (BINARY-+ '-1 '16))
+                                       (BINARY-* ELEM '16))
+                                 A)
+                             (AS ELEM
+                                 (BITS OPB
+                                       (BINARY-+ (BINARY-* ELEM '16)
+                                                 (BINARY-+ '-1 '16))
+                                       (BINARY-* ELEM '16))
+                                 B)
+                             OPB OPA ELEM)
+                      :SUBTERM '16)
+                   (1 :TERM
+                      (IF (IF (INTEGERP ELEM) (< ELEM '4) 'NIL)
+                          ((LAMBDA (A B OPB OPA ELEM)
+                             (LANE-LOOP-7 (BINARY-+ ELEM '1)
+                                          OPA OPB A B))
+                           (AS ELEM
+                               (BITS OPA
+                                     (BINARY-+ (BINARY-* ELEM '16)
+                                               (BINARY-+ '-1 '16))
+                                     (BINARY-* ELEM '16))
+                               A)
+                           (AS ELEM
+                               (BITS OPB
+                                     (BINARY-+ (BINARY-* ELEM '16)
+                                               (BINARY-+ '-1 '16))
+                                     (BINARY-* ELEM '16))
+                               B)
+                           OPB OPA ELEM)
+                        (CONS A (CONS B 'NIL)))
+                      :SUBTERM ((LAMBDA (A B OPB OPA ELEM)
+                                  (LANE-LOOP-7 (BINARY-+ ELEM '1)
+                                               OPA OPB A B))
+                                (AS ELEM
+                                    (BITS OPA
+                                          (BINARY-+ (BINARY-* ELEM '16)
+                                                    (BINARY-+ '-1 '16))
+                                          (BINARY-* ELEM '16))
+                                    A)
+                                (AS ELEM
+                                    (BITS OPB
+                                          (BINARY-+ (BINARY-* ELEM '16)
+                                                    (BINARY-+ '-1 '16))
+                                          (BINARY-* ELEM '16))
+                                    B)
+                                OPB OPA ELEM))))
+ (6
+  :RULE (:FORMULA B_ENCS)
+  :PHASE 0
+  :MINOR-FRAMES
+  ((0
+    :TERM
+    ((LAMBDA (MV)
+      ((LAMBDA (A B)
+        ((LAMBDA (B_ENCS A B)
+          ((LAMBDA (PPS_ALIGNED B_ENCS B A)
+             (MV-NTH '0
+                     (MV-LIST '2
+                              (LANE-LOOP-6 (RAC-TYPE-INFO '0 '(INT))
+                                           A (OPA_UNSIGNED)
+                                           B (OPB_UNSIGNED)
+                                           B_ENCS PPS_ALIGNED))))
+           (RAC-TYPE-INFO
+            (AINIT
+             (CONS
+              (CONS '0
+                    (AINIT (CONS (CONS '0 '0)
+                                 (CONS (CONS '8 '0) 'NIL))))
+              (CONS
+                   (CONS '1
+                         (AINIT (CONS (CONS '0 '0)
+                                      (CONS (CONS '8 '0) 'NIL))))
+                   (CONS (CONS '2
+                               (AINIT (CONS (CONS '0 '0)
+                                            (CONS (CONS '8 '0) 'NIL))))
+                         (CONS (CONS '3
+                                     (AINIT (CONS (CONS '0 '0)
+                                                  (CONS (CONS '8 '0) 'NIL))))
+                               'NIL)))))
+            '(ARRAY (ARRAY (BVEC 20) 9) 4))
+           B_ENCS B A))
+         (RAC-TYPE-INFO (AINIT (CONS (CONS '0 'NIL)
+                                     (CONS (CONS '3 'NIL) 'NIL)))
+                        '(ARRAY (ARRAY (INT) 9) 4))
+         A B))
+       (MV-NTH '0 MV)
+       (MV-NTH '1 MV)))
+     (LANE-LOOP-7 (RAC-TYPE-INFO '0 '(INT))
+                  (OPA)
+                  (OPB)
+                  (A)
+                  (B)))
+    :SUBTERM (B))
+   (1
+    :TERM
+    ((LAMBDA (MV)
+      ((LAMBDA (A B)
+        ((LAMBDA (B_ENCS A B)
+          ((LAMBDA (PPS_ALIGNED B_ENCS B A)
+             (MV-NTH '0
+                     (MV-LIST '2
+                              (LANE-LOOP-6 (RAC-TYPE-INFO '0 '(INT))
+                                           A (OPA_UNSIGNED)
+                                           B (OPB_UNSIGNED)
+                                           B_ENCS PPS_ALIGNED))))
+           (RAC-TYPE-INFO
+            (AINIT
+             (CONS
+              (CONS '0
+                    (AINIT (CONS (CONS '0 '0)
+                                 (CONS (CONS '8 '0) 'NIL))))
+              (CONS
+                   (CONS '1
+                         (AINIT (CONS (CONS '0 '0)
+                                      (CONS (CONS '8 '0) 'NIL))))
+                   (CONS (CONS '2
+                               (AINIT (CONS (CONS '0 '0)
+                                            (CONS (CONS '8 '0) 'NIL))))
+                         (CONS (CONS '3
+                                     (AINIT (CONS (CONS '0 '0)
+                                                  (CONS (CONS '8 '0) 'NIL))))
+                               'NIL)))))
+            '(ARRAY (ARRAY (BVEC 20) 9) 4))
+           B_ENCS B A))
+         (RAC-TYPE-INFO (AINIT (CONS (CONS '0 'NIL)
+                                     (CONS (CONS '3 'NIL) 'NIL)))
+                        '(ARRAY (ARRAY (INT) 9) 4))
+         A B))
+       (MV-NTH '0 MV)
+       (MV-NTH '1 MV)))
+     (LANE-LOOP-7 (RAC-TYPE-INFO '0 '(INT))
+                  (OPA)
+                  (OPB)
+                  (A)
+                  (B)))
+    :SUBTERM
+    ((LAMBDA (MV)
+      ((LAMBDA (A B)
+        ((LAMBDA (B_ENCS A B)
+          ((LAMBDA (PPS_ALIGNED B_ENCS B A)
+             (MV-NTH '0
+                     (MV-LIST '2
+                              (LANE-LOOP-6 (RAC-TYPE-INFO '0 '(INT))
+                                           A (OPA_UNSIGNED)
+                                           B (OPB_UNSIGNED)
+                                           B_ENCS PPS_ALIGNED))))
+           (RAC-TYPE-INFO
+            (AINIT
+             (CONS
+              (CONS '0
+                    (AINIT (CONS (CONS '0 '0)
+                                 (CONS (CONS '8 '0) 'NIL))))
+              (CONS
+                   (CONS '1
+                         (AINIT (CONS (CONS '0 '0)
+                                      (CONS (CONS '8 '0) 'NIL))))
+                   (CONS (CONS '2
+                               (AINIT (CONS (CONS '0 '0)
+                                            (CONS (CONS '8 '0) 'NIL))))
+                         (CONS (CONS '3
+                                     (AINIT (CONS (CONS '0 '0)
+                                                  (CONS (CONS '8 '0) 'NIL))))
+                               'NIL)))))
+            '(ARRAY (ARRAY (BVEC 20) 9) 4))
+           B_ENCS B A))
+         (RAC-TYPE-INFO (AINIT (CONS (CONS '0 'NIL)
+                                     (CONS (CONS '3 'NIL) 'NIL)))
+                        '(ARRAY (ARRAY (INT) 9) 4))
+         A B))
+       (MV-NTH '0 MV)
+       (MV-NTH '1 MV)))
+     (LANE-LOOP-7 (RAC-TYPE-INFO '0 '(INT))
+                  (OPA)
+                  (OPB)
+                  (A)
+                  (B))))))
+ (7 :RULE NIL
+    :PHASE NIL
+    :MINOR-FRAMES ((0 :TERM ((LAMBDA (I)
+                               (INTEGERP (AG I (AG I (B_ENCS)))))
+                             I)
+                      :SUBTERM (B_ENCS))
+                   (1 :TERM ((LAMBDA (I)
+                               (INTEGERP (AG I (AG I (B_ENCS)))))
+                             I)
+                      :SUBTERM ((LAMBDA (I)
+                                  (INTEGERP (AG I (AG I (B_ENCS)))))
+                                I)))))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+RTL !>(@ :FGL-INTERP-ERROR-DEBUG-STACK)
+      (@ :FGL-INTERP-ERROR-DEBUG-STACK)
+(((FGL::BINDINGS (X :G-APPLY DENOMINATOR
+                    (:G-APPLY BINARY-* (:G-APPLY OPA)
+                              1/65536)))
+  (RULE :REWRITE (:FORMULA NFIX)
+        NIL EQUAL (NFIX X)
+        (IF (IF (INTEGERP X) (NOT (< X '0)) 'NIL)
+            X
+          '0))
+  (PHASE . 0)
+  (FGL::MINOR-STACK ((FGL::BINDINGS)
+                     (FGL::SCRATCH (:FNSYM . IF))
+                     (FGL::TERM IF (IF (INTEGERP X) (NOT (< X '0)) 'NIL)
+                                X '0)
+                     (FGL::TERM-INDEX . 10))))
+ ((FGL::BINDINGS (J :G-APPLY DENOMINATOR
+                    (:G-APPLY BINARY-* (:G-APPLY OPA)
+                              1/65536))
+                 (I :G-APPLY NUMERATOR
+                    (:G-APPLY BINARY-* (:G-APPLY OPA)
+                              1/65536)))
+  (RULE :REWRITE
+        (:FORMULA NONNEGATIVE-INTEGER-QUOTIENT)
+        NIL
+        EQUAL (NONNEGATIVE-INTEGER-QUOTIENT I J)
+        (IF (IF (= (NFIX J) '0)
+                (= (NFIX J) '0)
+              (< (IFIX I) J))
+            '0
+          (BINARY-+ '1
+                    (NONNEGATIVE-INTEGER-QUOTIENT (BINARY-+ I (UNARY-- J))
+                                                  J))))
+  (PHASE . 0)
+  (FGL::MINOR-STACK
+     ((FGL::BINDINGS)
+      (FGL::SCRATCH (:FGL-OBJLIST (:G-APPLY DENOMINATOR
+                                            (:G-APPLY BINARY-* (:G-APPLY OPA)
+                                                      1/65536)))
+                    (:FGL-OBJLIST (:G-APPLY DENOMINATOR
+                                            (:G-APPLY BINARY-* (:G-APPLY OPA)
+                                                      1/65536)))
+                    (:FNSYM . NFIX)
+                    (:FNSYM . =)
+                    (:FNSYM . IF)
+                    (:FNSYM . IF))
+      (FGL::TERM
+           IF
+           (IF (= (NFIX J) '0)
+               (= (NFIX J) '0)
+             (< (IFIX I) J))
+           '0
+           (BINARY-+ '1
+                     (NONNEGATIVE-INTEGER-QUOTIENT (BINARY-+ I (UNARY-- J))
+                                                   J)))
+      (FGL::TERM-INDEX . 4))))
+ ((FGL::BINDINGS (J . 65536)
+                 (I :G-APPLY OPA))
+  (RULE
+    :REWRITE (:FORMULA FLOOR)
+    NIL EQUAL (FLOOR I J)
+    ((LAMBDA (Q)
+       ((LAMBDA (N Q)
+          ((LAMBDA (D N)
+             (IF (= D '1)
+                 N
+               (IF (NOT (< N '0))
+                   (NONNEGATIVE-INTEGER-QUOTIENT N D)
+                 (BINARY-+ (UNARY-- (NONNEGATIVE-INTEGER-QUOTIENT (UNARY-- N)
+                                                                  D))
+                           '-1))))
+           (DENOMINATOR Q)
+           N))
+        (NUMERATOR Q)
+        Q))
+     (BINARY-* I (UNARY-/ J))))
+  (PHASE . 0)
+  (FGL::MINOR-STACK
+   ((FGL::BINDINGS (D :G-APPLY DENOMINATOR
+                      (:G-APPLY BINARY-* (:G-APPLY OPA)
+                                1/65536))
+                   (N :G-APPLY NUMERATOR
+                      (:G-APPLY BINARY-* (:G-APPLY OPA)
+                                1/65536))
+                   (Q :G-APPLY BINARY-* (:G-APPLY OPA)
+                      1/65536))
+    (FGL::SCRATCH (:FGL-OBJLIST (:G-APPLY NUMERATOR
+                                          (:G-APPLY BINARY-* (:G-APPLY OPA)
+                                                    1/65536))
+                                (:G-APPLY DENOMINATOR
+                                          (:G-APPLY BINARY-* (:G-APPLY OPA)
+                                                    1/65536)))
+                  (:FGL-OBJLIST (:G-APPLY NUMERATOR
+                                          (:G-APPLY BINARY-* (:G-APPLY OPA)
+                                                    1/65536))
+                                (:G-APPLY DENOMINATOR
+                                          (:G-APPLY BINARY-* (:G-APPLY OPA)
+                                                    1/65536)))
+                  (:FNSYM . NONNEGATIVE-INTEGER-QUOTIENT)
+                  (:BFR . 41)
+                  (:FNSYM . IF)
+                  (:FGL-OBJ :G-APPLY NUMERATOR
+                            (:G-APPLY BINARY-* (:G-APPLY OPA)
+                                      1/65536))
+                  (:BFR . 36)
+                  (:FNSYM . IF))
+    (FGL::TERM
+     (LAMBDA (Q)
+       ((LAMBDA (N Q)
+          ((LAMBDA (D N)
+             (IF (= D '1)
+                 N
+               (IF (NOT (< N '0))
+                   (NONNEGATIVE-INTEGER-QUOTIENT N D)
+                 (BINARY-+ (UNARY-- (NONNEGATIVE-INTEGER-QUOTIENT (UNARY-- N)
+                                                                  D))
+                           '-1))))
+           (DENOMINATOR Q)
+           N))
+        (NUMERATOR Q)
+        Q))
+     (BINARY-* I (UNARY-/ J)))
+    (FGL::TERM-INDEX . 21))
+   ((FGL::BINDINGS)
+    (FGL::SCRATCH)
+    (FGL::TERM
+     (LAMBDA (Q)
+       ((LAMBDA (N Q)
+          ((LAMBDA (D N)
+             (IF (= D '1)
+                 N
+               (IF (NOT (< N '0))
+                   (NONNEGATIVE-INTEGER-QUOTIENT N D)
+                 (BINARY-+ (UNARY-- (NONNEGATIVE-INTEGER-QUOTIENT (UNARY-- N)
+                                                                  D))
+                           '-1))))
+           (DENOMINATOR Q)
+           N))
+        (NUMERATOR Q)
+        Q))
+     (BINARY-* I (UNARY-/ J)))
+    (FGL::TERM-INDEX . 0))))
+ ((FGL::BINDINGS (Y . 65536)
+                 (X :G-APPLY OPA))
+  (RULE :REWRITE (:FORMULA MOD)
+        NIL EQUAL (MOD X Y)
+        (BINARY-+ X (UNARY-- (BINARY-* (FLOOR X Y) Y))))
+  (PHASE . 0)
+  (FGL::MINOR-STACK ((FGL::BINDINGS)
+                     (FGL::SCRATCH (:FGL-OBJLIST (:G-APPLY OPA) 65536)
+                                   (:FGL-OBJLIST (:G-APPLY OPA) 65536)
+                                   (:FNSYM . FLOOR)
+                                   (:FNSYM . BINARY-*)
+                                   (:FNSYM . UNARY--)
+                                   (:FGL-OBJ :G-APPLY OPA)
+                                   (:FNSYM . BINARY-+))
+                     (FGL::TERM BINARY-+
+                                X (UNARY-- (BINARY-* (FLOOR X Y) Y)))
+                     (FGL::TERM-INDEX . 6))))
+ ((FGL::BINDINGS (J . 0)
+                 (I . 15)
+                 (X :G-APPLY OPA))
+  (RULE
+   :REWRITE (:FORMULA BITS-FOR-GL)
+   NIL EQUAL (BITS X I J)
+   (IF
+     (IF (INTEGERP X)
+         (IF (INTEGERP I) (INTEGERP J) 'NIL)
+       'NIL)
+     (IF (< I J)
+         '0
+       (BINARY-LOGAND (ASH X (UNARY-- J))
+                      (BINARY-+ '-1
+                                (ASH '1
+                                     (BINARY-+ '1
+                                               (BINARY-+ I (UNARY-- J)))))))
+    ((LAMBDA (MSG X J I)
+       (IF (IF (NOT (INTEGERP I))
+               (NOT (INTEGERP I))
+             (NOT (INTEGERP J)))
+           '0
+         (FL (BINARY-* (MOD X (EXPT '2 (BINARY-+ '1 I)))
+                       (UNARY-/ (EXPT '2 J))))))
+     (HIDE
+      (FMT-TO-COMMENT-WINDOW
+       '"WARNING: guard violation for the function BITS during a GL proof:~%(BITS ~x0 ~x1 ~x2)~%"
+       (PAIRLIS2 '(#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+                 (CONS X (CONS I (CONS J 'NIL))))
+       '0
+       'NIL
+       'NIL))
+     X J I)))
+  (PHASE . 0)
+  (FGL::MINOR-STACK
+   ((FGL::BINDINGS (MSG))
+    (FGL::SCRATCH (:FGL-OBJLIST (:G-APPLY OPA) 65536)
+                  (:FGL-OBJLIST (:G-APPLY OPA) 65536)
+                  (:FNSYM . MOD)
+                  (:FNSYM . BINARY-*)
+                  (:FNSYM . FL)
+                  (:FGL-OBJ)
+                  (:BFR)
+                  (:FNSYM . IF))
+    (FGL::TERM
+     (LAMBDA (MSG X J I)
+       (IF (IF (NOT (INTEGERP I))
+               (NOT (INTEGERP I))
+             (NOT (INTEGERP J)))
+           '0
+         (FL (BINARY-* (MOD X (EXPT '2 (BINARY-+ '1 I)))
+                       (UNARY-/ (EXPT '2 J))))))
+     (HIDE
+      (FMT-TO-COMMENT-WINDOW
+       '"WARNING: guard violation for the function BITS during a GL proof:~%(BITS ~x0 ~x1 ~x2)~%"
+       (PAIRLIS2 '(#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+                 (CONS X (CONS I (CONS J 'NIL))))
+       '0
+       'NIL
+       'NIL))
+     X J I)
+    (FGL::TERM-INDEX . 36))
+   ((FGL::BINDINGS)
+    (FGL::SCRATCH (:FGL-OBJ :G-INTEGER 4 6 8 10
+                            12 14 16 18 20 22 24 26 28 30 32 34 NIL)
+                  (:BFR . 2)
+                  (:FNSYM . IF))
+    (FGL::TERM
+     IF
+     (IF (INTEGERP X)
+         (IF (INTEGERP I) (INTEGERP J) 'NIL)
+       'NIL)
+     (IF (< I J)
+         '0
+       (BINARY-LOGAND (ASH X (UNARY-- J))
+                      (BINARY-+ '-1
+                                (ASH '1
+                                     (BINARY-+ '1
+                                               (BINARY-+ I (UNARY-- J)))))))
+     ((LAMBDA (MSG X J I)
+        (IF (IF (NOT (INTEGERP I))
+                (NOT (INTEGERP I))
+              (NOT (INTEGERP J)))
+            '0
+          (FL (BINARY-* (MOD X (EXPT '2 (BINARY-+ '1 I)))
+                        (UNARY-/ (EXPT '2 J))))))
+      (HIDE
+       (FMT-TO-COMMENT-WINDOW
+        '"WARNING: guard violation for the function BITS during a GL proof:~%(BITS ~x0 ~x1 ~x2)~%"
+        (PAIRLIS2 '(#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+                  (CONS X (CONS I (CONS J 'NIL))))
+        '0
+        'NIL
+        'NIL))
+      X J I))
+    (FGL::TERM-INDEX . 31))))
+ ((FGL::BINDINGS (B)
+                 (A)
+                 (OPB :G-APPLY OPB)
+                 (OPA :G-APPLY OPA)
+                 (ELEM . 0))
+  (RULE :REWRITE (:FORMULA LANE-LOOP-7)
+        NIL EQUAL (LANE-LOOP-7 ELEM OPA OPB A B)
+        (IF (IF (INTEGERP ELEM) (< ELEM '4) 'NIL)
+            ((LAMBDA (A B OPB OPA ELEM)
+               (LANE-LOOP-7 (BINARY-+ ELEM '1)
+                            OPA OPB A B))
+             (AS ELEM
+                 (BITS OPA
+                       (BINARY-+ (BINARY-* ELEM '16)
+                                 (BINARY-+ '-1 '16))
+                       (BINARY-* ELEM '16))
+                 A)
+             (AS ELEM
+                 (BITS OPB
+                       (BINARY-+ (BINARY-* ELEM '16)
+                                 (BINARY-+ '-1 '16))
+                       (BINARY-* ELEM '16))
+                 B)
+             OPB OPA ELEM)
+          (CONS A (CONS B 'NIL))))
+  (PHASE . 0)
+  (FGL::MINOR-STACK ((FGL::BINDINGS)
+                     (FGL::SCRATCH (:FGL-OBJLIST (:G-APPLY OPA) 15 0)
+                                   (:FGL-OBJLIST (:G-APPLY OPA) 15 0)
+                                   (:FNSYM . BITS)
+                                   (:FGL-OBJ . 0)
+                                   (:FNSYM . AS)
+                                   (:FORMALS A B))
+                     (FGL::TERM (LAMBDA (A B OPB OPA ELEM)
+                                  (LANE-LOOP-7 (BINARY-+ ELEM '1)
+                                               OPA OPB A B))
+                                (AS ELEM
+                                    (BITS OPA
+                                          (BINARY-+ (BINARY-* ELEM '16)
+                                                    (BINARY-+ '-1 '16))
+                                          (BINARY-* ELEM '16))
+                                    A)
+                                (AS ELEM
+                                    (BITS OPB
+                                          (BINARY-+ (BINARY-* ELEM '16)
+                                                    (BINARY-+ '-1 '16))
+                                          (BINARY-* ELEM '16))
+                                    B)
+                                OPB OPA ELEM)
+                     (FGL::TERM-INDEX . 14))
+                    ((FGL::BINDINGS)
+                     (FGL::SCRATCH (:BFR . T) (:FNSYM . IF))
+                     (FGL::TERM IF (IF (INTEGERP ELEM) (< ELEM '4) 'NIL)
+                                ((LAMBDA (A B OPB OPA ELEM)
+                                   (LANE-LOOP-7 (BINARY-+ ELEM '1)
+                                                OPA OPB A B))
+                                 (AS ELEM
+                                     (BITS OPA
+                                           (BINARY-+ (BINARY-* ELEM '16)
+                                                     (BINARY-+ '-1 '16))
+                                           (BINARY-* ELEM '16))
+                                     A)
+                                 (AS ELEM
+                                     (BITS OPB
+                                           (BINARY-+ (BINARY-* ELEM '16)
+                                                     (BINARY-+ '-1 '16))
+                                           (BINARY-* ELEM '16))
+                                     B)
+                                 OPB OPA ELEM)
+                                (CONS A (CONS B 'NIL)))
+                     (FGL::TERM-INDEX . 8))))
+ ((FGL::BINDINGS)
+  (RULE
+   :REWRITE (:FORMULA B_ENCS)
+   NIL EQUAL (B_ENCS)
+   ((LAMBDA (MV)
+     ((LAMBDA (A B)
+       ((LAMBDA (B_ENCS A B)
+         ((LAMBDA (PPS_ALIGNED B_ENCS B A)
+            (MV-NTH '0
+                    (MV-LIST '2
+                             (LANE-LOOP-6 (RAC-TYPE-INFO '0 '(INT))
+                                          A (OPA_UNSIGNED)
+                                          B (OPB_UNSIGNED)
+                                          B_ENCS PPS_ALIGNED))))
+          (RAC-TYPE-INFO
+           (AINIT
+            (CONS
+             (CONS '0
+                   (AINIT (CONS (CONS '0 '0)
+                                (CONS (CONS '8 '0) 'NIL))))
+             (CONS (CONS '1
+                         (AINIT (CONS (CONS '0 '0)
+                                      (CONS (CONS '8 '0) 'NIL))))
+                   (CONS (CONS '2
+                               (AINIT (CONS (CONS '0 '0)
+                                            (CONS (CONS '8 '0) 'NIL))))
+                         (CONS (CONS '3
+                                     (AINIT (CONS (CONS '0 '0)
+                                                  (CONS (CONS '8 '0) 'NIL))))
+                               'NIL)))))
+           '(ARRAY (ARRAY (BVEC 20) 9) 4))
+          B_ENCS B A))
+        (RAC-TYPE-INFO (AINIT (CONS (CONS '0 'NIL)
+                                    (CONS (CONS '3 'NIL) 'NIL)))
+                       '(ARRAY (ARRAY (INT) 9) 4))
+        A B))
+      (MV-NTH '0 MV)
+      (MV-NTH '1 MV)))
+    (LANE-LOOP-7 (RAC-TYPE-INFO '0 '(INT))
+                 (OPA)
+                 (OPB)
+                 (A)
+                 (B))))
+  (PHASE . 0)
+  (FGL::MINOR-STACK
+   ((FGL::BINDINGS)
+    (FGL::SCRATCH (:FGL-OBJLIST 0 (:G-APPLY OPA)
+                                (:G-APPLY OPB)
+                                NIL NIL)
+                  (:FGL-OBJLIST 0 (:G-APPLY OPA)
+                                (:G-APPLY OPB)
+                                NIL NIL)
+                  (:FNSYM . LANE-LOOP-7)
+                  (:FORMALS MV))
+    (FGL::TERM
+     (LAMBDA (MV)
+      ((LAMBDA (A B)
+        ((LAMBDA (B_ENCS A B)
+          ((LAMBDA (PPS_ALIGNED B_ENCS B A)
+             (MV-NTH '0
+                     (MV-LIST '2
+                              (LANE-LOOP-6 (RAC-TYPE-INFO '0 '(INT))
+                                           A (OPA_UNSIGNED)
+                                           B (OPB_UNSIGNED)
+                                           B_ENCS PPS_ALIGNED))))
+           (RAC-TYPE-INFO
+            (AINIT
+             (CONS
+              (CONS '0
+                    (AINIT (CONS (CONS '0 '0)
+                                 (CONS (CONS '8 '0) 'NIL))))
+              (CONS
+                   (CONS '1
+                         (AINIT (CONS (CONS '0 '0)
+                                      (CONS (CONS '8 '0) 'NIL))))
+                   (CONS (CONS '2
+                               (AINIT (CONS (CONS '0 '0)
+                                            (CONS (CONS '8 '0) 'NIL))))
+                         (CONS (CONS '3
+                                     (AINIT (CONS (CONS '0 '0)
+                                                  (CONS (CONS '8 '0) 'NIL))))
+                               'NIL)))))
+            '(ARRAY (ARRAY (BVEC 20) 9) 4))
+           B_ENCS B A))
+         (RAC-TYPE-INFO (AINIT (CONS (CONS '0 'NIL)
+                                     (CONS (CONS '3 'NIL) 'NIL)))
+                        '(ARRAY (ARRAY (INT) 9) 4))
+         A B))
+       (MV-NTH '0 MV)
+       (MV-NTH '1 MV)))
+     (LANE-LOOP-7 (RAC-TYPE-INFO '0 '(INT))
+                  (OPA)
+                  (OPB)
+                  (A)
+                  (B)))
+    (FGL::TERM-INDEX . 8))
+   ((FGL::BINDINGS)
+    (FGL::SCRATCH)
+    (FGL::TERM
+     (LAMBDA (MV)
+      ((LAMBDA (A B)
+        ((LAMBDA (B_ENCS A B)
+          ((LAMBDA (PPS_ALIGNED B_ENCS B A)
+             (MV-NTH '0
+                     (MV-LIST '2
+                              (LANE-LOOP-6 (RAC-TYPE-INFO '0 '(INT))
+                                           A (OPA_UNSIGNED)
+                                           B (OPB_UNSIGNED)
+                                           B_ENCS PPS_ALIGNED))))
+           (RAC-TYPE-INFO
+            (AINIT
+             (CONS
+              (CONS '0
+                    (AINIT (CONS (CONS '0 '0)
+                                 (CONS (CONS '8 '0) 'NIL))))
+              (CONS
+                   (CONS '1
+                         (AINIT (CONS (CONS '0 '0)
+                                      (CONS (CONS '8 '0) 'NIL))))
+                   (CONS (CONS '2
+                               (AINIT (CONS (CONS '0 '0)
+                                            (CONS (CONS '8 '0) 'NIL))))
+                         (CONS (CONS '3
+                                     (AINIT (CONS (CONS '0 '0)
+                                                  (CONS (CONS '8 '0) 'NIL))))
+                               'NIL)))))
+            '(ARRAY (ARRAY (BVEC 20) 9) 4))
+           B_ENCS B A))
+         (RAC-TYPE-INFO (AINIT (CONS (CONS '0 'NIL)
+                                     (CONS (CONS '3 'NIL) 'NIL)))
+                        '(ARRAY (ARRAY (INT) 9) 4))
+         A B))
+       (MV-NTH '0 MV)
+       (MV-NTH '1 MV)))
+     (LANE-LOOP-7 (RAC-TYPE-INFO '0 '(INT))
+                  (OPA)
+                  (OPB)
+                  (A)
+                  (B)))
+    (FGL::TERM-INDEX . 0))))
+ ((FGL::BINDINGS (I :G-VAR . I))
+  (RULE)
+  (PHASE)
+  (FGL::MINOR-STACK ((FGL::BINDINGS)
+                     (FGL::SCRATCH (:FGL-OBJLIST)
+                                   (:FGL-OBJLIST)
+                                   (:FNSYM . B_ENCS)
+                                   (:FGL-OBJ :G-VAR . I)
+                                   (:FNSYM . AG)
+                                   (:FGL-OBJ :G-VAR . I)
+                                   (:FNSYM . AG)
+                                   (:FNSYM . INTEGERP))
+                     (FGL::TERM (LAMBDA (I)
+                                  (INTEGERP (AG I (AG I (B_ENCS)))))
+                                I)
+                     (FGL::TERM-INDEX . 6))
+                    ((FGL::BINDINGS)
+                     (FGL::SCRATCH)
+                     (FGL::TERM (LAMBDA (I)
+                                  (INTEGERP (AG I (AG I (B_ENCS)))))
+                                I)
+                     (FGL::TERM-INDEX . 0)))))

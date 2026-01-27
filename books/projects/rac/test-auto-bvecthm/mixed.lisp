@@ -1,0 +1,16 @@
+(IN-PACKAGE "RTL")
+
+(INCLUDE-BOOK "rtl/rel11/lib/rac" :DIR :SYSTEM)
+
+(SET-IGNORE-OK T)
+
+(SET-IRRELEVANT-FORMALS-OK T)
+
+(defun RAC-TYPE-INFO (x type) x)
+
+(DEFUND FOO NIL
+  (LET ((X (RAC-TYPE-INFO (BITS 43 3 0) '(BVEC 4)))
+        (Y (RAC-TYPE-INFO 3 '(BVEC 4)))
+        (Z (RAC-TYPE-INFO 2 '(BVEC 4))))
+    (RAC-TYPE-INFO Z 'INT)))
+
