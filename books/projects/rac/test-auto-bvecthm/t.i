@@ -532,8 +532,7 @@
 # 1 "t.cpp"
 
 
-
-# 3 "t.cpp"
+# 2 "t.cpp"
 // RAC begin
 
 
@@ -555,7 +554,9 @@ int foo() {
 
   array<my_sintr, 2> array_of_struct = {{ {1, true}, {2, false} }};
 
-  array<array<int, 6>, 2> arr_of_arr;
+  array<array<int, 3>, 2> arr_of_arr = {{ {{}}, {{}} }};
+//  arr_of_arr[0][0] = 3;
+//  arr_of_arr[1][0] = 3;
 
   // TODO structs
   // TODO static arrays

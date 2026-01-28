@@ -38,7 +38,14 @@
                           '(ARRAY (STRUCT (A (INT)) (B (BOOL)))
                                   2)))
   (DECLARE ARR_OF_ARR
-           (RAC-TYPE-INFO (AINIT (LIST (CONS 0 NIL) (CONS 1 NIL)))
-                          '(ARRAY (ARRAY (INT) 6) 2)))
+           (RAC-TYPE-INFO (AINIT (LIST (CONS 0
+                                             (AINIT (LIST (CONS 0 0)
+                                                          (CONS 1 0)
+                                                          (CONS 2 0))))
+                                       (CONS 1
+                                             (AINIT (LIST (CONS 0 0)
+                                                          (CONS 1 0)
+                                                          (CONS 2 0))))))
+                          '(ARRAY (ARRAY (INT) 3) 2)))
   (RETURN 1)))
 

@@ -496,7 +496,7 @@ Sexpression *ArrayType::default_initializer_value() const {
     return &s_nil;
   }
   Plist *result = new Plist({});
-  
+
   //TODO do not support template
   assert(dim->isStaticallyEvaluable());
   

@@ -6,12 +6,15 @@
 (include-book "centaur/fgl/def-fgl-rewrite" :dir :system)
 (include-book "kestrel/utilities/keyword-value-lists" :dir :system)
 
+
 (fgl::add-fgl-rewrite bits-for-gl)
 (fgl::add-fgl-rewrite bitn-for-gl)
 (fgl::add-fgl-rewrite binary-cat-for-gl)
 (fgl::add-fgl-rewrite expo-for-gl)
 (fgl::add-fgl-rewrite ag-of-as)
 (fgl::add-fgl-rewrite ag-of-nil)
+
+
 
 ;; It's beneficial to make `ag` and `as` uninterpreted.
 
@@ -2388,24 +2391,25 @@
                  state)
   :verify-guards nil
   (if (and (symbol-listp expand-fns)
-           (or (cw "clause ~x0 ~%" cl)
+           (or 
+             ;(cw "clause ~x0 ~%" cl)
                (= (len cl) 1)
 ;               (= (len cl) 3)
                )
            (acl2::fmt-state-p state)
            (open-output-channel-p *standard-co* :character state))
       (b* ((term (car cl))
-           (- (cw "term ~x0 ~%" term))
+;           (- (cw "term ~x0 ~%" term))
            ((mv okp g-term f) (gify-term term expand-fns (all-vars term) state))
            (free-vars (all-vars g-term))
            ((unless (and okp
                          (not (member-eq nil free-vars))))
             (mv t nil state))
            (f (pairlis$ (strip-cdrs f) (strip-cars f)))
-           (- (cw "f: ~x0 ~%" f))
+;           (- (cw "f: ~x0 ~%" f))
            (g-bindings (gify-mapping free-vars f state))
            (res `((lambda ,(strip-cars g-bindings) ,g-term) ,@(strip-cdrs g-bindings)))
-           (- (cw "FGL term: ~x0~%" res))
+;           (- (cw "FGL term: ~x0~%" res))
            ;; (state (fms "FGL term: ~x0~%" (list (cons #\0 res)) *standard-co* state
                        ;; (evisc-tuple 3 4 nil nil)))
            )

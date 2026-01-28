@@ -617,6 +617,13 @@
 
 ;; TODO rename depth in ID and explain it
 
+(defun range (i)
+  (if (zp i)
+    ()
+    (cons (1- i) (range (1- i)))
+    ))
+
+
 (mutual-recursion
 
 
@@ -643,13 +650,16 @@
                ;; TODO refine ? if i >= N; then (ag i val) is 0
                ;; TODO when types are nested (for example with an array of
                ;; array, we need to have distinct indexes.
-               (gen-type-expr (list 'RTL::ag (gen-sym 'i (str::int-to-dec-string depth)) name)
-                              (cadr type-expr)
-                              depth))
+               (b* ((idx (gen-sym 'i (str::int-to-dec-string depth)))
+                    (len (caddr type-expr))
+                    (hyp (list 'member idx `(quote ,(range len))))
+                    (concl (gen-type-expr (list 'RTL::ag idx name)
+                                          (cadr type-expr)
+                                          depth)))
+                   (list 'implies hyp concl)))
               ((equal type 'RTL::struct)
                (cons 'and (gen-type-expr-struct name (cdr type-expr) depth)))
               (t (cw "WARNING: unsuported type ~x0 for variable ~x1.~%" type name)))))
-
 )
 
 ;; It is possible to have multipler RAC-TYPE-INFO for example:
@@ -664,8 +674,9 @@
   (if (not body)
     nil
     (if (and (car body) (caar body)
-             (or (cw "caar body: ~x0 ~%" (caar body))
-                 (equal (caar body) name)))
+;             (or (cw "caar body: ~x0 ~%" (caar body))
+                 (equal (caar body) name))
+;             )
       (cadar body)
       (search-type-info-from-b* (cdr body) name))))
 
@@ -678,10 +689,10 @@
 (defun gen-type-thm (fn pkg-name extracted-fn-names)
   (b* ((name (cadr fn))
        (body (cadddr fn))
-       (w (cw "name ~x0 body: ~x1 ~%" name body))
+;       (w (cw "name ~x0 body: ~x1 ~%" name body))
        (type (extract-type-info body name))
        (thm-name (intern$ (concatenate 'string (symbol-name name) "-TYPE") pkg-name))
-       (thm-body (gen-type-expr (list name) (car (cdr type)) 0))) ;; remove quote
+       (thm-body (gen-type-expr (list name) (car (cdr type)) 0)))
       (if thm-body
        (list 'RTL::defthm-using-fgl thm-name
                   thm-body

@@ -6,7 +6,7 @@
 
 (SET-IRRELEVANT-FORMALS-OK T)
 
-(defun RAC-TYPE-INFO (x type) x)
+(DEFUND RAC-TYPE-INFO (x type) x)
 
 (DEFUND FOO NIL
   (LET
@@ -42,7 +42,14 @@
                                        (CONS 1 (AS 'B (FALSE$) (AS 'A 2 NIL)))))
                           '(ARRAY (STRUCT (A (INT)) (B (BOOL)))
                                   2)))
-      (ARR_OF_ARR (RAC-TYPE-INFO (AINIT (LIST (CONS 0 NIL) (CONS 1 NIL)))
-                                 '(ARRAY (ARRAY (INT) 6) 2))))
+      (ARR_OF_ARR (RAC-TYPE-INFO (AINIT (LIST (CONS 0
+                                                    (AINIT (LIST (CONS 0 0)
+                                                                 (CONS 1 0)
+                                                                 (CONS 2 0))))
+                                              (CONS 1
+                                                    (AINIT (LIST (CONS 0 0)
+                                                                 (CONS 1 0)
+                                                                 (CONS 2 0))))))
+                                 '(ARRAY (ARRAY (INT) 3) 2))))
     1))
 
