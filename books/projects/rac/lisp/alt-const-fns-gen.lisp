@@ -659,7 +659,7 @@
                    (list 'implies hyp concl)))
               ((equal type 'RTL::struct)
                (cons 'and (gen-type-expr-struct name (cdr type-expr) depth)))
-              (t (cw "WARNING: unsuported type ~x0 for variable ~x1.~%" type name)))))
+              (t nil))))
 )
 
 ;; It is possible to have multipler RAC-TYPE-INFO for example:
@@ -696,14 +696,17 @@
       (if thm-body
        (list 'RTL::defthm-using-fgl thm-name
                   thm-body
-                  :expand-fns extracted-fn-names)
-       ())))
+                  :expand-fns (cons 'RTL::ainit extracted-fn-names))
+       (cw "WARNING: could not generate type theorem for ~x0.~%" name))))
 
 (defun gen-type-thms (fns pkg-name extracted-fn-names)
   (if (not fns)
     ()
-    (cons (gen-type-thm (car fns) pkg-name extracted-fn-names)
-          (gen-type-thms (cdr fns) pkg-name extracted-fn-names))))
+    (let* ((maybe-thm (gen-type-thm (car fns) pkg-name extracted-fn-names))
+           (rest (gen-type-thms (cdr fns) pkg-name extracted-fn-names)))
+      (if maybe-thm
+        (cons maybe-thm rest)
+        rest))))
 
 (defun alt-const-fns-gen (fn-name-alt type-thm-gen fn-def)
   (b* ((fn-name (cadr fn-def))

@@ -6,6 +6,8 @@
 
 (SET-IRRELEVANT-FORMALS-OK T)
 
+(defun RAC-TYPE-INFO (x type) x)
+
 (DEFUND ENCODE8 (SRC I SMUL)
   (LET ((RES (RAC-TYPE-INFO 0 '(INT))))
     (CASE I

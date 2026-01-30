@@ -5,22 +5,6 @@
 (include-book "projects/arm/utils/rtl-utils" :dir :system)
 (include-book "centaur/fgl/def-fgl-rewrite" :dir :system)
 (include-book "kestrel/utilities/keyword-value-lists" :dir :system)
-
-
-(fgl::add-fgl-rewrite bits-for-gl)
-(fgl::add-fgl-rewrite bitn-for-gl)
-(fgl::add-fgl-rewrite binary-cat-for-gl)
-(fgl::add-fgl-rewrite expo-for-gl)
-(fgl::add-fgl-rewrite ag-of-as)
-(fgl::add-fgl-rewrite ag-of-nil)
-
-
-
-;; It's beneficial to make `ag` and `as` uninterpreted.
-
-(fgl::remove-fgl-rewrite as)
-(fgl::remove-fgl-rewrite ag)
-
 ;; Now we define a tool that uses FGL to prove lemmas about (0-ary) constrained
 ;; function which are established to be bounded non-negative integers using
 ;; bvecthm+ form. The idea is to generate an generalized instance that replaces
@@ -2409,7 +2393,7 @@
 ;           (- (cw "f: ~x0 ~%" f))
            (g-bindings (gify-mapping free-vars f state))
            (res `((lambda ,(strip-cars g-bindings) ,g-term) ,@(strip-cdrs g-bindings)))
-;           (- (cw "FGL term: ~x0~%" res))
+           (- (cw "FGL term: ~x0~%" res))
            ;; (state (fms "FGL term: ~x0~%" (list (cons #\0 res)) *standard-co* state
                        ;; (evisc-tuple 3 4 nil nil)))
            )
@@ -2656,4 +2640,61 @@
            (fgl::abort-rewrite (expt 2 i))))
   :hints (("Goal" :in-theory (e/d () ()))))
 
-(fgl::enable-split-ifs ag)
+(local (include-book "rtl/rel11/support/definitions" :dir :system))
+
+(fgl::def-fgl-rewrite bits-for-fgl
+  (equal (bits x i j)
+         (if (fgl::fgl-validity-check
+               (fgl::make-fgl-satlink-monolithic-sat-config)
+               (and (integerp x) (integerp i) (integerp j) (>= i j)))
+           (logand (ash x (- j))
+                   (1- (ash 1 (1+ (- i j)))))
+           (fgl::abort-rewrite (bits x i j))))
+  :hints (("Goal"
+           :use bits-for-gl)))
+
+(fgl::def-fgl-rewrite bitn-for-fgl
+  (equal (bitn x n)
+         (if (fgl::fgl-validity-check
+               (fgl::make-fgl-satlink-monolithic-sat-config)
+               (and (integerp x) (integerp n) (>= n 0)))
+           (if (logbitp n x) 1 0)
+           (fgl::abort-rewrite (bitn x n))))
+  :hints (("Goal"
+           :use bitn-for-gl)))
+
+(fgl::def-fgl-rewrite expo-for-fgl
+  (equal (expo x)
+         (if (fgl::fgl-validity-check
+               (fgl::make-fgl-satlink-monolithic-sat-config)
+               (and (integerp x) (not (= x 0))))
+           (1- (integer-length (abs x)))
+           (fgl::abort-rewrite (expo x))))
+  :hints (("Goal"
+           :use expo-for-gl)))
+
+(fgl::def-fgl-rewrite ag-of-as-fgl
+  (equal (ag a (as wa v r))
+         (if (fgl::fgl-validity-check
+               (fgl::make-fgl-satlink-monolithic-sat-config)
+               (equal a wa))
+           v
+           (ag a r))))
+
+
+(fgl::add-fgl-rewrite bits-for-fgl)
+(fgl::add-fgl-rewrite bitn-for-fgl)
+(fgl::add-fgl-rewrite binary-cat-for-gl)
+(fgl::add-fgl-rewrite expo-for-fgl)
+(fgl::add-fgl-rewrite ag-of-as-fgl)
+;(fgl::add-fgl-rewrite ag-of-as)
+(fgl::add-fgl-rewrite ag-of-nil)
+
+
+
+;; It's beneficial to make `ag` and `as` uninterpreted.
+
+(fgl::remove-fgl-rewrite as)
+(fgl::remove-fgl-rewrite ag)
+(fgl::disable-execution as)
+(fgl::disable-execution ag)

@@ -36,9 +36,16 @@
 (include-book "../lisp/alt-const-fns-gen")
 (include-book "t")
 
+;(assign :fgl-make-ites t)
+;(fgl::disable-execution as)
+;(fgl::disable-execution ag)
+
 (assign :fgl-make-ites t)
+;(assign :fgl-make-ites nil)
 (fgl::disable-execution as)
 (fgl::disable-execution ag)
+(fgl::enable-split-ifs ag)
+
 
 (alt-const-fns-gen
   'foo-res
@@ -91,32 +98,32 @@
                             '(ARRAY (ARRAY (INT) 3) 2))))
                  1))
 )
-
-;(ENCAPSULATE NIL
- (DEFUNDD ARR_OF_ARR NIL
-          (RAC-TYPE-INFO (AINIT (LIST (CONS 0
-                                            (AINIT (LIST (CONS 0 0)
-                                                         (CONS 1 0)
-                                                         (CONS 2 0))))
-                                      (CONS 1
-                                            (AINIT (LIST (CONS 0 0)
-                                                         (CONS 1 0)
-                                                         (CONS 2 0))))))
-                         '(ARRAY (ARRAY (INT) 3) 2)))
- (DEFUNDD FOO-RES NIL 1)
-
- (DEFTHM-USING-FGL
-      ARR_OF_ARR-TYPE
-      (IMPLIES (MEMBER I1 '(1 0))
-               (IMPLIES (MEMBER I2 '(2 1 0))
-                        (INTEGERP (AG I2 (AG I1 (ARR_OF_ARR))))))
-      :EXPAND-FNS (ARR_OF_ARR ainit))
-
- (DEFTHMD FOO-LEMMA
-  (EQUAL (FOO-RES) (FOO))
-  :HINTS
-  (("Goal"
-       :IN-THEORY NIL
-       :DO-NOT '(PREPROCESS)
-       :CLAUSE-PROCESSOR (EXPAND-REDUCE-CP CLAUSE '(T FOO-RES ARR_OF_ARR FOO)
-                                           STATE)))))
+;
+;;(ENCAPSULATE NIL
+; (DEFUNDD ARR_OF_ARR NIL
+;          (RAC-TYPE-INFO (AINIT (LIST (CONS 0
+;                                            (AINIT (LIST (CONS 0 0)
+;                                                         (CONS 1 0)
+;                                                         (CONS 2 0))))
+;                                      (CONS 1
+;                                            (AINIT (LIST (CONS 0 0)
+;                                                         (CONS 1 0)
+;                                                         (CONS 2 0))))))
+;                         '(ARRAY (ARRAY (INT) 3) 2)))
+; (DEFUNDD FOO-RES NIL 1)
+;
+; (DEFTHM-USING-FGL
+;      ARR_OF_ARR-TYPE
+;      (IMPLIES (MEMBER I1 '(1 0))
+;               (IMPLIES (MEMBER I2 '(2 1 0))
+;                        (INTEGERP (AG I2 (AG I1 (ARR_OF_ARR))))))
+;      :EXPAND-FNS (ARR_OF_ARR ainit))
+;
+; (DEFTHMD FOO-LEMMA
+;  (EQUAL (FOO-RES) (FOO))
+;  :HINTS
+;  (("Goal"
+;       :IN-THEORY NIL
+;       :DO-NOT '(PREPROCESS)
+;       :CLAUSE-PROCESSOR (EXPAND-REDUCE-CP CLAUSE '(T FOO-RES ARR_OF_ARR FOO)
+;                                           STATE)))))
