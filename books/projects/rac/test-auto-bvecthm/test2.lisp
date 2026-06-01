@@ -4,17 +4,32 @@
 (include-book "vdot")
 
 
+(defthmd aaaaaa
+  (implies (bvecp x n)
+           (is-type-p x (list 'bvec n)))
+  :hints (("Goal"
+           :in-theory (enable is-type-p))))
+
+
+;; pk aaaaaa
+;; ou BVECP-INT ne s'active pas 
+
 
 (defthm partialsproducts8-loop-0-type
   (implies (and (integerp i)
                 (integerp bval)
-                (array-of-vec-p pps 5 12)
+                (is-type-p pps (list 'array (list 'bvec 5) 12))
+;                (array-of-vec-p pps 5 12)
                 (bvecp b 8)
-                (array-of-vec-p b_encs 5 32)
+                (is-type-p pps (list 'array (list 'bvec 32) 5))
+;                (array-of-vec-p b_encs 5 32)
                 (bitp bsigned))
-           (array-of-vec-p (partialsproducts8-loop-0 i bval b_encs pps) 5 12))
+;           (array-of-vec-p (partialsproducts8-loop-0 i bval b_encs pps) 5 12))
+           (is-type-p (partialsproducts8-loop-0 i bval b_encs pps)
+                      '(array (bvec 5) 12)))
+;                      5 12))
   :hints (("Goal"
-           :in-theory '(partialsproducts8-loop-0 type-theory))))
+           :in-theory '(partialsproducts8-loop-0 type-theory aaaaaa))))
 
 (defthm partialsproducts8-type
   (implies (and (bvecp b 8)

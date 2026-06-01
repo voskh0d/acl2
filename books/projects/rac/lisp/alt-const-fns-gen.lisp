@@ -694,10 +694,12 @@
        (thm-name (intern$ (concatenate 'string (symbol-name name) "-TYPE") pkg-name))
        (thm-body (gen-type-expr (list name) (car (cdr type)) 0)))
       (if thm-body
-       (list 'RTL::defthm-using-fgl thm-name
-                  thm-body
-                  :expand-fns (cons 'RTL::ainit extracted-fn-names))
-       (cw "WARNING: could not generate type theorem for ~x0.~%" name))))
+        `(progn
+           (RTL::defthm-using-fgl ,thm-name
+                                  ,thm-body
+                                  :expand-fns (RTL::ainit ,@extracted-fn-names))
+           (table RTL::known-bvecps ',name ',thm-name))
+        (cw "WARNING: could not generate type theorem for ~x0.~%" name))))
 
 (defun gen-type-thms (fns pkg-name extracted-fn-names)
   (if (not fns)

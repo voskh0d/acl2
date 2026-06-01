@@ -668,6 +668,19 @@
   (implies (true-listp x)
            (equal (union-equal x nil) x)))
 
+(defun is-array-expr (x)
+  (declare (xargs :guard t))
+  (and (true-listp x)
+       (equal (len x) 3)
+       (equal (car x) 'RTL::AG)))
+
+;(defun array-expr-eq (x y)
+;  (declare (xargs :guard t))
+;  (and (is-array-expr x)
+;       (is-array-expr y)
+;       (equal (car (cdr (cdr x)))
+;              (car (cdr (cdr y))))))
+
 (defines gify-term
   :verify-guards nil
   :flag-local nil
@@ -785,6 +798,37 @@
           ((or ; (cw "FN: ~x0~%" (car x))
             (member-eq (car x) expand-fns))
            (gify-term-expand x expand-fns avoid-vars state))
+;          ((is-array-expr x)
+;           (b* ((arr-name (car (cdr (cdr x))))
+;                ((unless (mbt (symbolp arr-name)))
+;                 (mv t x nil))
+;                (known-bvecps (table-alist 'known-bvecps (w state)))
+;                ((unless (or (alistp known-bvecps)
+;                             (cw "Known-bvecps is not an alist~%")))
+;                 ((unless (or (assoc x known-bvecps :test array-expr-eq)
+;                              ;(cw "Unknown width for const-fn: ~x0~%" (car x))
+;                              ))
+;                  (mv t x nil))
+;                 ;; TODO add unique id: 
+;                 ;; for ex (ag i ar) and (ag j ar) must not share the same new
+;                 ;; var
+;                 (new-var (my-genvar arr-name  avoid-vars)))
+;                (mv t new-var (cons (cons arr-name new-var) nil)))))
+;          ((is-array-expr x)
+;           (b* ((arr-name (caddr x))
+;                ((unless (symbolp arr-name)) (mv t x nil))
+;                (known-bvecps (table-alist 'known-bvecps (w state)))
+;                ((unless (or ;(alistp known-bvecps)
+;                           (EQLABLE-ALISTP known-bvecps)
+;                             (cw "Known-bvecps is not an alist~%")))
+;                 (mv t x nil))
+;                ((unless (or (assoc x known-bvecps)
+;                             ;(cw "Unknown width for const-fn: ~x0~%" (car x))
+;                             ))
+;                 (mv t x nil))
+;                (new-var (my-genvar arr-name avoid-vars)))
+;             (mv t new-var (cons (cons arr-name new-var) nil))))
+;
           ((not (cdr x))
            (b* (((unless (mbt (symbolp (car x))))
                  (mv t x nil))
@@ -792,7 +836,7 @@
                 ((unless (or (alistp known-bvecps)
                              (cw "Known-bvecps is not an alist~%")))
                  (mv t x nil))
-                ((unless (or (assoc-eq (car x) known-bvecps)
+                ((unless (or (assoc (car x) known-bvecps)
                              ;(cw "Unknown width for const-fn: ~x0~%" (car x))
                              ))
                  (mv t x nil))
@@ -908,1404 +952,1404 @@
             (rev-ctx (cdr ctx) al))
     nil))
 
-(local-defthm strip-cars-pairlis$
-  (implies (true-listp x)
-           (equal (strip-cars (pairlis$ x y))
-                  x)))
-
-(local-defthm pairlis$-rev-lst-to-rev-ctx
-  (implies (true-listp x)
-           (equal (pairlis$ x (rev-lst (apply-map s x) a))
-                  (rev-ctx (pairlis$ x (apply-map s x)) a)))
-  :hints (("Goal" :in-theory (e/d (rev-ctx
-                                   apply-map) ()))))
-
-;; (local-defthm cdr-assoc-rev-ctx
-;;   (implies (and (member x vars)
-;;                 (symbolp x)
-;;                 (symbol-symbol-alistp s))
-;;            (equal (cdr (assoc-equal x (rev-ctx (pairlis$ vars (apply-map s vars)) a)))
-;;                   (if (assoc-equal x s)
-;;                       (rev (cdr (assoc-equal x s)) a)
-;;                     (rev x a))))
-;;   :hints (("Goal" :in-theory (e/d (rev-ctx
-;;                                    apply-map)
-;;                                   (PAIRLIS$-REV-LST-TO-REV-CTX)))))
-
-(local-defthm intersection-equal-cons-1
-  (implies (true-listp a)
-           (iff (intersection-equal a (cons x y))
-                (or (member-equal x a)
-                    (intersection-equal a y))))
-  :hints (("Goal" :in-theory (e/d (intersection-equal) ()))))
-
-(local-defthm not-member-my-genvar-append
-  (and (not (member-equal (my-genvar x (append z y)) y))
-       (not (member-equal (my-genvar x (append z y)) z)))
-  :hints (("Goal" :in-theory (e/d () (not-member-equal-avoid-vars-my-genvar))
-                  :do-not-induct t
-                  :use ((:instance not-member-equal-avoid-vars-my-genvar
-                         (x x)
-                         (avoid-vars (append z y)))))))
-
-
-(local-defthm alistp-rev-ctx
-  (alistp (rev-ctx ctx al))
-  :hints (("Goal" :in-theory (e/d (rev-ctx) ()))))
-
-(local-defthm assoc-alistp-append
-  (implies (alistp x)
-           (equal (Assoc a (append x y))
-                  (or (assoc a x)
-                      (assoc a y)))))
-
-(local-defthm assoc-equal-rev-ctx
-  (implies (alistp s)
-           (equal (assoc-equal x (rev-ctx s a))
-         (if (assoc-equal x s)
-             (cons x (rev (cdr (assoc-equal x s)) a))
-           nil)))
-  :hints (("Goal" :in-theory (e/d (rev-ctx) ()))))
-
-(local-defthm assoc-interp-subst
-  (implies (member-equal x (strip-cdrs f))
-           (equal (assoc-equal x (interp-subst f))
-                  (cons x (list (cdr (assoc-equal x (pairlis$ (strip-cdrs f)
-                                                      (strip-cars f))))))))
-  :hints (("Goal" :in-theory (e/d (interp-subst) ()))))
-
-(local-defthm cdr-assoc-interp-subst-unify-subst
-  (implies (member x (strip-cdrs f2))
-           (equal (assoc-equal x (interp-subst (mv-nth 2 (unify-subst f1 f2 avoid-vars))))
-                  (cons x (list (cdr (assoc-equal x (pairlis$ (strip-cdrs f2) (strip-cars f2))))))))
-  :hints (("Goal" :in-theory (e/d (unify-subst
-                                   interp-subst) (not-member-equal-avoid-vars-my-genvar)))
-          ("Subgoal *1/5"
-                  :use ((:instance not-member-equal-avoid-vars-my-genvar
-                         (x (caar f1))
-                         (avoid-vars (append (Strip-cdrs f2) avoid-vars)))))
-          ("Subgoal *1/4"
-                  :use ((:instance not-member-equal-avoid-vars-my-genvar
-                         (x (caar f1))
-                         (avoid-vars (append (Strip-cdrs f2) avoid-vars)))))))
-
-(local-defthm alistp-interp-subst
-  (alistp (interp-subst x))
-  :hints (("Goal" :in-theory (e/d (interp-subst) ()))))
-
-(local-defthm not-cdr-assoc-when-non-nil-member
-  (implies (and (alistp s)
-                (not (member-equal nil (strip-cdrs s)))
-                (assoc-equal x s))
-           (cdr (assoc-equal x s))))
-
-(local-defthm symbol-symbol-alistp-alistp
-  (implies (symbol-symbol-alistp x)
-           (alistp x)))
-
-(local-defthm member-cdr-if-assoc-eq
-  (implies (assoc-equal x y)
-           (member-equal (cdr (assoc-equal x y)) (strip-cdrs y))))
-
-(local-defthm assoc-of-pairlis-when-not-member
-  (implies (not (member-equal x y))
-           (not (assoc-equal x (pairlis$ y z)))))
-
-(local-defthm assoc-assoc-pairlis-inverse
-  (implies (and (assoc-equal x y)
-                (no-duplicatesp-equal (strip-cdrs y))
-                (no-duplicatesp-equal (strip-cars y)))
-           (equal (cdr (assoc-equal (cdr (assoc-equal x y))
-                                    (pairlis$ (strip-cdrs y)
-                                              (strip-cars y))))
-                  x))
-  :hints (("Goal" :induct (assoc-equal x y))))
-
-(local-defthm member-equal-assoc-equal-strip-cars
-  (implies (and (member-equal x (Strip-cars y))
-                (alistp y))
-           (assoc-equal x y)))
-
-(local-defthm no-duplicatesp-equal-strip-cars-unify
-  (implies (and (no-duplicatesp-equal (strip-cars f2))
-                (alistp f2))
-           (no-duplicatesp-equal (strip-cars (mv-nth 2 (unify-subst f1 f2 avoid-vars)))))
-  :hints (("Goal" :in-theory (e/d (unify-subst) ()))))
-
-(local-defthm no-duplicatesp-equal-strip-cdrs-unify
-  (implies (and (no-duplicatesp-equal (strip-cdrs f2))
-                (alistp f2))
-           (no-duplicatesp-equal (strip-cdrs (mv-nth 2 (unify-subst f1 f2 avoid-vars)))))
-  :hints (("Goal" :in-theory (e/d (unify-subst) (not-member-equal-avoid-vars-my-genvar)))
-          ("Subgoal *1/3"
-           :use ((:instance not-member-equal-avoid-vars-my-genvar
-                  (x (caar f1))
-                  (avoid-vars (append (Strip-cdrs f2) avoid-vars)))))))
-
-(defthm-gify-term-flag
-  (defthm no-duplicatesp-strip-cars-lambda
-    (b* (((mv ?okp ?gen-term f)
-          (gify-term-lambda x expand-fns avoid-vars state)))
-      (implies (pseudo-termp x)
-               (no-duplicatesp-equal (strip-cars f))))
-    :flag gify-term-lambda)
-  (defthm no-duplicatesp-strip-cars-expand
-    (b* (((mv ?okp ?gen-term f)
-          (gify-term-expand x expand-fns avoid-vars state)))
-      (implies (pseudo-termp x)
-               (no-duplicatesp-equal (strip-cars f))))
-    :flag gify-term-expand)
-  (defthm no-duplicatesp-strip-cars
-    (b* (((mv ?okp ?gen-term f)
-          (gify-term x expand-fns avoid-vars state)))
-      (implies (pseudo-termp x)
-               (no-duplicatesp-equal (strip-cars f))))
-    :flag gify-term)
-  (defthm no-duplicatesp-strip-cars-lst
-    (b* (((mv ?okp ?gen-term f)
-          (gify-term-lst lst expand-fns avoid-vars state)))
-      (implies (pseudo-term-listp lst)
-               (no-duplicatesp-equal (strip-cars f))))
-    :flag gify-term-lst)
-  :hints (("Goal" :in-theory (e/d (gify-term-lst
-                                   gify-term
-                                   gify-term-expand
-                                   gify-term-lambda) ()))))
-
-(defthm-gify-term-flag
-  (defthm no-duplicatesp-strip-cdrs-lambda
-    (b* (((mv ?okp ?gen-term f)
-          (gify-term-lambda x expand-fns avoid-vars state)))
-      (implies (pseudo-termp x)
-               (no-duplicatesp-equal (strip-cdrs f))))
-    :flag gify-term-lambda)
-  (defthm no-duplicatesp-strip-cdrs-expand
-    (b* (((mv ?okp ?gen-term f)
-          (gify-term-expand x expand-fns avoid-vars state)))
-      (implies (pseudo-termp x)
-               (no-duplicatesp-equal (strip-cdrs f))))
-    :flag gify-term-expand)
-  (defthm no-duplicatesp-strip-cdrs
-    (b* (((mv ?okp ?gen-term f)
-          (gify-term x expand-fns avoid-vars state)))
-      (implies (pseudo-termp x)
-               (no-duplicatesp-equal (strip-cdrs f))))
-    :flag gify-term)
-  (defthm no-duplicatesp-strip-cdrs-lst
-    (b* (((mv ?okp ?gen-term f)
-          (gify-term-lst lst expand-fns avoid-vars state)))
-      (implies (pseudo-term-listp lst)
-               (no-duplicatesp-equal (strip-cdrs f))))
-    :flag gify-term-lst)
-  :hints (("Goal" :in-theory (e/d (gify-term-lst
-                                   gify-term
-                                   gify-term-expand
-                                   gify-term-lambda) ()))))
-
-(local-defthm not-intersectionp-nil
-  (not (intersection-equal x nil))
-  :hints (("Goal" :in-theory (e/d (intersection-equal) ()))))
-
-(local-defthm not-intersection-equal-union
-  (implies (and (not (intersection-equal avoid-vars (strip-cdrs f2)))
-                (symbol-listp avoid-vars))
-           (not (intersection-equal avoid-vars (strip-cdrs (mv-nth 2 (unify-subst f1 f2 avoid-vars))))))
-  :hints (("Goal" :in-theory (e/d (unify-subst
-                                   intersection-equal)
-                                  ()))))
-
-
-(defthm-gify-term-flag
-  (defthm not-intersectionp-strip-cdrs-lambda
-    (b* (((mv ?okp ?gen-term f)
-          (gify-term-lambda x expand-fns avoid-vars state)))
-      (implies (and (pseudo-termp x)
-                    (symbol-listp avoid-vars))
-               (not (intersection-equal avoid-vars (strip-cdrs f)))))
-    :flag gify-term-lambda)
-  (defthm not-intersectionp-strip-cdrs-expand
-    (b* (((mv ?okp ?gen-term f)
-          (gify-term-expand x expand-fns avoid-vars state)))
-      (implies (and (pseudo-termp x)
-                    (symbol-listp avoid-vars))
-               (not (intersection-equal avoid-vars (strip-cdrs f)))))
-    :flag gify-term-expand)
-  (defthm not-intersectionp-strip-cdrs
-    (b* (((mv ?okp ?gen-term f)
-          (gify-term x expand-fns avoid-vars state)))
-      (implies (and (pseudo-termp x)
-                    (symbol-listp avoid-vars))
-               (not (intersection-equal avoid-vars (strip-cdrs f)))))
-    :flag gify-term)
-  (defthm not-intersectionp-strip-cdrs-lst
-    (b* (((mv ?okp ?gen-term f)
-          (gify-term-lst lst expand-fns avoid-vars state)))
-      (implies (and (pseudo-term-listp lst)
-                    (symbol-listp avoid-vars))
-               (not (intersection-equal avoid-vars (strip-cdrs f)))))
-    :flag gify-term-lst)
-  :hints (("Goal" :in-theory (e/d (gify-term-lst
-                                   gify-term
-                                   gify-term-expand
-                                   gify-term-lambda) ()))))
-
-(local-defthm not-member-nil-unify-subst
-  (implies (not (member-equal nil (strip-cdrs f2)))
-           (not (member-equal nil (strip-cdrs (mv-nth 2 (unify-subst f1 f2 avoid-vars))))))
-  :hints (("Goal" :in-theory (e/d (unify-subst) ()))))
-
-(defthm-gify-term-flag
-  (defthm not-member-nil-strip-cdrs-lambda
-    (b* (((mv ?okp ?gen-term f)
-          (gify-term-lambda x expand-fns avoid-vars state)))
-      (implies (and (pseudo-termp x))
-               (not (member-equal nil (strip-cdrs f)))))
-    :flag gify-term-lambda)
-  (defthm not-member-nil-strip-cdrs-expand
-    (b* (((mv ?okp ?gen-term f)
-          (gify-term-expand x expand-fns avoid-vars state)))
-      (implies (and (pseudo-termp x))
-               (not (member-equal nil (strip-cdrs f)))))
-    :flag gify-term-expand)
-  (defthm not-member-nil-strip-cdrs
-    (b* (((mv ?okp ?gen-term f)
-          (gify-term x expand-fns avoid-vars state)))
-      (implies (and (pseudo-termp x))
-               (not (member-equal nil (strip-cdrs f)))))
-    :flag gify-term)
-  (defthm not-member-nil-strip-cdrs-lst
-    (b* (((mv ?okp ?gen-term f)
-          (gify-term-lst lst expand-fns avoid-vars state)))
-      (implies (and (pseudo-term-listp lst))
-               (not (member-equal nil (strip-cdrs f)))))
-    :flag gify-term-lst)
-  :hints (("Goal" :in-theory (e/d (gify-term-lst
-                                   gify-term
-                                   gify-term-expand
-                                   gify-term-lambda) ()))))
-
-(local-defthmd interp-subst-assoc
-  (iff (assoc-equal x (interp-subst f))
-           (member x (strip-cdrs f)))
-  :hints (("Goal" :in-theory (e/d (interp-subst) ()))))
-
-(local-defthmd member-not-common
-  (implies (and (member-equal x a)
-                (member-equal x b))
-           (intersection-equal a b))
-  :hints (("Goal" :in-theory (e/d (intersection-equal) ()))))
-
-(local-defthm rev-ctx-rw-symbolp
-  (implies (and (pseudo-termp x)
-                (not (consp x))
-
-                (subsetp-equal (free-vars x)
-                               (union-equal (strip-cdrs f1)
-                                            avoid-vars))
-                (not (member-equal nil (strip-cdrs f1)))
-                (not (member-equal nil (strip-cdrs f2)))
-                (no-duplicatesp-equal (strip-cars f2))
-                (no-duplicatesp-equal (strip-cdrs f2))
-                (symbol-listp avoid-vars)
-                (symbol-symbol-alistp f1)
-                (symbol-symbol-alistp f2)
-                (not (intersection-equal avoid-vars (strip-cdrs f2))))
-           (mv-let (nf na ns)
-             (unify-subst f1 f2 avoid-vars)
-             (equal (rev x
-                         (rev-ctx (pairlis$ (free-vars x)
-                                            (apply-map (pairlis$ nf na)
-                                                       (free-vars x)))
-                                  (append (rev-ctx (interp-subst ns) a)
-                                          a)))
-                    (rev x
-                         (append (rev-ctx (interp-subst f1) a)
-                                 a)))))
-  :hints (("Goal" :in-theory (e/d (interp-subst
-                                   unify-subst
-                                   apply-map
-                                   len
-                                   rev-ctx
-                                   free-vars
-                                   pseudo-termp) (pairlis$-rev-lst-to-rev-ctx)))
-          (and stable-under-simplificationp
-               '(:in-theory (enable interp-subst-assoc
-                             member-not-common)))))
-
-(local
- (define alist-eq ((k symbol-listp)
-                   (a1 symbol-alistp)
-                   (a2 symbol-alistp))
-   (if (consp k)
-       (and (or (not (car k))
-                (equal (cdr (assoc-equal (car k) a1)) (cdr (assoc-equal (car k) a2))))
-            (alist-eq (cdr k) a1 a2))
-     t)))
-
-(local-defthmd alist-eq-on-member
-  (implies (and (alist-eq k a1 a2)
-                (member-equal x k)
-                x)
-           (equal (cdr (assoc-equal x a1))
-                  (cdr (assoc-equal x a2))))
-  :hints (("Goal" :in-theory (e/d (alist-eq) ()))))
-
-(local-defthm alist-eq-on-union
-  (implies (true-listp k1)
-           (iff (alist-eq (union-equal k1 k2) a1 a2)
-                (and (alist-eq k1 a1 a2)
-                     (alist-eq k2 a1 a2))))
-  :hints (("Goal" :in-theory (e/d (alist-eq
-                                   alist-eq-on-member) ()))))
-
-(local
- (defthm-pseudo-termp
-   (defthmd rev-alist-eq-on-free-vars
-     (implies (and (pseudo-termp x)
-                   (alist-eq (free-vars x) a1 a2))
-              (equal (rev x a1) (rev x a2)))
-     :flag pseudo-termp)
-   (defthmd rev-alist-eq-on-free-vars-lst
-     (implies (and (pseudo-term-listp acl2::lst)
-                   (alist-eq (free-vars-lst acl2::lst) a1 a2))
-              (equal (rev-lst acl2::lst a1) (rev-lst acl2::lst a2)))
-     :flag pseudo-term-listp)
-   :hints (("Goal" :in-theory (e/d (alist-eq
-                                    pseudo-termp
-                                    pseudo-term-listp
-                                    free-vars free-vars-lst
-                                    rev-of-fncall-args) ())))))
-
-(local-defthm assoc-member-pairlis$-apply-map
-  (implies (and (member-equal x vars)
-                (symbol-symbol-alistp s)
-                (symbol-listp vars))
-           (equal (assoc-equal x (pairlis$ vars (apply-map s vars)))
-                  (if (assoc-equal x s)
-                      (cons x (cdr (assoc-equal x s)))
-                    (cons x x))))
-  :hints (("Goal" :in-theory (e/d (apply-map) ()))))
-
-(local
- (defthmd alist-eq-on-union-eq-apply-map
-   (implies (and (symbol-listp vars1)
-                 (symbol-listp vars2)
-                 (subsetp-equal k vars1)
-                 (subsetp-equal vars1 vars2)
-                 (symbol-symbol-alistp s))
-            (alist-eq k
-                      (rev-ctx (pairlis$ vars2
-                                         (apply-map s vars2))
-                               a)
-                      (rev-ctx (pairlis$ vars1
-                                (apply-map s vars1)) a)))
-   :hints (("Goal" :in-theory (e/d (alist-eq
-                                    len
-                                    apply-map) ())
-                   :induct (len k)))))
-
-(local-defthm member-x-unify-subst-f1-assoc
-  (implies (member x (mv-nth 0 (unify-subst f1 f2 avoid-vars)))
-           (assoc-equal x (interp-subst f1)))
-  :hints (("Goal" :in-theory (e/d (unify-subst interp-subst) ()))))
-
-(local-defthm cdr-member-x-unify-subst-f1-assoc
-  (implies (member x (mv-nth 0 (unify-subst f1 f2 avoid-vars)))
-           (cdr (assoc-equal x (interp-subst f1))))
-  :hints (("Goal" :in-theory (e/d (unify-subst interp-subst) ()))))
-
-(local-defthm member-x-unify-subst-f1-assoc-pairlis
-  (implies (and (member x (mv-nth 0 (unify-subst f1 f2 avoid-vars)))
-                (symbol-symbol-alistp f2)
-                (symbol-symbol-alistp f1))
-           (assoc-equal x (pairlis$ (mv-nth 0 (unify-subst f1 f2 avoid-vars))
-                                    (mv-nth 1 (unify-subst f1 f2 avoid-vars)))))
-  :hints (("Goal" :in-theory (e/d (unify-subst) ()))))
-
-(local
- (defthm-pseudo-termp
-   (defthmd rev-ctx-of-unify-subst-pseudo-termp
-     (implies (and (pseudo-termp x)
-                   (subsetp-equal (free-vars x) (union-equal (strip-cdrs f1) avoid-vars))
-                   (not (member-equal nil (strip-cdrs f1)))
-                   (not (member-equal nil (strip-cdrs f2)))
-                   (no-duplicatesp-equal (strip-cars f2))
-                   (no-duplicatesp-equal (strip-cdrs f2))
-                   (symbol-listp avoid-vars)
-                   (symbol-symbol-alistp f1)
-                   (symbol-symbol-alistp f2)
-                   (not (intersection-equal avoid-vars (strip-cdrs f2))))
-              (b* (((mv nf na ns)
-                    (unify-subst f1 f2 avoid-vars)))
-                (equal (rev x (rev-ctx (pairlis$ (free-vars x)
-                                                 (apply-map (pairlis$ nf na)
-                                                            (free-vars x)))
-                                       (append (rev-ctx (interp-subst ns) a) a)))
-                       (rev x (append (rev-ctx (interp-subst f1) a) a)))))
-     :flag pseudo-termp)
-   (defthmd rev-ctx-of-unify-subst-pseudo-termp-lst
-     (implies (and (pseudo-term-listp acl2::lst)
-                   (subsetp-equal (free-vars-lst acl2::lst) (union-equal (strip-cdrs f1) avoid-vars))
-                   (not (member-equal nil (strip-cdrs f1)))
-                   (not (member-equal nil (strip-cdrs f2)))
-                   (no-duplicatesp-equal (strip-cars f2))
-                   (no-duplicatesp-equal (strip-cdrs f2))
-                   (symbol-listp avoid-vars)
-                   (symbol-symbol-alistp f1)
-                   (symbol-symbol-alistp f2)
-                   (not (intersection-equal avoid-vars (strip-cdrs f2))))
-              (b* (((mv nf na ns)
-                    (unify-subst f1 f2 avoid-vars)))
-                (equal (rev-lst acl2::lst (rev-ctx (pairlis$ (free-vars-lst acl2::lst)
-                                                             (apply-map (pairlis$ nf na)
-                                                                        (free-vars-lst acl2::lst)))
-                                                   (append (rev-ctx (interp-subst ns) a) a)))
-                       (rev-lst acl2::lst (append (rev-ctx (interp-subst f1) a) a)))))
-     :flag pseudo-term-listp)
-   :hints (("Goal" :in-theory (e/d (free-vars free-vars-lst
-                                    pseudo-termp
-                                    pseudo-term-listp
-                                    unify-subst
-                                    interp-subst
-                                    rev-of-fncall-args)
-                                   (rev-ctx-rw-symbolp)))
-           ("Subgoal *1/11"
-            :use ((:instance alist-eq-on-union-eq-apply-map
-                   (k (free-vars (car acl2::lst)))
-                   (vars1 (free-vars (car acl2::lst)))
-                   (vars2 (union-equal (free-vars-lst (cdr acl2::lst))
-                                       (free-vars (car acl2::lst))))
-                   (s (pairlis$ (mv-nth 0 (unify-subst f1 f2 avoid-vars))
-                                (mv-nth 1 (unify-subst f1 f2 avoid-vars))))
-                   (a (append
-                       (rev-ctx (interp-subst (mv-nth 2 (unify-subst f1 f2 avoid-vars)))
-                                a)
-                       a)))
-                  (:instance alist-eq-on-union-eq-apply-map
-                   (k (free-vars-lst (cdr acl2::lst)))
-                   (vars1 (free-vars-lst (cdr acl2::lst)))
-                   (vars2 (union-equal (free-vars-lst (cdr acl2::lst))
-                                       (free-vars (car acl2::lst))))
-                   (s (pairlis$ (mv-nth 0 (unify-subst f1 f2 avoid-vars))
-                                (mv-nth 1 (unify-subst f1 f2 avoid-vars))))
-                   (a (append
-                       (rev-ctx (interp-subst (mv-nth 2 (unify-subst f1 f2 avoid-vars)))
-                                a)
-                       a)))
-                  (:instance rev-alist-eq-on-free-vars-lst
-                   (acl2::lst (cdr acl2::lst))
-                   (a1 (rev-ctx
-                        (pairlis$ (union-equal (free-vars-lst (cdr acl2::lst))
-                                               (free-vars (car acl2::lst)))
-                                  (apply-map (pairlis$ (mv-nth 0 (unify-subst f1 f2 avoid-vars))
-                                                       (mv-nth 1 (unify-subst f1 f2 avoid-vars)))
-                                             (union-equal (free-vars-lst (cdr acl2::lst))
-                                                          (free-vars (car acl2::lst)))))
-                        (append (rev-ctx (interp-subst (mv-nth 2 (unify-subst f1 f2 avoid-vars)))
-                                         a)
-                                a)))
-                   (a2 (rev-ctx
-                        (pairlis$
-                         (free-vars-lst (cdr acl2::lst))
-                         (apply-map (pairlis$ (mv-nth 0 (unify-subst f1 f2 avoid-vars))
-                                              (mv-nth 1 (unify-subst f1 f2 avoid-vars)))
-                                    (free-vars-lst (cdr acl2::lst))))
-                        (append
-                         (rev-ctx (interp-subst (mv-nth 2 (unify-subst f1 f2 avoid-vars)))
-                                  a)
-                         a))))
-                  (:instance rev-alist-eq-on-free-vars
-                   (x (car acl2::lst))
-                   (a1 (rev-ctx
-                        (pairlis$ (union-equal (free-vars-lst (cdr acl2::lst))
-                                               (free-vars (car acl2::lst)))
-                                  (apply-map (pairlis$ (mv-nth 0 (unify-subst f1 f2 avoid-vars))
-                                                       (mv-nth 1 (unify-subst f1 f2 avoid-vars)))
-                                             (union-equal (free-vars-lst (cdr acl2::lst))
-                                                          (free-vars (car acl2::lst)))))
-                        (append (rev-ctx (interp-subst (mv-nth 2 (unify-subst f1 f2 avoid-vars)))
-                                         a)
-                                a)))
-                   (a2 (rev-ctx
-                        (pairlis$
-                         (free-vars (car acl2::lst))
-                         (apply-map (pairlis$ (mv-nth 0 (unify-subst f1 f2 avoid-vars))
-                                              (mv-nth 1 (unify-subst f1 f2 avoid-vars)))
-                                    (free-vars (car acl2::lst))))
-                        (append
-                         (rev-ctx (interp-subst (mv-nth 2 (unify-subst f1 f2 avoid-vars)))
-                                  a)
-                         a))))))
-           ("Subgoal *1/10"
-            :use (rev-ctx-rw-symbolp)))))
-
-(local-defthm assoc-implies-member-interp-subst
-  (implies (assoc-equal x (interp-subst f))
-           (member-equal x (strip-cdrs f)))
-  :hints (("Goal" :in-theory (e/d (interp-subst) ())))
-  :rule-classes :forward-chaining)
-
-(local-defthm assoc-interp-subst-unify-subst
-  (implies (assoc-equal x (interp-subst f2))
-           (and (assoc-equal x (interp-subst (mv-nth 2 (unify-subst f1 f2 avoid-vars))))
-                (equal (cdr (assoc-equal x (interp-subst (mv-nth 2 (unify-subst f1 f2 avoid-vars)))))
-                       (cdr (assoc-equal x (interp-subst f2))))
-                (equal (cdr (assoc-equal x (pairlis$ (strip-cdrs (mv-nth 2 (unify-subst f1 f2 avoid-vars)))
-                                                     (strip-cars (mv-nth 2 (unify-subst f1 f2 avoid-vars))))))
-                       (cdr (assoc-equal x (pairlis$ (strip-cdrs f2)
-                                                     (strip-cars f2)))))))
-  :hints (("Goal" :in-theory (e/d (interp-subst unify-subst) (not-member-equal-avoid-vars-my-genvar
-                                                              not-member-my-genvar-append)))
-          ("Subgoal *1/4"
-           :use ((:instance not-member-equal-avoid-vars-my-genvar
-                  (x (caar f1)) (avoid-vars (append (strip-cdrs f2) avoid-vars)))))))
-
-(local-defthmd intersection-equal-when-member
-  (implies (and (member-equal x a)
-                (member-equal x b))
-           (intersection-equal a b))
-  :hints (("Goal" :in-theory (e/d (intersection-equal) ()))))
-
-(local-defthm member-avoid-vars-not-assoc-unify
-  (implies (and (member-equal x avoid-vars)
-                (symbol-listp avoid-vars)
-                (not (intersection-equal avoid-vars (strip-cdrs f2))))
-           (not (assoc-equal x (interp-subst (mv-nth 2 (unify-subst f1 f2 avoid-vars))))))
-  :hints (("Goal" :in-theory (e/d (interp-subst unify-subst) (assoc-implies-member-interp-subst)))
-          ("Subgoal *1/1"
-                  :use ((:instance assoc-implies-member-interp-subst
-                         (x x) (f f2))
-                        (:instance intersection-equal-when-member
-                         (x x) (a avoid-vars) (b (strip-cdrs f2)))))))
-
-(local
- (defthm-pseudo-termp
-   (defthmd rev-ctx-of-unify-subst-pseudo-termp-2
-     (implies (and (pseudo-termp x)
-                   (subsetp-equal (free-vars x) (union-equal (strip-cdrs f2) avoid-vars))
-                   (not (member-equal nil (strip-cdrs f1)))
-                   (not (member-equal nil (strip-cdrs f2)))
-                   (no-duplicatesp-equal (strip-cars f2))
-                   (no-duplicatesp-equal (strip-cdrs f2))
-                   (symbol-listp avoid-vars)
-                   (symbol-symbol-alistp f1)
-                   (symbol-symbol-alistp f2)
-                   (not (intersection-equal avoid-vars (strip-cdrs f2))))
-              (b* (((mv ?nf ?na ns)
-                    (unify-subst f1 f2 avoid-vars)))
-                (equal (rev x (append (rev-ctx (interp-subst ns) a) a))
-                       (rev x (append (rev-ctx (interp-subst f2) a) a)))))
-     :flag pseudo-termp)
-   (defthmd rev-ctx-of-unify-subst-pseudo-termp-lst-2
-     (implies (and (pseudo-term-listp acl2::lst)
-                   (subsetp-equal (free-vars-lst acl2::lst) (union-equal (strip-cdrs f2) avoid-vars))
-                   (not (member-equal nil (strip-cdrs f1)))
-                   (not (member-equal nil (strip-cdrs f2)))
-                   (no-duplicatesp-equal (strip-cars f2))
-                   (no-duplicatesp-equal (strip-cdrs f2))
-                   (symbol-listp avoid-vars)
-                   (symbol-symbol-alistp f1)
-                   (symbol-symbol-alistp f2)
-                   (not (intersection-equal avoid-vars (strip-cdrs f2))))
-              (b* (((mv ?nf ?na ns)
-                    (unify-subst f1 f2 avoid-vars)))
-                (equal (rev-lst acl2::lst (append (rev-ctx (interp-subst ns) a) a))
-                       (rev-lst acl2::lst (append (rev-ctx (interp-subst f2) a) a)))))
-     :flag pseudo-term-listp)
-   :hints (("Goal" :in-theory (e/d (free-vars free-vars-lst
-                                    pseudo-termp
-                                    pseudo-term-listp
-                                    unify-subst
-                                    interp-subst
-                                    rev-of-fncall-args)
-                                   (rev-ctx-rw-symbolp
-                                    assoc-implies-member-interp-subst)))
-           ("Subgoal *1/10"
-            :use ((:instance assoc-implies-member-interp-subst
-                   (x x) (f f2)))))))
-
-(local-defthm subsetp-equal-unify-subst
-  (subsetp-equal (strip-cdrs f2)
-                 (strip-cdrs (mv-nth 2 (unify-subst f1 f2 avoid-vars))))
-  :hints (("Goal" :in-theory (e/d (unify-subst) ()))))
-
-(local-defthm member-equal-unify-subst-f2-preserved
-  (implies (member-equal x (strip-cdrs f2))
-           (member-equal x (strip-cdrs (mv-nth 2 (unify-subst f1 f2 avoid-vars)))))
-  :hints (("Goal" :in-theory (e/d (unify-subst) ()))))
-
-(local-defthmd member-equal-unify-subst-2
-  (implies (and (symbol-symbol-alistp f1)
-                (symbol-symbol-alistp f2)
-                (member-equal v (append avoid-vars (strip-cdrs f1))))
-           (member-equal
-            (b* ((p (assoc-equal v (pairlis$ (mv-nth 0 (unify-subst f1 f2 avoid-vars))
-                                             (mv-nth 1 (unify-subst f1 f2 avoid-vars))))))
-              (if p (cdr p) v))
-            (append avoid-vars (strip-cdrs (mv-nth 2 (unify-subst f1 f2 avoid-vars))))))
-  :hints (("Goal" :in-theory (e/d (unify-subst) ()))))
-
-(local-defthm not-consp-cdr-assoc-equal-of-symbol-symbol-alistp
-  (implies (symbol-symbol-alistp f)
-           (not (consp (cdr (assoc-equal x f))))))
-
-
-(local-defthm subsetp-equal-unify-subst-2
-  (implies (and (symbol-symbol-alistp f1)
-                (symbol-symbol-alistp f2)
-                (symbol-listp vars)
-                (subsetp-equal vars (append avoid-vars (strip-cdrs f1))))
-           (subsetp-equal
-            (free-vars-lst
-             (apply-map
-              (pairlis$
-               (mv-nth 0 (unify-subst f1 f2 avoid-vars))
-               (mv-nth 1 (unify-subst f1 f2 avoid-vars)))
-              vars))
-            (append avoid-vars (strip-cdrs (mv-nth 2 (unify-subst f1 f2 avoid-vars))))))
-  :hints (("Goal" :in-theory (e/d (unify-subst
-                                   apply-map
-                                   free-vars-lst
-                                   free-vars
-                                   len) ())
-                  :induct (len vars))
-          ("Subgoal *1/1"
-           :expand ((FREE-VARS
-                     (CDR (ASSOC-EQUAL (CAR VARS)
-                                       (PAIRLIS$ (MV-NTH 0 (UNIFY-SUBST F1 F2 AVOID-VARS))
-                                                 (MV-NTH 1 (UNIFY-SUBST F1 F2 AVOID-VARS)))))))
-           :use ((:instance member-equal-unify-subst-2
-                  (v (car vars)))))))
-
-(local-defthmd strip-cdrs-unify-subst-special-case
-  (implies (and (symbol-symbol-alistp f1)
-                (symbol-symbol-alistp f2)
-                (equal (mv-nth 0 (unify-subst f1 f2 avoid-vars))
-                       (mv-nth 1 (unify-subst f1 f2 avoid-vars))))
-           (subsetp-equal (strip-cdrs f1)
-                          (strip-cdrs (mv-nth 2 (unify-subst f1 f2 avoid-vars)))))
-  :hints (("Goal" :in-theory (e/d (unify-subst) ()))))
-
-(local-defthm member-equal-assoc-pairlis
-  (implies (member-equal x s)
-           (equal (assoc-equal x (pairlis$ s s))
-                  (cons x x))))
-
-(local-defthm subsetp-apply-map
-  (implies (and (symbol-listp s)
-                (symbol-listp x))
-           (equal (apply-map (pairlis$ s s) x) x))
-  :hints (("Goal" :in-theory (e/d (apply-map
-                                   len) ())
-                  :induct (len x))))
-
-(local
- (defthm-pseudo-termp
-   (defthm rev-pairlis-rev-ctx
-     (implies (and (pseudo-termp x)
-                   (subsetp-equal (free-vars x) v))
-              (equal (rev x (rev-ctx (pairlis$ v v) a))
-                     (rev x a)))
-     :flag pseudo-termp)
-   (defthm rev-pairlis-rev-ctx-lst
-     (implies (and (pseudo-term-listp acl2::lst)
-                   (subsetp-equal (free-vars-lst acl2::lst) v))
-              (equal (rev-lst acl2::lst (rev-ctx (pairlis$ v v) a))
-                     (rev-lst acl2::lst a)))
-     :flag pseudo-term-listp)
-   :hints (("Goal" :in-theory (e/d (pseudo-term-listp
-                                    pseudo-termp
-                                    free-vars free-vars-lst
-                                    rev-of-fncall-args) ())))))
-
-(local
- (defthmd rev-ctx-of-unify-subst-pseudo-termp-3
-   (implies (and (pseudo-termp x)
-                 (subsetp-equal (free-vars x) (union-equal (strip-cdrs f1) avoid-vars))
-                 (not (member-equal nil (strip-cdrs f1)))
-                 (not (member-equal nil (strip-cdrs f2)))
-                 (no-duplicatesp-equal (strip-cars f2))
-                 (no-duplicatesp-equal (strip-cdrs f2))
-                 (symbol-listp avoid-vars)
-                 (symbol-symbol-alistp f1)
-                 (symbol-symbol-alistp f2)
-                 (not (intersection-equal avoid-vars (strip-cdrs f2))))
-            (b* (((mv ?nf ?na ns)
-                  (unify-subst f1 f2 avoid-vars)))
-              (implies (equal nf na)
-                       (equal (rev x (append (rev-ctx (interp-subst ns) a) a))
-                              (rev x (append (rev-ctx (interp-subst f1) a) a))))))
-   :hints (("Goal" :use (rev-ctx-of-unify-subst-pseudo-termp)
-
-                   :do-not-induct t))))
-
-(local-defthmd free-vars-lst-of-append
-  (implies (and (pseudo-term-listp x)
-                (pseudo-term-listp y))
-           (iff (subsetp-equal (free-vars-lst (append x y)) z)
-                (and (subsetp-equal (free-vars-lst x) z)
-                     (subsetp-equal (free-vars-lst y) z))))
-  :hints (("Goal" :in-theory (e/d (free-vars-lst
-                                   free-vars) ()))))
-
-(local-defthm subsetp-of-unify-subst-1
-  (implies (and (symbol-symbol-alistp f2)
-                (symbol-symbol-alistp f1))
-           (subsetp-equal (free-vars-lst (mv-nth 1 (unify-subst f1 f2 avoid-vars)))
-                          (strip-cdrs (mv-nth 2 (unify-subst f1 f2 avoid-vars)))))
-  :hints (("Goal" :in-theory (e/d (unify-subst
-                                   free-vars
-                                   free-vars-lst) ()))))
-
-(local
- (defthm-gify-term-flag
-   (defthm subset-gify-term-lambda
-    (b* (((mv okp gen-term f)
-          (gify-term-lambda x expand-fns avoid-vars state)))
-      (implies (and okp
-                    (pseudo-termp x)
-                    (consp x)
-                    (not (quotep x))
-                    (acl2::flambda-applicationp x)
-                    (subsetp-equal (free-vars x) avoid-vars))
-               (subsetp-equal (free-vars gen-term) (append avoid-vars (strip-cdrs f)))))
-    :flag gify-term-lambda)
-  (defthm subset-gify-term-expand
-    (b* (((mv okp gen-term f)
-          (gify-term-expand x expand-fns avoid-vars state)))
-      (implies (and okp
-                    (pseudo-termp x)
-                    (consp x)
-                    (not (quotep x))
-                    (not (acl2::flambda-applicationp x))
-                    (member-eq (car x) expand-fns)
-                    (subsetp-equal (free-vars x) avoid-vars))
-               (subsetp-equal (free-vars gen-term) (append avoid-vars (strip-cdrs f)))))
-    :flag gify-term-expand)
-  (defthm subset-gify-term
-    (b* (((mv okp gen-term f)
-          (gify-term x expand-fns avoid-vars state)))
-      (implies (and okp
-                    (pseudo-termp x)
-                    (subsetp-equal (free-vars x) avoid-vars))
-               (subsetp-equal (free-vars gen-term) (append avoid-vars (strip-cdrs f)))))
-    :flag gify-term)
-  (defthm subset-gify-term-lst
-    (b* (((mv okp gen-term f)
-          (gify-term-lst lst expand-fns avoid-vars state)))
-      (implies (and okp
-                    (pseudo-term-listp lst)
-                    (subsetp-equal (free-vars-lst lst) avoid-vars))
-               (subsetp-equal (free-vars-lst gen-term) (append avoid-vars (strip-cdrs f)))))
-    :flag gify-term-lst)
-  :hints (("Goal" :in-theory (e/d (free-vars
-                                   free-vars-lst
-                                   pseudo-term-listp
-                                   pseudo-termp
-                                   gify-term
-                                   gify-term-lst
-                                   gify-term-lambda
-                                   gify-term-expand
-                                   strip-cdrs-unify-subst-special-case
-                                   free-vars-lst-of-append) ())))))
-
-(local-defthm rev-ctx-nil
-  (equal (rev-ctx nil a) nil)
-  :hints (("Goal" :in-theory (e/d (rev-ctx) ()))))
-
-(local
- (defines gify-term-ind
-  :verify-guards nil
-  :flag-local nil
-  :ignore-ok t
-  (define gify-term-lambda-ind (x expand-fns avoid-vars a state)
-    :measure (make-ord 2 (1+ (len expand-fns)) (make-ord 1 (1+ (acl2-count x)) 0))
-    :irrelevant-formals-ok t
-    (if (and (acl2::flambda-applicationp x)
-             (equal (len (car x)) 3)
-             (eq (caar x) 'lambda)
-             (symbol-listp (cadr (car x)))
-             (pseudo-termp (caddr (car x)))
-             (pseudo-term-listp (cdr x))
-             (equal (len (cadr (car x)))
-                    (len (cdr x))))
-        (b* ((rargs
-              (gify-term-lst-ind (acl2::fargs x) expand-fns avoid-vars a state))
-             (lambda-form (acl2::ffn-symb x))
-             (body (acl2::lambda-body lambda-form))
-             (formals (acl2::lambda-formals lambda-form))
-             (a (rev-ctx (pairlis$ formals (acl2::fargs x)) a)))
-          (and rargs
-               (gify-term-ind body expand-fns formals a state)))
-      t))
-  (define gify-term-expand-ind (x expand-fns avoid-vars a state)
-    :measure (make-ord 2 (1+ (len expand-fns)) (make-ord 1 (1+ (acl2-count x)) 0))
-    (if (and (consp x)
-             (not (quotep x))
-             (not (acl2::flambda-applicationp x))
-             (member-eq (car x) expand-fns))
-        (b* (((mv okp-def formals body) (acl2::fn-get-def (car x) state))
-             (rargs
-              (gify-term-lst-ind (acl2::fargs x) expand-fns avoid-vars a state))
-             (body (pseudo-term-fix body))
-             (formals (acl2::symbol-list-fix formals))
-             (expand-fns (remove1 (car x) expand-fns))
-             (a (rev-ctx (pairlis$ formals (acl2::fargs x)) a)))
-          (and rargs
-               (gify-term-ind body expand-fns formals a state)))
-      t))
-  (define gify-term-ind (x expand-fns avoid-vars a state)
-    :measure (make-ord 2 (1+ (len expand-fns)) (make-ord 1 (1+ (acl2-count x)) 1))
-    (cond ((atom x)
-           t)
-          ((quotep x)
-           t)
-          ((acl2::flambda-applicationp x)
-           (gify-term-lambda-ind x expand-fns avoid-vars a state))
-          ((member-eq (car x) expand-fns)
-           (gify-term-expand-ind x expand-fns avoid-vars a state))
-          ((not (cdr x)) t)
-          (t
-           (if (symbolp (car x))
-               (gify-term-lst-ind (acl2::fargs x) expand-fns avoid-vars a state)
-             t))))
-  (define gify-term-lst-ind  (lst expand-fns avoid-vars a state)
-    :measure (make-ord 2 (1+ (len expand-fns)) (make-ord 1 (1+ (acl2-count lst)) 1))
-    (if (consp lst)
-        (and (gify-term-ind (car lst) expand-fns avoid-vars a state)
-             (gify-term-lst-ind (cdr lst) expand-fns avoid-vars a state))
-      t))))
-
-(local-defthm intersection-equal-union
-  (iff (intersection-equal (union-equal x y) z)
-       (or (intersection-equal x z)
-           (intersection-equal y z)))
-  :hints (("Goal" :in-theory (e/d (intersection-equal
-                                   intersection-equal-when-member) ())
-                  :induct (intersection-equal x z))))
-
-(local-defthm assoc-equal-then-member
-  (implies (assoc-equal x a)
-           (member-equal x (strip-cars a))))
-
-(local-defthm member-then-cdr-assoc
-  (implies (and (member x (strip-cars a))
-                (= y (strip-cdrs a)))
-           (member (cdr (assoc x a)) y))
-  :hints (("Goal" :in-theory (e/d () ()))))
-
-(local-defthmd subset-equal-intersection-1
-  (implies (and (subsetp-equal x y)
-                (intersection-equal a x))
-           (intersection-equal a y))
-  :hints (("Goal" :in-theory (e/d (intersection-equal) ()))))
-
-(local-defthmd intersection-comm-1
-  (implies (intersection-equal a b)
-           (intersection-equal b a))
-  :hints (("Goal" :in-theory (e/d (intersection-equal
-                                   intersection-equal-when-member) ())
-                  :expand ((INTERSECTION-EQUAL B A)))
-          ("Subgoal *1/3"
-           :use ((:instance subset-equal-intersection-1
-                  (a (cdr b)) (x (cdr a)) (y a))))))
-
-(local-defthmd intersection-comm
-  (iff (intersection-equal a b)
-       (intersection-equal b a))
-  :hints (("Goal" :use (intersection-comm-1
-                        (:instance intersection-comm-1
-                         (a b) (b a))))))
-
-(local-defthmd subset-equal-intersection-2
-  (implies (and (subsetp-equal a b)
-                (subsetp-equal x y)
-                (intersection-equal a x))
-           (intersection-equal b y))
-  :hints (("Goal" :in-theory (e/d (intersection-comm) ())
-                  :use (subset-equal-intersection-1
-                        (:instance subset-equal-intersection-1 (x a) (y b) (a y))))))
-
-(local-defthm intersection-of-cons
-  (iff (intersection-equal (cons x y) z)
-       (or (member-equal x z)
-           (intersection-equal y z)))
-  :hints (("Goal" :in-theory (e/d (intersection-equal) ()))))
-
-(local-defthm strip-cars-rev-ctx
-  (equal (strip-cars (rev-ctx s a))
-         (strip-cars s))
-  :hints (("Goal" :in-theory (e/d (rev-ctx) ()))))
-
-(local-defthmd subsetp-equal-free-vars-member
-  (implies (member-equal x actuals)
-           (subsetp-equal (free-vars x)
-                          (free-vars-lst actuals)))
-  :hints (("Goal" :in-theory (e/d (free-vars free-vars-lst) ()))))
-
-(local-defthm strip-cars-interp-subst
-  (equal (strip-cars (interp-subst x))
-         (strip-cdrs x))
-  :hints (("Goal" :in-theory (e/d (interp-subst) ()))))
-
-(local-defthmd mv-nth-0-unify-subst
-  (equal (mv-nth 0 (unify-subst f1 f2 avoid-vars))
-         (strip-cdrs f1))
-  :hints (("Goal" :in-theory (e/d (unify-subst) ()))))
-
-(local-defthmd aux-lemma-1
-  (implies (and (pseudo-term-listp actuals)
-                (subsetp-equal (free-vars-lst actuals)
-                               (append avoid-vars (strip-cdrs f2)))
-                (equal (len formals) (len actuals))
-                (subsetp-equal x formals)
-                (not (member-equal nil (strip-cdrs f1)))
-                (not (member-equal nil (strip-cdrs f2)))
-                (no-duplicatesp-equal (strip-cars f2))
-                (no-duplicatesp-equal (strip-cdrs f2))
-                (no-duplicatesp-equal (strip-cars f1))
-                (no-duplicatesp-equal (strip-cdrs f1))
-                (symbol-listp avoid-vars)
-                (symbol-listp formals)
-                (symbol-symbol-alistp f1)
-                (symbol-symbol-alistp f2)
-                (not (intersection-equal avoid-vars (strip-cdrs f2)))
-                (not (intersection-equal formals (strip-cdrs f1))))
-           (alist-eq x
-                     (append
-                      (rev-ctx
-                       (pairlis$
-                        (mv-nth 0 (unify-subst f1 f2 avoid-vars))
-                        (mv-nth 1 (unify-subst f1 f2 avoid-vars)))
-                       (append
-                        (rev-ctx (interp-subst (mv-nth 2 (unify-subst f1 f2 avoid-vars))) a)
-                        a))
-                      (rev-ctx
-                       (pairlis$ formals
-                                 actuals)
-                       (append
-                        (rev-ctx
-                         (interp-subst
-                          (mv-nth 2 (unify-subst f1 f2 avoid-vars)))
-                         a)
-                        a)))
-                     (append
-                      (rev-ctx (interp-subst f1) (rev-ctx (pairlis$ formals actuals) (append
-                                                                                      (rev-ctx
-                                                                                       (interp-subst
-                                                                                        f2)
-                                                                                       a)
-                                                                                      a)))
-                      (rev-ctx (pairlis$ formals actuals) (append
-                                                           (rev-ctx
-                                                            (interp-subst
-                                                             f2)
-                                                            a)
-                                                           a)))))
-  :hints (("Goal" :in-theory (e/d (alist-eq len
-                                   free-vars-lst
-                                   len
-                                   intersection-equal-when-member
-                                   mv-nth-0-unify-subst
-                                   subsetp-equal-free-vars-member) ())
-                  :induct (len x))
-          ("Subgoal *1/1"
-           :use ((:instance rev-ctx-of-unify-subst-pseudo-termp-2
-                  (x (CDR (ASSOC-EQUAL (CAR X)
-                                       (PAIRLIS$ FORMALS ACTUALS)))))))))
-
-(local-defthm member-aux-lemma
-  (implies (member x (strip-cdrs f1))
-           (member x (mv-nth 0 (unify-subst f1 f2 avoid-vars))))
-  :hints (("Goal" :in-theory (e/d (mv-nth-0-unify-subst) ()))))
-
-(local-defthm aux-lemma-3
-  (implies (member x (strip-cdrs f1))
-           (ASSOC-EQUAL
-            (CDR (ASSOC-EQUAL x
-                              (PAIRLIS$ (MV-NTH 0 (UNIFY-SUBST F1 F2 AVOID-VARS))
-                                        (MV-NTH 1 (UNIFY-SUBST F1 F2 AVOID-VARS)))))
-            (INTERP-SUBST (MV-NTH 2 (UNIFY-SUBST F1 F2 AVOID-VARS)))))
-  :hints (("Goal" :in-theory (e/d (unify-subst interp-subst) ()))))
-
-(local-defthm aux-lemma-4
-  (implies (and (member x (strip-cdrs f1))
-                (symbol-symbol-alistp f2)
-                (symbol-symbol-alistp f1)
-                (no-duplicatesp-equal (strip-cars f2))
-                (no-duplicatesp-equal (strip-cdrs f2)))
-           (equal (CDR
-                   (ASSOC-EQUAL
-                    (CDR (ASSOC-EQUAL x
-                                      (PAIRLIS$ (MV-NTH 0 (UNIFY-SUBST F1 F2 AVOID-VARS))
-                                                (MV-NTH 1 (UNIFY-SUBST F1 F2 AVOID-VARS)))))
-                    (INTERP-SUBST (MV-NTH 2 (UNIFY-SUBST F1 F2 AVOID-VARS)))))
-                  (list (CDR (ASSOC-EQUAL x
-                                          (PAIRLIS$ (STRIP-CDRS F1)
-                                                    (STRIP-CARS F1)))))))
-  :hints (("Goal" :in-theory (e/d (unify-subst interp-subst) ()))))
-
-(local-defthm aux-lemma-6
-  (implies (and (not (member nil (Strip-cdrs f)))
-                (member x (strip-cars f)))
-           (cdr (assoc-equal x f))))
-
-(local-defthm aux-lemma-5
-  (implies (and (not (member-equal nil (strip-cdrs f2)))
-                (member-equal x (strip-cdrs f1)))
-           (cdr (assoc-equal x (pairlis$ (mv-nth 0 (unify-subst f1 f2 avoid-vars))
-                                         (mv-nth 1 (unify-subst f1 f2 avoid-vars))))))
-  :hints (("Goal" :in-theory (e/d (unify-subst) ()))))
-
-(local-defthmd aux-lemma-2
-  (implies (and (pseudo-term-listp actuals)
-                (subsetp-equal (free-vars-lst actuals)
-                               (append avoid-vars (strip-cdrs f2)))
-                (equal (len formals) (len actuals))
-                (subsetp-equal x (strip-cdrs f1))
-                (not (member-equal nil (strip-cdrs f1)))
-                (not (member-equal nil (strip-cdrs f2)))
-                (no-duplicatesp-equal (strip-cars f2))
-                (no-duplicatesp-equal (strip-cdrs f2))
-                (no-duplicatesp-equal (strip-cars f1))
-                (no-duplicatesp-equal (strip-cdrs f1))
-                (symbol-listp avoid-vars)
-                (symbol-listp formals)
-                (symbol-symbol-alistp f1)
-                (symbol-symbol-alistp f2)
-                (not (intersection-equal avoid-vars (strip-cdrs f2)))
-                (not (intersection-equal formals (strip-cdrs f1))))
-           (alist-eq x
-                     (append
-                      (rev-ctx
-                       (pairlis$
-                        (mv-nth 0 (unify-subst f1 f2 avoid-vars))
-                        (mv-nth 1 (unify-subst f1 f2 avoid-vars)))
-                       (append
-                        (rev-ctx (interp-subst (mv-nth 2 (unify-subst f1 f2 avoid-vars))) a)
-                        a))
-                      (rev-ctx
-                       (pairlis$ formals
-                                 actuals)
-                       (append
-                        (rev-ctx
-                         (interp-subst
-                          (mv-nth 2 (unify-subst f1 f2 avoid-vars)))
-                         a)
-                        a)))
-                     (append
-                      (rev-ctx (interp-subst f1) (rev-ctx (pairlis$ formals actuals) (append
-                                                                                      (rev-ctx
-                                                                                       (interp-subst
-                                                                                        f2)
-                                                                                       a)
-                                                                                      a)))
-                      (rev-ctx (pairlis$ formals actuals) (append
-                                                           (rev-ctx
-                                                            (interp-subst
-                                                             f2)
-                                                            a)
-                                                           a)))))
-  :hints (("Goal" :in-theory (e/d (alist-eq len
-                                   free-vars-lst
-                                   len
-                                   intersection-equal-when-member
-                                   ;; mv-nth-0-unify-subst
-                                   rev-of-fncall-args) ())
-                  :induct (len x))
-          ("Subgoal *1/1"
-           :cases ((equal (CDR (ASSOC-EQUAL (CAR X)
-                                            (PAIRLIS$ (STRIP-CDRS F1)
-                                                      (STRIP-CARS F1)))) 'quote)))))
-
-(local-defthm alist-eq-append
-  (implies (and (alist-eq x a1 a2)
-                (alist-eq y a1 a2))
-           (alist-eq (append x y) a1 a2))
-  :hints (("Goal" :in-theory (e/d (alist-eq) ()))))
-
-(local-defthm alist-eq-member
-  (implies (and (member-equal x y)
-                (alist-eq y a1 a2)
-                x)
-           (equal (cdr (assoc x a1)) (cdr (assoc x a2))))
-  :hints (("Goal" :in-theory (e/d (alist-eq) ()))))
-
-(local-defthmd alist-eq-subset
-  (implies (and (subsetp-equal x y)
-                (alist-eq y a1 a2))
-           (alist-eq x a1 a2))
-  :hints (("Goal" :in-theory (e/d (alist-eq len) ())
-                  :induct (len x))))
-
-(local-defthm aux-lemma
-  (implies (and (pseudo-term-listp actuals)
-                (subsetp-equal (free-vars-lst actuals)
-                               (append avoid-vars (strip-cdrs f2)))
-                (equal (len formals) (len actuals))
-                (subsetp-equal x (append (strip-cdrs f1) formals))
-                (not (member-equal nil (strip-cdrs f1)))
-                (not (member-equal nil (strip-cdrs f2)))
-                (no-duplicatesp-equal (strip-cars f2))
-                (no-duplicatesp-equal (strip-cdrs f2))
-                (no-duplicatesp-equal (strip-cars f1))
-                (no-duplicatesp-equal (strip-cdrs f1))
-                (symbol-listp avoid-vars)
-                (symbol-listp formals)
-                (symbol-symbol-alistp f1)
-                (symbol-symbol-alistp f2)
-                (not (intersection-equal avoid-vars (strip-cdrs f2)))
-                (not (intersection-equal formals (strip-cdrs f1))))
-           (alist-eq x
-                     (append
-                      (rev-ctx
-                       (pairlis$
-                        (mv-nth 0 (unify-subst f1 f2 avoid-vars))
-                        (mv-nth 1 (unify-subst f1 f2 avoid-vars)))
-                       (append
-                        (rev-ctx (interp-subst (mv-nth 2 (unify-subst f1 f2 avoid-vars))) a)
-                        a))
-                      (rev-ctx
-                       (pairlis$ formals
-                                 actuals)
-                       (append
-                        (rev-ctx
-                         (interp-subst
-                          (mv-nth 2 (unify-subst f1 f2 avoid-vars)))
-                         a)
-                        a)))
-                     (append
-                      (rev-ctx (interp-subst f1) (rev-ctx (pairlis$ formals actuals) (append
-                                                                                      (rev-ctx
-                                                                                       (interp-subst
-                                                                                        f2)
-                                                                                       a)
-                                                                                      a)))
-                      (rev-ctx (pairlis$ formals actuals) (append
-                                                           (rev-ctx
-                                                            (interp-subst
-                                                             f2)
-                                                            a)
-                                                           a)))))
-  :hints (("Goal" :use ((:instance aux-lemma-1
-                         (x formals))
-                        (:instance aux-lemma-2
-                         (x (strip-cdrs f1))))
-                  :in-theory (e/d (alist-eq-subset) ())
-                  :do-not-induct t)))
-
-(local
- (defthmd rev-ctx-of-unify-subst-pseudo-termp-4
-   (implies (and (pseudo-termp x)
-                 (equal (len formals) (len actuals))
-                 (pseudo-term-listp actuals)
-                 (subsetp-equal (free-vars-lst actuals)
-                               (append avoid-vars (strip-cdrs f2)))
-                 (subsetp-equal (free-vars x) (union-equal (strip-cdrs f1) formals))
-                 (not (member-equal nil (strip-cdrs f1)))
-                 (not (member-equal nil (strip-cdrs f2)))
-                 (no-duplicatesp-equal (strip-cars f2))
-                 (no-duplicatesp-equal (strip-cdrs f2))
-                 (no-duplicatesp-equal (strip-cars f1))
-                 (no-duplicatesp-equal (strip-cdrs f1))
-                 (symbol-listp avoid-vars)
-                 (symbol-listp formals)
-                 (symbol-symbol-alistp f1)
-                 (symbol-symbol-alistp f2)
-                 (not (intersection-equal avoid-vars (strip-cdrs f2)))
-                 (not (intersection-equal formals (strip-cdrs f1))))
-            (EQUAL
-             (rev x
-                  (append
-                      (rev-ctx
-                       (pairlis$
-                        (mv-nth 0 (unify-subst f1 f2 avoid-vars))
-                        (mv-nth 1 (unify-subst f1 f2 avoid-vars)))
-                       (append
-                        (rev-ctx (interp-subst (mv-nth 2 (unify-subst f1 f2 avoid-vars))) a)
-                        a))
-                      (rev-ctx
-                       (pairlis$ formals
-                                 actuals)
-                       (append
-                        (rev-ctx
-                         (interp-subst
-                          (mv-nth 2 (unify-subst f1 f2 avoid-vars)))
-                         a)
-                        a))))
-             (rev
-              x
-              (append
-               (rev-ctx (interp-subst f1) (rev-ctx (pairlis$ formals actuals) (append
-                                                                               (rev-ctx
-                                                                                (interp-subst
-                                                                                 f2)
-                                                                                a)
-                                                                               a)))
-               (rev-ctx (pairlis$ formals actuals) (append
-                                                    (rev-ctx
-                                                     (interp-subst
-                                                      f2)
-                                                     a)
-                                                    a))))))
-   :hints (("Goal" :in-theory (e/d (REV-ALIST-EQ-ON-FREE-VARS) (aux-lemma))
-                   :do-not-induct t
-                   :use ((:instance aux-lemma
-                          (x (free-vars x))))))))
-
-(local-defthm pailis$-to-rev-ctx
-  (implies (equal (len x) (len y))
-           (equal (pairlis$ x (rev-lst y a))
-                  (rev-ctx (pairlis$ x y) a)))
-  :hints (("Goal" :in-theory (e/d (rev-ctx
-                                   len) ()))))
-
-(local
- (defthm pairlis$-append
-   (implies (equal (len x) (len z))
-            (equal (pairlis$ (append x y) (append z w))
-                   (append (pairlis$ x z)
-                           (pairlis$ y w))))
-   :hints (("Goal" :in-theory (e/d (rev-ctx
-                                    len) ())))))
-
-(local-defthm append-rev-ctx
-  (equal (rev-ctx (append x y) a)
-         (append (rev-ctx x a) (rev-ctx y a)))
-  :hints (("Goal" :in-theory (e/d (rev-ctx) ()))))
-
-(local-defthmd rev-ctx-pairlis$
-  (equal (rev-ctx (pairlis$ x y) a)
-         (pairlis$ x (rev-lst y a)))
-  :hints (("Goal" :in-theory (e/d (rev-ctx) ()))))
-
-(local-defthmd rev-ctx-of-processed
-  (implies (EQUAL (REV-LST processed-actuals (APPEND (REV-CTX processed-context A) A))
-                  (REV-LST actuals A))
-           (equal (REV-CTX
-                   (PAIRLIS$ formals
-                             processed-actuals)
-                   (APPEND (REV-CTX processed-context A) A))
-                  (rev-ctx (pairlis$ formals actuals) a)))
-  :hints (("Goal" :in-theory (e/d (rev-ctx-pairlis$) ()))))
-
-(local
- (defthm-gify-term-ind-flag
-   (defthm gify-term-correct-lambda
-     (b* (((mv okp gen-term f)
-           (gify-term-lambda x expand-fns avoid-vars state)))
-       (implies (and okp
-                     (rev-meta-extract-global-facts)
-                     (subsetp-equal (free-vars x) avoid-vars)
-                     (pseudo-termp x)
-                     (symbol-listp avoid-vars))
-                (equal (rev gen-term (append (rev-ctx (interp-subst f) a) a))
-                       (rev x a))))
-     :flag gify-term-lambda-ind)
-   (defthm gify-term-correct-expand
-     (b* (((mv okp gen-term f)
-           (gify-term-expand x expand-fns avoid-vars state)))
-       (implies (and okp
-                     (rev-meta-extract-global-facts)
-                     (subsetp-equal (free-vars x) avoid-vars)
-                     (pseudo-termp x)
-                     (symbol-listp avoid-vars))
-                (equal (rev gen-term (append (rev-ctx (interp-subst f) a) a))
-                       (rev x a))))
-     :flag gify-term-expand-ind)
-   (defthm gify-term-correct
-     (b* (((mv okp gen-term f)
-           (gify-term x expand-fns avoid-vars state)))
-       (implies (and okp
-                     (rev-meta-extract-global-facts)
-                     (subsetp-equal (free-vars x) avoid-vars)
-                     (pseudo-termp x)
-                     (symbol-listp avoid-vars))
-                (equal (rev gen-term (append (rev-ctx (interp-subst f) a) a))
-                       (rev x a))))
-     :flag gify-term-ind)
-   (defthm gify-term-correct-lst
-     (b* (((mv okp gen-term f)
-           (gify-term-lst lst expand-fns avoid-vars state)))
-       (implies (and okp
-                     (rev-meta-extract-global-facts)
-                     (subsetp-equal (free-vars-lst lst) avoid-vars)
-                     (pseudo-term-listp lst)
-                     (symbol-listp avoid-vars))
-                (equal (rev-lst gen-term (append (rev-ctx (interp-subst f) a) a))
-                       (rev-lst lst a))))
-     :flag gify-term-lst-ind)
-   :hints (("Goal" :in-theory (e/d (gify-term-lambda
-                                    gify-term-expand
-                                    gify-term
-                                    gify-term-lst
-                                    rev-ctx-of-unify-subst-pseudo-termp
-                                    rev-ctx-of-unify-subst-pseudo-termp-3
-                                    rev-ctx-of-unify-subst-pseudo-termp-lst-2
-                                    pseudo-termp
-                                    pseudo-term-listp
-                                    free-vars-lst
-                                    free-vars
-                                    rev-of-fncall-args)
-                                   (rev-fn-get-def)))
-           ("Subgoal *1/12"
-            :in-theory (e/d (gify-term-lambda
-                             gify-term-expand
-                             gify-term
-                             gify-term-lst
-                             rev-ctx-of-unify-subst-pseudo-termp
-                             rev-ctx-of-unify-subst-pseudo-termp-3
-                             rev-ctx-of-unify-subst-pseudo-termp-lst-2
-                             rev-ctx-of-unify-subst-pseudo-termp-4
-                             pseudo-termp
-                             pseudo-term-listp
-                             free-vars-lst
-                             free-vars
-                             rev-of-fncall-args)
-                            (rev-fn-get-def))
-            :use ((:instance rev-fn-get-def
-                   (fn (car x))
-                   (st state)
-                   (args (cdr x))
-                   (a a))
-                  (:instance rev-ctx-of-processed
-                   (processed-actuals (MV-NTH 1
-                                              (GIFY-TERM-LST (CDR X)
-                                                             EXPAND-FNS AVOID-VARS STATE)))
-                   (processed-context (INTERP-SUBST (MV-NTH 2
-                                                            (GIFY-TERM-LST (CDR X)
-                                                                           EXPAND-FNS AVOID-VARS STATE))))
-                   (formals (MV-NTH 1 (ACL2::FN-GET-DEF (CAR X) STATE)))
-                   (actuals (cdr x)))))
-           ("Subgoal *1/1"
-            :in-theory (e/d (gify-term-lambda
-                             gify-term-expand
-                             gify-term
-                             gify-term-lst
-                             rev-ctx-of-unify-subst-pseudo-termp
-                             rev-ctx-of-unify-subst-pseudo-termp-3
-                             rev-ctx-of-unify-subst-pseudo-termp-lst-2
-                             rev-ctx-of-unify-subst-pseudo-termp-4
-                             pseudo-termp
-                             pseudo-term-listp
-                             free-vars-lst
-                             free-vars
-                             rev-of-fncall-args)
-                            (rev-fn-get-def))
-            :use ((:instance rev-ctx-of-processed
-                   (processed-actuals (MV-NTH 1
-                                              (GIFY-TERM-LST (CDR X)
-                                                             EXPAND-FNS AVOID-VARS STATE)))
-                   (processed-context (INTERP-SUBST (MV-NTH 2
-                                                            (GIFY-TERM-LST (CDR X)
-                                                                           EXPAND-FNS AVOID-VARS STATE))))
-                   (formals (cadar x))
-                   (actuals (cdr x))))))))
-
-(local-defthm symbolp-car-assoc
-  (implies (symbolp x)
-           (symbolp (car (assoc x s)))))
-
+;(local-defthm strip-cars-pairlis$
+;  (implies (true-listp x)
+;           (equal (strip-cars (pairlis$ x y))
+;                  x)))
+;
+;(local-defthm pairlis$-rev-lst-to-rev-ctx
+;  (implies (true-listp x)
+;           (equal (pairlis$ x (rev-lst (apply-map s x) a))
+;                  (rev-ctx (pairlis$ x (apply-map s x)) a)))
+;  :hints (("Goal" :in-theory (e/d (rev-ctx
+;                                   apply-map) ()))))
+;
+;;; (local-defthm cdr-assoc-rev-ctx
+;;;   (implies (and (member x vars)
+;;;                 (symbolp x)
+;;;                 (symbol-symbol-alistp s))
+;;;            (equal (cdr (assoc-equal x (rev-ctx (pairlis$ vars (apply-map s vars)) a)))
+;;;                   (if (assoc-equal x s)
+;;;                       (rev (cdr (assoc-equal x s)) a)
+;;;                     (rev x a))))
+;;;   :hints (("Goal" :in-theory (e/d (rev-ctx
+;;;                                    apply-map)
+;;;                                   (PAIRLIS$-REV-LST-TO-REV-CTX)))))
+;
+;(local-defthm intersection-equal-cons-1
+;  (implies (true-listp a)
+;           (iff (intersection-equal a (cons x y))
+;                (or (member-equal x a)
+;                    (intersection-equal a y))))
+;  :hints (("Goal" :in-theory (e/d (intersection-equal) ()))))
+;
+;(local-defthm not-member-my-genvar-append
+;  (and (not (member-equal (my-genvar x (append z y)) y))
+;       (not (member-equal (my-genvar x (append z y)) z)))
+;  :hints (("Goal" :in-theory (e/d () (not-member-equal-avoid-vars-my-genvar))
+;                  :do-not-induct t
+;                  :use ((:instance not-member-equal-avoid-vars-my-genvar
+;                         (x x)
+;                         (avoid-vars (append z y)))))))
+;
+;
+;(local-defthm alistp-rev-ctx
+;  (alistp (rev-ctx ctx al))
+;  :hints (("Goal" :in-theory (e/d (rev-ctx) ()))))
+;
+;(local-defthm assoc-alistp-append
+;  (implies (alistp x)
+;           (equal (Assoc a (append x y))
+;                  (or (assoc a x)
+;                      (assoc a y)))))
+;
+;(local-defthm assoc-equal-rev-ctx
+;  (implies (alistp s)
+;           (equal (assoc-equal x (rev-ctx s a))
+;         (if (assoc-equal x s)
+;             (cons x (rev (cdr (assoc-equal x s)) a))
+;           nil)))
+;  :hints (("Goal" :in-theory (e/d (rev-ctx) ()))))
+;
+;(local-defthm assoc-interp-subst
+;  (implies (member-equal x (strip-cdrs f))
+;           (equal (assoc-equal x (interp-subst f))
+;                  (cons x (list (cdr (assoc-equal x (pairlis$ (strip-cdrs f)
+;                                                      (strip-cars f))))))))
+;  :hints (("Goal" :in-theory (e/d (interp-subst) ()))))
+;
+;(local-defthm cdr-assoc-interp-subst-unify-subst
+;  (implies (member x (strip-cdrs f2))
+;           (equal (assoc-equal x (interp-subst (mv-nth 2 (unify-subst f1 f2 avoid-vars))))
+;                  (cons x (list (cdr (assoc-equal x (pairlis$ (strip-cdrs f2) (strip-cars f2))))))))
+;  :hints (("Goal" :in-theory (e/d (unify-subst
+;                                   interp-subst) (not-member-equal-avoid-vars-my-genvar)))
+;          ("Subgoal *1/5"
+;                  :use ((:instance not-member-equal-avoid-vars-my-genvar
+;                         (x (caar f1))
+;                         (avoid-vars (append (Strip-cdrs f2) avoid-vars)))))
+;          ("Subgoal *1/4"
+;                  :use ((:instance not-member-equal-avoid-vars-my-genvar
+;                         (x (caar f1))
+;                         (avoid-vars (append (Strip-cdrs f2) avoid-vars)))))))
+;
+;(local-defthm alistp-interp-subst
+;  (alistp (interp-subst x))
+;  :hints (("Goal" :in-theory (e/d (interp-subst) ()))))
+;
+;(local-defthm not-cdr-assoc-when-non-nil-member
+;  (implies (and (alistp s)
+;                (not (member-equal nil (strip-cdrs s)))
+;                (assoc-equal x s))
+;           (cdr (assoc-equal x s))))
+;
+;(local-defthm symbol-symbol-alistp-alistp
+;  (implies (symbol-symbol-alistp x)
+;           (alistp x)))
+;
+;(local-defthm member-cdr-if-assoc-eq
+;  (implies (assoc-equal x y)
+;           (member-equal (cdr (assoc-equal x y)) (strip-cdrs y))))
+;
+;(local-defthm assoc-of-pairlis-when-not-member
+;  (implies (not (member-equal x y))
+;           (not (assoc-equal x (pairlis$ y z)))))
+;
+;(local-defthm assoc-assoc-pairlis-inverse
+;  (implies (and (assoc-equal x y)
+;                (no-duplicatesp-equal (strip-cdrs y))
+;                (no-duplicatesp-equal (strip-cars y)))
+;           (equal (cdr (assoc-equal (cdr (assoc-equal x y))
+;                                    (pairlis$ (strip-cdrs y)
+;                                              (strip-cars y))))
+;                  x))
+;  :hints (("Goal" :induct (assoc-equal x y))))
+;
+;(local-defthm member-equal-assoc-equal-strip-cars
+;  (implies (and (member-equal x (Strip-cars y))
+;                (alistp y))
+;           (assoc-equal x y)))
+;
+;(local-defthm no-duplicatesp-equal-strip-cars-unify
+;  (implies (and (no-duplicatesp-equal (strip-cars f2))
+;                (alistp f2))
+;           (no-duplicatesp-equal (strip-cars (mv-nth 2 (unify-subst f1 f2 avoid-vars)))))
+;  :hints (("Goal" :in-theory (e/d (unify-subst) ()))))
+;
+;(local-defthm no-duplicatesp-equal-strip-cdrs-unify
+;  (implies (and (no-duplicatesp-equal (strip-cdrs f2))
+;                (alistp f2))
+;           (no-duplicatesp-equal (strip-cdrs (mv-nth 2 (unify-subst f1 f2 avoid-vars)))))
+;  :hints (("Goal" :in-theory (e/d (unify-subst) (not-member-equal-avoid-vars-my-genvar)))
+;          ("Subgoal *1/3"
+;           :use ((:instance not-member-equal-avoid-vars-my-genvar
+;                  (x (caar f1))
+;                  (avoid-vars (append (Strip-cdrs f2) avoid-vars)))))))
+;
+;(defthm-gify-term-flag
+;  (defthm no-duplicatesp-strip-cars-lambda
+;    (b* (((mv ?okp ?gen-term f)
+;          (gify-term-lambda x expand-fns avoid-vars state)))
+;      (implies (pseudo-termp x)
+;               (no-duplicatesp-equal (strip-cars f))))
+;    :flag gify-term-lambda)
+;  (defthm no-duplicatesp-strip-cars-expand
+;    (b* (((mv ?okp ?gen-term f)
+;          (gify-term-expand x expand-fns avoid-vars state)))
+;      (implies (pseudo-termp x)
+;               (no-duplicatesp-equal (strip-cars f))))
+;    :flag gify-term-expand)
+;  (defthm no-duplicatesp-strip-cars
+;    (b* (((mv ?okp ?gen-term f)
+;          (gify-term x expand-fns avoid-vars state)))
+;      (implies (pseudo-termp x)
+;               (no-duplicatesp-equal (strip-cars f))))
+;    :flag gify-term)
+;  (defthm no-duplicatesp-strip-cars-lst
+;    (b* (((mv ?okp ?gen-term f)
+;          (gify-term-lst lst expand-fns avoid-vars state)))
+;      (implies (pseudo-term-listp lst)
+;               (no-duplicatesp-equal (strip-cars f))))
+;    :flag gify-term-lst)
+;  :hints (("Goal" :in-theory (e/d (gify-term-lst
+;                                   gify-term
+;                                   gify-term-expand
+;                                   gify-term-lambda) ()))))
+;
+;(defthm-gify-term-flag
+;  (defthm no-duplicatesp-strip-cdrs-lambda
+;    (b* (((mv ?okp ?gen-term f)
+;          (gify-term-lambda x expand-fns avoid-vars state)))
+;      (implies (pseudo-termp x)
+;               (no-duplicatesp-equal (strip-cdrs f))))
+;    :flag gify-term-lambda)
+;  (defthm no-duplicatesp-strip-cdrs-expand
+;    (b* (((mv ?okp ?gen-term f)
+;          (gify-term-expand x expand-fns avoid-vars state)))
+;      (implies (pseudo-termp x)
+;               (no-duplicatesp-equal (strip-cdrs f))))
+;    :flag gify-term-expand)
+;  (defthm no-duplicatesp-strip-cdrs
+;    (b* (((mv ?okp ?gen-term f)
+;          (gify-term x expand-fns avoid-vars state)))
+;      (implies (pseudo-termp x)
+;               (no-duplicatesp-equal (strip-cdrs f))))
+;    :flag gify-term)
+;  (defthm no-duplicatesp-strip-cdrs-lst
+;    (b* (((mv ?okp ?gen-term f)
+;          (gify-term-lst lst expand-fns avoid-vars state)))
+;      (implies (pseudo-term-listp lst)
+;               (no-duplicatesp-equal (strip-cdrs f))))
+;    :flag gify-term-lst)
+;  :hints (("Goal" :in-theory (e/d (gify-term-lst
+;                                   gify-term
+;                                   gify-term-expand
+;                                   gify-term-lambda) ()))))
+;
+;(local-defthm not-intersectionp-nil
+;  (not (intersection-equal x nil))
+;  :hints (("Goal" :in-theory (e/d (intersection-equal) ()))))
+;
+;(local-defthm not-intersection-equal-union
+;  (implies (and (not (intersection-equal avoid-vars (strip-cdrs f2)))
+;                (symbol-listp avoid-vars))
+;           (not (intersection-equal avoid-vars (strip-cdrs (mv-nth 2 (unify-subst f1 f2 avoid-vars))))))
+;  :hints (("Goal" :in-theory (e/d (unify-subst
+;                                   intersection-equal)
+;                                  ()))))
+;
+;
+;(defthm-gify-term-flag
+;  (defthm not-intersectionp-strip-cdrs-lambda
+;    (b* (((mv ?okp ?gen-term f)
+;          (gify-term-lambda x expand-fns avoid-vars state)))
+;      (implies (and (pseudo-termp x)
+;                    (symbol-listp avoid-vars))
+;               (not (intersection-equal avoid-vars (strip-cdrs f)))))
+;    :flag gify-term-lambda)
+;  (defthm not-intersectionp-strip-cdrs-expand
+;    (b* (((mv ?okp ?gen-term f)
+;          (gify-term-expand x expand-fns avoid-vars state)))
+;      (implies (and (pseudo-termp x)
+;                    (symbol-listp avoid-vars))
+;               (not (intersection-equal avoid-vars (strip-cdrs f)))))
+;    :flag gify-term-expand)
+;  (defthm not-intersectionp-strip-cdrs
+;    (b* (((mv ?okp ?gen-term f)
+;          (gify-term x expand-fns avoid-vars state)))
+;      (implies (and (pseudo-termp x)
+;                    (symbol-listp avoid-vars))
+;               (not (intersection-equal avoid-vars (strip-cdrs f)))))
+;    :flag gify-term)
+;  (defthm not-intersectionp-strip-cdrs-lst
+;    (b* (((mv ?okp ?gen-term f)
+;          (gify-term-lst lst expand-fns avoid-vars state)))
+;      (implies (and (pseudo-term-listp lst)
+;                    (symbol-listp avoid-vars))
+;               (not (intersection-equal avoid-vars (strip-cdrs f)))))
+;    :flag gify-term-lst)
+;  :hints (("Goal" :in-theory (e/d (gify-term-lst
+;                                   gify-term
+;                                   gify-term-expand
+;                                   gify-term-lambda) ()))))
+;
+;(local-defthm not-member-nil-unify-subst
+;  (implies (not (member-equal nil (strip-cdrs f2)))
+;           (not (member-equal nil (strip-cdrs (mv-nth 2 (unify-subst f1 f2 avoid-vars))))))
+;  :hints (("Goal" :in-theory (e/d (unify-subst) ()))))
+;
+;(defthm-gify-term-flag
+;  (defthm not-member-nil-strip-cdrs-lambda
+;    (b* (((mv ?okp ?gen-term f)
+;          (gify-term-lambda x expand-fns avoid-vars state)))
+;      (implies (and (pseudo-termp x))
+;               (not (member-equal nil (strip-cdrs f)))))
+;    :flag gify-term-lambda)
+;  (defthm not-member-nil-strip-cdrs-expand
+;    (b* (((mv ?okp ?gen-term f)
+;          (gify-term-expand x expand-fns avoid-vars state)))
+;      (implies (and (pseudo-termp x))
+;               (not (member-equal nil (strip-cdrs f)))))
+;    :flag gify-term-expand)
+;  (defthm not-member-nil-strip-cdrs
+;    (b* (((mv ?okp ?gen-term f)
+;          (gify-term x expand-fns avoid-vars state)))
+;      (implies (and (pseudo-termp x))
+;               (not (member-equal nil (strip-cdrs f)))))
+;    :flag gify-term)
+;  (defthm not-member-nil-strip-cdrs-lst
+;    (b* (((mv ?okp ?gen-term f)
+;          (gify-term-lst lst expand-fns avoid-vars state)))
+;      (implies (and (pseudo-term-listp lst))
+;               (not (member-equal nil (strip-cdrs f)))))
+;    :flag gify-term-lst)
+;  :hints (("Goal" :in-theory (e/d (gify-term-lst
+;                                   gify-term
+;                                   gify-term-expand
+;                                   gify-term-lambda) ()))))
+;
+;(local-defthmd interp-subst-assoc
+;  (iff (assoc-equal x (interp-subst f))
+;           (member x (strip-cdrs f)))
+;  :hints (("Goal" :in-theory (e/d (interp-subst) ()))))
+;
+;(local-defthmd member-not-common
+;  (implies (and (member-equal x a)
+;                (member-equal x b))
+;           (intersection-equal a b))
+;  :hints (("Goal" :in-theory (e/d (intersection-equal) ()))))
+;
+;(local-defthm rev-ctx-rw-symbolp
+;  (implies (and (pseudo-termp x)
+;                (not (consp x))
+;
+;                (subsetp-equal (free-vars x)
+;                               (union-equal (strip-cdrs f1)
+;                                            avoid-vars))
+;                (not (member-equal nil (strip-cdrs f1)))
+;                (not (member-equal nil (strip-cdrs f2)))
+;                (no-duplicatesp-equal (strip-cars f2))
+;                (no-duplicatesp-equal (strip-cdrs f2))
+;                (symbol-listp avoid-vars)
+;                (symbol-symbol-alistp f1)
+;                (symbol-symbol-alistp f2)
+;                (not (intersection-equal avoid-vars (strip-cdrs f2))))
+;           (mv-let (nf na ns)
+;             (unify-subst f1 f2 avoid-vars)
+;             (equal (rev x
+;                         (rev-ctx (pairlis$ (free-vars x)
+;                                            (apply-map (pairlis$ nf na)
+;                                                       (free-vars x)))
+;                                  (append (rev-ctx (interp-subst ns) a)
+;                                          a)))
+;                    (rev x
+;                         (append (rev-ctx (interp-subst f1) a)
+;                                 a)))))
+;  :hints (("Goal" :in-theory (e/d (interp-subst
+;                                   unify-subst
+;                                   apply-map
+;                                   len
+;                                   rev-ctx
+;                                   free-vars
+;                                   pseudo-termp) (pairlis$-rev-lst-to-rev-ctx)))
+;          (and stable-under-simplificationp
+;               '(:in-theory (enable interp-subst-assoc
+;                             member-not-common)))))
+;
+;(local
+; (define alist-eq ((k symbol-listp)
+;                   (a1 symbol-alistp)
+;                   (a2 symbol-alistp))
+;   (if (consp k)
+;       (and (or (not (car k))
+;                (equal (cdr (assoc-equal (car k) a1)) (cdr (assoc-equal (car k) a2))))
+;            (alist-eq (cdr k) a1 a2))
+;     t)))
+;
+;(local-defthmd alist-eq-on-member
+;  (implies (and (alist-eq k a1 a2)
+;                (member-equal x k)
+;                x)
+;           (equal (cdr (assoc-equal x a1))
+;                  (cdr (assoc-equal x a2))))
+;  :hints (("Goal" :in-theory (e/d (alist-eq) ()))))
+;
+;(local-defthm alist-eq-on-union
+;  (implies (true-listp k1)
+;           (iff (alist-eq (union-equal k1 k2) a1 a2)
+;                (and (alist-eq k1 a1 a2)
+;                     (alist-eq k2 a1 a2))))
+;  :hints (("Goal" :in-theory (e/d (alist-eq
+;                                   alist-eq-on-member) ()))))
+;
+;(local
+; (defthm-pseudo-termp
+;   (defthmd rev-alist-eq-on-free-vars
+;     (implies (and (pseudo-termp x)
+;                   (alist-eq (free-vars x) a1 a2))
+;              (equal (rev x a1) (rev x a2)))
+;     :flag pseudo-termp)
+;   (defthmd rev-alist-eq-on-free-vars-lst
+;     (implies (and (pseudo-term-listp acl2::lst)
+;                   (alist-eq (free-vars-lst acl2::lst) a1 a2))
+;              (equal (rev-lst acl2::lst a1) (rev-lst acl2::lst a2)))
+;     :flag pseudo-term-listp)
+;   :hints (("Goal" :in-theory (e/d (alist-eq
+;                                    pseudo-termp
+;                                    pseudo-term-listp
+;                                    free-vars free-vars-lst
+;                                    rev-of-fncall-args) ())))))
+;
+;(local-defthm assoc-member-pairlis$-apply-map
+;  (implies (and (member-equal x vars)
+;                (symbol-symbol-alistp s)
+;                (symbol-listp vars))
+;           (equal (assoc-equal x (pairlis$ vars (apply-map s vars)))
+;                  (if (assoc-equal x s)
+;                      (cons x (cdr (assoc-equal x s)))
+;                    (cons x x))))
+;  :hints (("Goal" :in-theory (e/d (apply-map) ()))))
+;
+;(local
+; (defthmd alist-eq-on-union-eq-apply-map
+;   (implies (and (symbol-listp vars1)
+;                 (symbol-listp vars2)
+;                 (subsetp-equal k vars1)
+;                 (subsetp-equal vars1 vars2)
+;                 (symbol-symbol-alistp s))
+;            (alist-eq k
+;                      (rev-ctx (pairlis$ vars2
+;                                         (apply-map s vars2))
+;                               a)
+;                      (rev-ctx (pairlis$ vars1
+;                                (apply-map s vars1)) a)))
+;   :hints (("Goal" :in-theory (e/d (alist-eq
+;                                    len
+;                                    apply-map) ())
+;                   :induct (len k)))))
+;
+;(local-defthm member-x-unify-subst-f1-assoc
+;  (implies (member x (mv-nth 0 (unify-subst f1 f2 avoid-vars)))
+;           (assoc-equal x (interp-subst f1)))
+;  :hints (("Goal" :in-theory (e/d (unify-subst interp-subst) ()))))
+;
+;(local-defthm cdr-member-x-unify-subst-f1-assoc
+;  (implies (member x (mv-nth 0 (unify-subst f1 f2 avoid-vars)))
+;           (cdr (assoc-equal x (interp-subst f1))))
+;  :hints (("Goal" :in-theory (e/d (unify-subst interp-subst) ()))))
+;
+;(local-defthm member-x-unify-subst-f1-assoc-pairlis
+;  (implies (and (member x (mv-nth 0 (unify-subst f1 f2 avoid-vars)))
+;                (symbol-symbol-alistp f2)
+;                (symbol-symbol-alistp f1))
+;           (assoc-equal x (pairlis$ (mv-nth 0 (unify-subst f1 f2 avoid-vars))
+;                                    (mv-nth 1 (unify-subst f1 f2 avoid-vars)))))
+;  :hints (("Goal" :in-theory (e/d (unify-subst) ()))))
+;
+;(local
+; (defthm-pseudo-termp
+;   (defthmd rev-ctx-of-unify-subst-pseudo-termp
+;     (implies (and (pseudo-termp x)
+;                   (subsetp-equal (free-vars x) (union-equal (strip-cdrs f1) avoid-vars))
+;                   (not (member-equal nil (strip-cdrs f1)))
+;                   (not (member-equal nil (strip-cdrs f2)))
+;                   (no-duplicatesp-equal (strip-cars f2))
+;                   (no-duplicatesp-equal (strip-cdrs f2))
+;                   (symbol-listp avoid-vars)
+;                   (symbol-symbol-alistp f1)
+;                   (symbol-symbol-alistp f2)
+;                   (not (intersection-equal avoid-vars (strip-cdrs f2))))
+;              (b* (((mv nf na ns)
+;                    (unify-subst f1 f2 avoid-vars)))
+;                (equal (rev x (rev-ctx (pairlis$ (free-vars x)
+;                                                 (apply-map (pairlis$ nf na)
+;                                                            (free-vars x)))
+;                                       (append (rev-ctx (interp-subst ns) a) a)))
+;                       (rev x (append (rev-ctx (interp-subst f1) a) a)))))
+;     :flag pseudo-termp)
+;   (defthmd rev-ctx-of-unify-subst-pseudo-termp-lst
+;     (implies (and (pseudo-term-listp acl2::lst)
+;                   (subsetp-equal (free-vars-lst acl2::lst) (union-equal (strip-cdrs f1) avoid-vars))
+;                   (not (member-equal nil (strip-cdrs f1)))
+;                   (not (member-equal nil (strip-cdrs f2)))
+;                   (no-duplicatesp-equal (strip-cars f2))
+;                   (no-duplicatesp-equal (strip-cdrs f2))
+;                   (symbol-listp avoid-vars)
+;                   (symbol-symbol-alistp f1)
+;                   (symbol-symbol-alistp f2)
+;                   (not (intersection-equal avoid-vars (strip-cdrs f2))))
+;              (b* (((mv nf na ns)
+;                    (unify-subst f1 f2 avoid-vars)))
+;                (equal (rev-lst acl2::lst (rev-ctx (pairlis$ (free-vars-lst acl2::lst)
+;                                                             (apply-map (pairlis$ nf na)
+;                                                                        (free-vars-lst acl2::lst)))
+;                                                   (append (rev-ctx (interp-subst ns) a) a)))
+;                       (rev-lst acl2::lst (append (rev-ctx (interp-subst f1) a) a)))))
+;     :flag pseudo-term-listp)
+;   :hints (("Goal" :in-theory (e/d (free-vars free-vars-lst
+;                                    pseudo-termp
+;                                    pseudo-term-listp
+;                                    unify-subst
+;                                    interp-subst
+;                                    rev-of-fncall-args)
+;                                   (rev-ctx-rw-symbolp)))
+;           ("Subgoal *1/11"
+;            :use ((:instance alist-eq-on-union-eq-apply-map
+;                   (k (free-vars (car acl2::lst)))
+;                   (vars1 (free-vars (car acl2::lst)))
+;                   (vars2 (union-equal (free-vars-lst (cdr acl2::lst))
+;                                       (free-vars (car acl2::lst))))
+;                   (s (pairlis$ (mv-nth 0 (unify-subst f1 f2 avoid-vars))
+;                                (mv-nth 1 (unify-subst f1 f2 avoid-vars))))
+;                   (a (append
+;                       (rev-ctx (interp-subst (mv-nth 2 (unify-subst f1 f2 avoid-vars)))
+;                                a)
+;                       a)))
+;                  (:instance alist-eq-on-union-eq-apply-map
+;                   (k (free-vars-lst (cdr acl2::lst)))
+;                   (vars1 (free-vars-lst (cdr acl2::lst)))
+;                   (vars2 (union-equal (free-vars-lst (cdr acl2::lst))
+;                                       (free-vars (car acl2::lst))))
+;                   (s (pairlis$ (mv-nth 0 (unify-subst f1 f2 avoid-vars))
+;                                (mv-nth 1 (unify-subst f1 f2 avoid-vars))))
+;                   (a (append
+;                       (rev-ctx (interp-subst (mv-nth 2 (unify-subst f1 f2 avoid-vars)))
+;                                a)
+;                       a)))
+;                  (:instance rev-alist-eq-on-free-vars-lst
+;                   (acl2::lst (cdr acl2::lst))
+;                   (a1 (rev-ctx
+;                        (pairlis$ (union-equal (free-vars-lst (cdr acl2::lst))
+;                                               (free-vars (car acl2::lst)))
+;                                  (apply-map (pairlis$ (mv-nth 0 (unify-subst f1 f2 avoid-vars))
+;                                                       (mv-nth 1 (unify-subst f1 f2 avoid-vars)))
+;                                             (union-equal (free-vars-lst (cdr acl2::lst))
+;                                                          (free-vars (car acl2::lst)))))
+;                        (append (rev-ctx (interp-subst (mv-nth 2 (unify-subst f1 f2 avoid-vars)))
+;                                         a)
+;                                a)))
+;                   (a2 (rev-ctx
+;                        (pairlis$
+;                         (free-vars-lst (cdr acl2::lst))
+;                         (apply-map (pairlis$ (mv-nth 0 (unify-subst f1 f2 avoid-vars))
+;                                              (mv-nth 1 (unify-subst f1 f2 avoid-vars)))
+;                                    (free-vars-lst (cdr acl2::lst))))
+;                        (append
+;                         (rev-ctx (interp-subst (mv-nth 2 (unify-subst f1 f2 avoid-vars)))
+;                                  a)
+;                         a))))
+;                  (:instance rev-alist-eq-on-free-vars
+;                   (x (car acl2::lst))
+;                   (a1 (rev-ctx
+;                        (pairlis$ (union-equal (free-vars-lst (cdr acl2::lst))
+;                                               (free-vars (car acl2::lst)))
+;                                  (apply-map (pairlis$ (mv-nth 0 (unify-subst f1 f2 avoid-vars))
+;                                                       (mv-nth 1 (unify-subst f1 f2 avoid-vars)))
+;                                             (union-equal (free-vars-lst (cdr acl2::lst))
+;                                                          (free-vars (car acl2::lst)))))
+;                        (append (rev-ctx (interp-subst (mv-nth 2 (unify-subst f1 f2 avoid-vars)))
+;                                         a)
+;                                a)))
+;                   (a2 (rev-ctx
+;                        (pairlis$
+;                         (free-vars (car acl2::lst))
+;                         (apply-map (pairlis$ (mv-nth 0 (unify-subst f1 f2 avoid-vars))
+;                                              (mv-nth 1 (unify-subst f1 f2 avoid-vars)))
+;                                    (free-vars (car acl2::lst))))
+;                        (append
+;                         (rev-ctx (interp-subst (mv-nth 2 (unify-subst f1 f2 avoid-vars)))
+;                                  a)
+;                         a))))))
+;           ("Subgoal *1/10"
+;            :use (rev-ctx-rw-symbolp)))))
+;
+;(local-defthm assoc-implies-member-interp-subst
+;  (implies (assoc-equal x (interp-subst f))
+;           (member-equal x (strip-cdrs f)))
+;  :hints (("Goal" :in-theory (e/d (interp-subst) ())))
+;  :rule-classes :forward-chaining)
+;
+;(local-defthm assoc-interp-subst-unify-subst
+;  (implies (assoc-equal x (interp-subst f2))
+;           (and (assoc-equal x (interp-subst (mv-nth 2 (unify-subst f1 f2 avoid-vars))))
+;                (equal (cdr (assoc-equal x (interp-subst (mv-nth 2 (unify-subst f1 f2 avoid-vars)))))
+;                       (cdr (assoc-equal x (interp-subst f2))))
+;                (equal (cdr (assoc-equal x (pairlis$ (strip-cdrs (mv-nth 2 (unify-subst f1 f2 avoid-vars)))
+;                                                     (strip-cars (mv-nth 2 (unify-subst f1 f2 avoid-vars))))))
+;                       (cdr (assoc-equal x (pairlis$ (strip-cdrs f2)
+;                                                     (strip-cars f2)))))))
+;  :hints (("Goal" :in-theory (e/d (interp-subst unify-subst) (not-member-equal-avoid-vars-my-genvar
+;                                                              not-member-my-genvar-append)))
+;          ("Subgoal *1/4"
+;           :use ((:instance not-member-equal-avoid-vars-my-genvar
+;                  (x (caar f1)) (avoid-vars (append (strip-cdrs f2) avoid-vars)))))))
+;
+;(local-defthmd intersection-equal-when-member
+;  (implies (and (member-equal x a)
+;                (member-equal x b))
+;           (intersection-equal a b))
+;  :hints (("Goal" :in-theory (e/d (intersection-equal) ()))))
+;
+;(local-defthm member-avoid-vars-not-assoc-unify
+;  (implies (and (member-equal x avoid-vars)
+;                (symbol-listp avoid-vars)
+;                (not (intersection-equal avoid-vars (strip-cdrs f2))))
+;           (not (assoc-equal x (interp-subst (mv-nth 2 (unify-subst f1 f2 avoid-vars))))))
+;  :hints (("Goal" :in-theory (e/d (interp-subst unify-subst) (assoc-implies-member-interp-subst)))
+;          ("Subgoal *1/1"
+;                  :use ((:instance assoc-implies-member-interp-subst
+;                         (x x) (f f2))
+;                        (:instance intersection-equal-when-member
+;                         (x x) (a avoid-vars) (b (strip-cdrs f2)))))))
+;
+;(local
+; (defthm-pseudo-termp
+;   (defthmd rev-ctx-of-unify-subst-pseudo-termp-2
+;     (implies (and (pseudo-termp x)
+;                   (subsetp-equal (free-vars x) (union-equal (strip-cdrs f2) avoid-vars))
+;                   (not (member-equal nil (strip-cdrs f1)))
+;                   (not (member-equal nil (strip-cdrs f2)))
+;                   (no-duplicatesp-equal (strip-cars f2))
+;                   (no-duplicatesp-equal (strip-cdrs f2))
+;                   (symbol-listp avoid-vars)
+;                   (symbol-symbol-alistp f1)
+;                   (symbol-symbol-alistp f2)
+;                   (not (intersection-equal avoid-vars (strip-cdrs f2))))
+;              (b* (((mv ?nf ?na ns)
+;                    (unify-subst f1 f2 avoid-vars)))
+;                (equal (rev x (append (rev-ctx (interp-subst ns) a) a))
+;                       (rev x (append (rev-ctx (interp-subst f2) a) a)))))
+;     :flag pseudo-termp)
+;   (defthmd rev-ctx-of-unify-subst-pseudo-termp-lst-2
+;     (implies (and (pseudo-term-listp acl2::lst)
+;                   (subsetp-equal (free-vars-lst acl2::lst) (union-equal (strip-cdrs f2) avoid-vars))
+;                   (not (member-equal nil (strip-cdrs f1)))
+;                   (not (member-equal nil (strip-cdrs f2)))
+;                   (no-duplicatesp-equal (strip-cars f2))
+;                   (no-duplicatesp-equal (strip-cdrs f2))
+;                   (symbol-listp avoid-vars)
+;                   (symbol-symbol-alistp f1)
+;                   (symbol-symbol-alistp f2)
+;                   (not (intersection-equal avoid-vars (strip-cdrs f2))))
+;              (b* (((mv ?nf ?na ns)
+;                    (unify-subst f1 f2 avoid-vars)))
+;                (equal (rev-lst acl2::lst (append (rev-ctx (interp-subst ns) a) a))
+;                       (rev-lst acl2::lst (append (rev-ctx (interp-subst f2) a) a)))))
+;     :flag pseudo-term-listp)
+;   :hints (("Goal" :in-theory (e/d (free-vars free-vars-lst
+;                                    pseudo-termp
+;                                    pseudo-term-listp
+;                                    unify-subst
+;                                    interp-subst
+;                                    rev-of-fncall-args)
+;                                   (rev-ctx-rw-symbolp
+;                                    assoc-implies-member-interp-subst)))
+;           ("Subgoal *1/10"
+;            :use ((:instance assoc-implies-member-interp-subst
+;                   (x x) (f f2)))))))
+;
+;(local-defthm subsetp-equal-unify-subst
+;  (subsetp-equal (strip-cdrs f2)
+;                 (strip-cdrs (mv-nth 2 (unify-subst f1 f2 avoid-vars))))
+;  :hints (("Goal" :in-theory (e/d (unify-subst) ()))))
+;
+;(local-defthm member-equal-unify-subst-f2-preserved
+;  (implies (member-equal x (strip-cdrs f2))
+;           (member-equal x (strip-cdrs (mv-nth 2 (unify-subst f1 f2 avoid-vars)))))
+;  :hints (("Goal" :in-theory (e/d (unify-subst) ()))))
+;
+;(local-defthmd member-equal-unify-subst-2
+;  (implies (and (symbol-symbol-alistp f1)
+;                (symbol-symbol-alistp f2)
+;                (member-equal v (append avoid-vars (strip-cdrs f1))))
+;           (member-equal
+;            (b* ((p (assoc-equal v (pairlis$ (mv-nth 0 (unify-subst f1 f2 avoid-vars))
+;                                             (mv-nth 1 (unify-subst f1 f2 avoid-vars))))))
+;              (if p (cdr p) v))
+;            (append avoid-vars (strip-cdrs (mv-nth 2 (unify-subst f1 f2 avoid-vars))))))
+;  :hints (("Goal" :in-theory (e/d (unify-subst) ()))))
+;
+;(local-defthm not-consp-cdr-assoc-equal-of-symbol-symbol-alistp
+;  (implies (symbol-symbol-alistp f)
+;           (not (consp (cdr (assoc-equal x f))))))
+;
+;
+;(local-defthm subsetp-equal-unify-subst-2
+;  (implies (and (symbol-symbol-alistp f1)
+;                (symbol-symbol-alistp f2)
+;                (symbol-listp vars)
+;                (subsetp-equal vars (append avoid-vars (strip-cdrs f1))))
+;           (subsetp-equal
+;            (free-vars-lst
+;             (apply-map
+;              (pairlis$
+;               (mv-nth 0 (unify-subst f1 f2 avoid-vars))
+;               (mv-nth 1 (unify-subst f1 f2 avoid-vars)))
+;              vars))
+;            (append avoid-vars (strip-cdrs (mv-nth 2 (unify-subst f1 f2 avoid-vars))))))
+;  :hints (("Goal" :in-theory (e/d (unify-subst
+;                                   apply-map
+;                                   free-vars-lst
+;                                   free-vars
+;                                   len) ())
+;                  :induct (len vars))
+;          ("Subgoal *1/1"
+;           :expand ((FREE-VARS
+;                     (CDR (ASSOC-EQUAL (CAR VARS)
+;                                       (PAIRLIS$ (MV-NTH 0 (UNIFY-SUBST F1 F2 AVOID-VARS))
+;                                                 (MV-NTH 1 (UNIFY-SUBST F1 F2 AVOID-VARS)))))))
+;           :use ((:instance member-equal-unify-subst-2
+;                  (v (car vars)))))))
+;
+;(local-defthmd strip-cdrs-unify-subst-special-case
+;  (implies (and (symbol-symbol-alistp f1)
+;                (symbol-symbol-alistp f2)
+;                (equal (mv-nth 0 (unify-subst f1 f2 avoid-vars))
+;                       (mv-nth 1 (unify-subst f1 f2 avoid-vars))))
+;           (subsetp-equal (strip-cdrs f1)
+;                          (strip-cdrs (mv-nth 2 (unify-subst f1 f2 avoid-vars)))))
+;  :hints (("Goal" :in-theory (e/d (unify-subst) ()))))
+;
+;(local-defthm member-equal-assoc-pairlis
+;  (implies (member-equal x s)
+;           (equal (assoc-equal x (pairlis$ s s))
+;                  (cons x x))))
+;
+;(local-defthm subsetp-apply-map
+;  (implies (and (symbol-listp s)
+;                (symbol-listp x))
+;           (equal (apply-map (pairlis$ s s) x) x))
+;  :hints (("Goal" :in-theory (e/d (apply-map
+;                                   len) ())
+;                  :induct (len x))))
+;
+;(local
+; (defthm-pseudo-termp
+;   (defthm rev-pairlis-rev-ctx
+;     (implies (and (pseudo-termp x)
+;                   (subsetp-equal (free-vars x) v))
+;              (equal (rev x (rev-ctx (pairlis$ v v) a))
+;                     (rev x a)))
+;     :flag pseudo-termp)
+;   (defthm rev-pairlis-rev-ctx-lst
+;     (implies (and (pseudo-term-listp acl2::lst)
+;                   (subsetp-equal (free-vars-lst acl2::lst) v))
+;              (equal (rev-lst acl2::lst (rev-ctx (pairlis$ v v) a))
+;                     (rev-lst acl2::lst a)))
+;     :flag pseudo-term-listp)
+;   :hints (("Goal" :in-theory (e/d (pseudo-term-listp
+;                                    pseudo-termp
+;                                    free-vars free-vars-lst
+;                                    rev-of-fncall-args) ())))))
+;
+;(local
+; (defthmd rev-ctx-of-unify-subst-pseudo-termp-3
+;   (implies (and (pseudo-termp x)
+;                 (subsetp-equal (free-vars x) (union-equal (strip-cdrs f1) avoid-vars))
+;                 (not (member-equal nil (strip-cdrs f1)))
+;                 (not (member-equal nil (strip-cdrs f2)))
+;                 (no-duplicatesp-equal (strip-cars f2))
+;                 (no-duplicatesp-equal (strip-cdrs f2))
+;                 (symbol-listp avoid-vars)
+;                 (symbol-symbol-alistp f1)
+;                 (symbol-symbol-alistp f2)
+;                 (not (intersection-equal avoid-vars (strip-cdrs f2))))
+;            (b* (((mv ?nf ?na ns)
+;                  (unify-subst f1 f2 avoid-vars)))
+;              (implies (equal nf na)
+;                       (equal (rev x (append (rev-ctx (interp-subst ns) a) a))
+;                              (rev x (append (rev-ctx (interp-subst f1) a) a))))))
+;   :hints (("Goal" :use (rev-ctx-of-unify-subst-pseudo-termp)
+;
+;                   :do-not-induct t))))
+;
+;(local-defthmd free-vars-lst-of-append
+;  (implies (and (pseudo-term-listp x)
+;                (pseudo-term-listp y))
+;           (iff (subsetp-equal (free-vars-lst (append x y)) z)
+;                (and (subsetp-equal (free-vars-lst x) z)
+;                     (subsetp-equal (free-vars-lst y) z))))
+;  :hints (("Goal" :in-theory (e/d (free-vars-lst
+;                                   free-vars) ()))))
+;
+;(local-defthm subsetp-of-unify-subst-1
+;  (implies (and (symbol-symbol-alistp f2)
+;                (symbol-symbol-alistp f1))
+;           (subsetp-equal (free-vars-lst (mv-nth 1 (unify-subst f1 f2 avoid-vars)))
+;                          (strip-cdrs (mv-nth 2 (unify-subst f1 f2 avoid-vars)))))
+;  :hints (("Goal" :in-theory (e/d (unify-subst
+;                                   free-vars
+;                                   free-vars-lst) ()))))
+;
+;(local
+; (defthm-gify-term-flag
+;   (defthm subset-gify-term-lambda
+;    (b* (((mv okp gen-term f)
+;          (gify-term-lambda x expand-fns avoid-vars state)))
+;      (implies (and okp
+;                    (pseudo-termp x)
+;                    (consp x)
+;                    (not (quotep x))
+;                    (acl2::flambda-applicationp x)
+;                    (subsetp-equal (free-vars x) avoid-vars))
+;               (subsetp-equal (free-vars gen-term) (append avoid-vars (strip-cdrs f)))))
+;    :flag gify-term-lambda)
+;  (defthm subset-gify-term-expand
+;    (b* (((mv okp gen-term f)
+;          (gify-term-expand x expand-fns avoid-vars state)))
+;      (implies (and okp
+;                    (pseudo-termp x)
+;                    (consp x)
+;                    (not (quotep x))
+;                    (not (acl2::flambda-applicationp x))
+;                    (member-eq (car x) expand-fns)
+;                    (subsetp-equal (free-vars x) avoid-vars))
+;               (subsetp-equal (free-vars gen-term) (append avoid-vars (strip-cdrs f)))))
+;    :flag gify-term-expand)
+;  (defthm subset-gify-term
+;    (b* (((mv okp gen-term f)
+;          (gify-term x expand-fns avoid-vars state)))
+;      (implies (and okp
+;                    (pseudo-termp x)
+;                    (subsetp-equal (free-vars x) avoid-vars))
+;               (subsetp-equal (free-vars gen-term) (append avoid-vars (strip-cdrs f)))))
+;    :flag gify-term)
+;  (defthm subset-gify-term-lst
+;    (b* (((mv okp gen-term f)
+;          (gify-term-lst lst expand-fns avoid-vars state)))
+;      (implies (and okp
+;                    (pseudo-term-listp lst)
+;                    (subsetp-equal (free-vars-lst lst) avoid-vars))
+;               (subsetp-equal (free-vars-lst gen-term) (append avoid-vars (strip-cdrs f)))))
+;    :flag gify-term-lst)
+;  :hints (("Goal" :in-theory (e/d (free-vars
+;                                   free-vars-lst
+;                                   pseudo-term-listp
+;                                   pseudo-termp
+;                                   gify-term
+;                                   gify-term-lst
+;                                   gify-term-lambda
+;                                   gify-term-expand
+;                                   strip-cdrs-unify-subst-special-case
+;                                   free-vars-lst-of-append) ())))))
+;
+;(local-defthm rev-ctx-nil
+;  (equal (rev-ctx nil a) nil)
+;  :hints (("Goal" :in-theory (e/d (rev-ctx) ()))))
+;
+;(local
+; (defines gify-term-ind
+;  :verify-guards nil
+;  :flag-local nil
+;  :ignore-ok t
+;  (define gify-term-lambda-ind (x expand-fns avoid-vars a state)
+;    :measure (make-ord 2 (1+ (len expand-fns)) (make-ord 1 (1+ (acl2-count x)) 0))
+;    :irrelevant-formals-ok t
+;    (if (and (acl2::flambda-applicationp x)
+;             (equal (len (car x)) 3)
+;             (eq (caar x) 'lambda)
+;             (symbol-listp (cadr (car x)))
+;             (pseudo-termp (caddr (car x)))
+;             (pseudo-term-listp (cdr x))
+;             (equal (len (cadr (car x)))
+;                    (len (cdr x))))
+;        (b* ((rargs
+;              (gify-term-lst-ind (acl2::fargs x) expand-fns avoid-vars a state))
+;             (lambda-form (acl2::ffn-symb x))
+;             (body (acl2::lambda-body lambda-form))
+;             (formals (acl2::lambda-formals lambda-form))
+;             (a (rev-ctx (pairlis$ formals (acl2::fargs x)) a)))
+;          (and rargs
+;               (gify-term-ind body expand-fns formals a state)))
+;      t))
+;  (define gify-term-expand-ind (x expand-fns avoid-vars a state)
+;    :measure (make-ord 2 (1+ (len expand-fns)) (make-ord 1 (1+ (acl2-count x)) 0))
+;    (if (and (consp x)
+;             (not (quotep x))
+;             (not (acl2::flambda-applicationp x))
+;             (member-eq (car x) expand-fns))
+;        (b* (((mv okp-def formals body) (acl2::fn-get-def (car x) state))
+;             (rargs
+;              (gify-term-lst-ind (acl2::fargs x) expand-fns avoid-vars a state))
+;             (body (pseudo-term-fix body))
+;             (formals (acl2::symbol-list-fix formals))
+;             (expand-fns (remove1 (car x) expand-fns))
+;             (a (rev-ctx (pairlis$ formals (acl2::fargs x)) a)))
+;          (and rargs
+;               (gify-term-ind body expand-fns formals a state)))
+;      t))
+;  (define gify-term-ind (x expand-fns avoid-vars a state)
+;    :measure (make-ord 2 (1+ (len expand-fns)) (make-ord 1 (1+ (acl2-count x)) 1))
+;    (cond ((atom x)
+;           t)
+;          ((quotep x)
+;           t)
+;          ((acl2::flambda-applicationp x)
+;           (gify-term-lambda-ind x expand-fns avoid-vars a state))
+;          ((member-eq (car x) expand-fns)
+;           (gify-term-expand-ind x expand-fns avoid-vars a state))
+;          ((not (cdr x)) t)
+;          (t
+;           (if (symbolp (car x))
+;               (gify-term-lst-ind (acl2::fargs x) expand-fns avoid-vars a state)
+;             t))))
+;  (define gify-term-lst-ind  (lst expand-fns avoid-vars a state)
+;    :measure (make-ord 2 (1+ (len expand-fns)) (make-ord 1 (1+ (acl2-count lst)) 1))
+;    (if (consp lst)
+;        (and (gify-term-ind (car lst) expand-fns avoid-vars a state)
+;             (gify-term-lst-ind (cdr lst) expand-fns avoid-vars a state))
+;      t))))
+;
+;(local-defthm intersection-equal-union
+;  (iff (intersection-equal (union-equal x y) z)
+;       (or (intersection-equal x z)
+;           (intersection-equal y z)))
+;  :hints (("Goal" :in-theory (e/d (intersection-equal
+;                                   intersection-equal-when-member) ())
+;                  :induct (intersection-equal x z))))
+;
+;(local-defthm assoc-equal-then-member
+;  (implies (assoc-equal x a)
+;           (member-equal x (strip-cars a))))
+;
+;(local-defthm member-then-cdr-assoc
+;  (implies (and (member x (strip-cars a))
+;                (= y (strip-cdrs a)))
+;           (member (cdr (assoc x a)) y))
+;  :hints (("Goal" :in-theory (e/d () ()))))
+;
+;(local-defthmd subset-equal-intersection-1
+;  (implies (and (subsetp-equal x y)
+;                (intersection-equal a x))
+;           (intersection-equal a y))
+;  :hints (("Goal" :in-theory (e/d (intersection-equal) ()))))
+;
+;(local-defthmd intersection-comm-1
+;  (implies (intersection-equal a b)
+;           (intersection-equal b a))
+;  :hints (("Goal" :in-theory (e/d (intersection-equal
+;                                   intersection-equal-when-member) ())
+;                  :expand ((INTERSECTION-EQUAL B A)))
+;          ("Subgoal *1/3"
+;           :use ((:instance subset-equal-intersection-1
+;                  (a (cdr b)) (x (cdr a)) (y a))))))
+;
+;(local-defthmd intersection-comm
+;  (iff (intersection-equal a b)
+;       (intersection-equal b a))
+;  :hints (("Goal" :use (intersection-comm-1
+;                        (:instance intersection-comm-1
+;                         (a b) (b a))))))
+;
+;(local-defthmd subset-equal-intersection-2
+;  (implies (and (subsetp-equal a b)
+;                (subsetp-equal x y)
+;                (intersection-equal a x))
+;           (intersection-equal b y))
+;  :hints (("Goal" :in-theory (e/d (intersection-comm) ())
+;                  :use (subset-equal-intersection-1
+;                        (:instance subset-equal-intersection-1 (x a) (y b) (a y))))))
+;
+;(local-defthm intersection-of-cons
+;  (iff (intersection-equal (cons x y) z)
+;       (or (member-equal x z)
+;           (intersection-equal y z)))
+;  :hints (("Goal" :in-theory (e/d (intersection-equal) ()))))
+;
+;(local-defthm strip-cars-rev-ctx
+;  (equal (strip-cars (rev-ctx s a))
+;         (strip-cars s))
+;  :hints (("Goal" :in-theory (e/d (rev-ctx) ()))))
+;
+;(local-defthmd subsetp-equal-free-vars-member
+;  (implies (member-equal x actuals)
+;           (subsetp-equal (free-vars x)
+;                          (free-vars-lst actuals)))
+;  :hints (("Goal" :in-theory (e/d (free-vars free-vars-lst) ()))))
+;
+;(local-defthm strip-cars-interp-subst
+;  (equal (strip-cars (interp-subst x))
+;         (strip-cdrs x))
+;  :hints (("Goal" :in-theory (e/d (interp-subst) ()))))
+;
+;(local-defthmd mv-nth-0-unify-subst
+;  (equal (mv-nth 0 (unify-subst f1 f2 avoid-vars))
+;         (strip-cdrs f1))
+;  :hints (("Goal" :in-theory (e/d (unify-subst) ()))))
+;
+;(local-defthmd aux-lemma-1
+;  (implies (and (pseudo-term-listp actuals)
+;                (subsetp-equal (free-vars-lst actuals)
+;                               (append avoid-vars (strip-cdrs f2)))
+;                (equal (len formals) (len actuals))
+;                (subsetp-equal x formals)
+;                (not (member-equal nil (strip-cdrs f1)))
+;                (not (member-equal nil (strip-cdrs f2)))
+;                (no-duplicatesp-equal (strip-cars f2))
+;                (no-duplicatesp-equal (strip-cdrs f2))
+;                (no-duplicatesp-equal (strip-cars f1))
+;                (no-duplicatesp-equal (strip-cdrs f1))
+;                (symbol-listp avoid-vars)
+;                (symbol-listp formals)
+;                (symbol-symbol-alistp f1)
+;                (symbol-symbol-alistp f2)
+;                (not (intersection-equal avoid-vars (strip-cdrs f2)))
+;                (not (intersection-equal formals (strip-cdrs f1))))
+;           (alist-eq x
+;                     (append
+;                      (rev-ctx
+;                       (pairlis$
+;                        (mv-nth 0 (unify-subst f1 f2 avoid-vars))
+;                        (mv-nth 1 (unify-subst f1 f2 avoid-vars)))
+;                       (append
+;                        (rev-ctx (interp-subst (mv-nth 2 (unify-subst f1 f2 avoid-vars))) a)
+;                        a))
+;                      (rev-ctx
+;                       (pairlis$ formals
+;                                 actuals)
+;                       (append
+;                        (rev-ctx
+;                         (interp-subst
+;                          (mv-nth 2 (unify-subst f1 f2 avoid-vars)))
+;                         a)
+;                        a)))
+;                     (append
+;                      (rev-ctx (interp-subst f1) (rev-ctx (pairlis$ formals actuals) (append
+;                                                                                      (rev-ctx
+;                                                                                       (interp-subst
+;                                                                                        f2)
+;                                                                                       a)
+;                                                                                      a)))
+;                      (rev-ctx (pairlis$ formals actuals) (append
+;                                                           (rev-ctx
+;                                                            (interp-subst
+;                                                             f2)
+;                                                            a)
+;                                                           a)))))
+;  :hints (("Goal" :in-theory (e/d (alist-eq len
+;                                   free-vars-lst
+;                                   len
+;                                   intersection-equal-when-member
+;                                   mv-nth-0-unify-subst
+;                                   subsetp-equal-free-vars-member) ())
+;                  :induct (len x))
+;          ("Subgoal *1/1"
+;           :use ((:instance rev-ctx-of-unify-subst-pseudo-termp-2
+;                  (x (CDR (ASSOC-EQUAL (CAR X)
+;                                       (PAIRLIS$ FORMALS ACTUALS)))))))))
+;
+;(local-defthm member-aux-lemma
+;  (implies (member x (strip-cdrs f1))
+;           (member x (mv-nth 0 (unify-subst f1 f2 avoid-vars))))
+;  :hints (("Goal" :in-theory (e/d (mv-nth-0-unify-subst) ()))))
+;
+;(local-defthm aux-lemma-3
+;  (implies (member x (strip-cdrs f1))
+;           (ASSOC-EQUAL
+;            (CDR (ASSOC-EQUAL x
+;                              (PAIRLIS$ (MV-NTH 0 (UNIFY-SUBST F1 F2 AVOID-VARS))
+;                                        (MV-NTH 1 (UNIFY-SUBST F1 F2 AVOID-VARS)))))
+;            (INTERP-SUBST (MV-NTH 2 (UNIFY-SUBST F1 F2 AVOID-VARS)))))
+;  :hints (("Goal" :in-theory (e/d (unify-subst interp-subst) ()))))
+;
+;(local-defthm aux-lemma-4
+;  (implies (and (member x (strip-cdrs f1))
+;                (symbol-symbol-alistp f2)
+;                (symbol-symbol-alistp f1)
+;                (no-duplicatesp-equal (strip-cars f2))
+;                (no-duplicatesp-equal (strip-cdrs f2)))
+;           (equal (CDR
+;                   (ASSOC-EQUAL
+;                    (CDR (ASSOC-EQUAL x
+;                                      (PAIRLIS$ (MV-NTH 0 (UNIFY-SUBST F1 F2 AVOID-VARS))
+;                                                (MV-NTH 1 (UNIFY-SUBST F1 F2 AVOID-VARS)))))
+;                    (INTERP-SUBST (MV-NTH 2 (UNIFY-SUBST F1 F2 AVOID-VARS)))))
+;                  (list (CDR (ASSOC-EQUAL x
+;                                          (PAIRLIS$ (STRIP-CDRS F1)
+;                                                    (STRIP-CARS F1)))))))
+;  :hints (("Goal" :in-theory (e/d (unify-subst interp-subst) ()))))
+;
+;(local-defthm aux-lemma-6
+;  (implies (and (not (member nil (Strip-cdrs f)))
+;                (member x (strip-cars f)))
+;           (cdr (assoc-equal x f))))
+;
+;(local-defthm aux-lemma-5
+;  (implies (and (not (member-equal nil (strip-cdrs f2)))
+;                (member-equal x (strip-cdrs f1)))
+;           (cdr (assoc-equal x (pairlis$ (mv-nth 0 (unify-subst f1 f2 avoid-vars))
+;                                         (mv-nth 1 (unify-subst f1 f2 avoid-vars))))))
+;  :hints (("Goal" :in-theory (e/d (unify-subst) ()))))
+;
+;(local-defthmd aux-lemma-2
+;  (implies (and (pseudo-term-listp actuals)
+;                (subsetp-equal (free-vars-lst actuals)
+;                               (append avoid-vars (strip-cdrs f2)))
+;                (equal (len formals) (len actuals))
+;                (subsetp-equal x (strip-cdrs f1))
+;                (not (member-equal nil (strip-cdrs f1)))
+;                (not (member-equal nil (strip-cdrs f2)))
+;                (no-duplicatesp-equal (strip-cars f2))
+;                (no-duplicatesp-equal (strip-cdrs f2))
+;                (no-duplicatesp-equal (strip-cars f1))
+;                (no-duplicatesp-equal (strip-cdrs f1))
+;                (symbol-listp avoid-vars)
+;                (symbol-listp formals)
+;                (symbol-symbol-alistp f1)
+;                (symbol-symbol-alistp f2)
+;                (not (intersection-equal avoid-vars (strip-cdrs f2)))
+;                (not (intersection-equal formals (strip-cdrs f1))))
+;           (alist-eq x
+;                     (append
+;                      (rev-ctx
+;                       (pairlis$
+;                        (mv-nth 0 (unify-subst f1 f2 avoid-vars))
+;                        (mv-nth 1 (unify-subst f1 f2 avoid-vars)))
+;                       (append
+;                        (rev-ctx (interp-subst (mv-nth 2 (unify-subst f1 f2 avoid-vars))) a)
+;                        a))
+;                      (rev-ctx
+;                       (pairlis$ formals
+;                                 actuals)
+;                       (append
+;                        (rev-ctx
+;                         (interp-subst
+;                          (mv-nth 2 (unify-subst f1 f2 avoid-vars)))
+;                         a)
+;                        a)))
+;                     (append
+;                      (rev-ctx (interp-subst f1) (rev-ctx (pairlis$ formals actuals) (append
+;                                                                                      (rev-ctx
+;                                                                                       (interp-subst
+;                                                                                        f2)
+;                                                                                       a)
+;                                                                                      a)))
+;                      (rev-ctx (pairlis$ formals actuals) (append
+;                                                           (rev-ctx
+;                                                            (interp-subst
+;                                                             f2)
+;                                                            a)
+;                                                           a)))))
+;  :hints (("Goal" :in-theory (e/d (alist-eq len
+;                                   free-vars-lst
+;                                   len
+;                                   intersection-equal-when-member
+;                                   ;; mv-nth-0-unify-subst
+;                                   rev-of-fncall-args) ())
+;                  :induct (len x))
+;          ("Subgoal *1/1"
+;           :cases ((equal (CDR (ASSOC-EQUAL (CAR X)
+;                                            (PAIRLIS$ (STRIP-CDRS F1)
+;                                                      (STRIP-CARS F1)))) 'quote)))))
+;
+;(local-defthm alist-eq-append
+;  (implies (and (alist-eq x a1 a2)
+;                (alist-eq y a1 a2))
+;           (alist-eq (append x y) a1 a2))
+;  :hints (("Goal" :in-theory (e/d (alist-eq) ()))))
+;
+;(local-defthm alist-eq-member
+;  (implies (and (member-equal x y)
+;                (alist-eq y a1 a2)
+;                x)
+;           (equal (cdr (assoc x a1)) (cdr (assoc x a2))))
+;  :hints (("Goal" :in-theory (e/d (alist-eq) ()))))
+;
+;(local-defthmd alist-eq-subset
+;  (implies (and (subsetp-equal x y)
+;                (alist-eq y a1 a2))
+;           (alist-eq x a1 a2))
+;  :hints (("Goal" :in-theory (e/d (alist-eq len) ())
+;                  :induct (len x))))
+;
+;(local-defthm aux-lemma
+;  (implies (and (pseudo-term-listp actuals)
+;                (subsetp-equal (free-vars-lst actuals)
+;                               (append avoid-vars (strip-cdrs f2)))
+;                (equal (len formals) (len actuals))
+;                (subsetp-equal x (append (strip-cdrs f1) formals))
+;                (not (member-equal nil (strip-cdrs f1)))
+;                (not (member-equal nil (strip-cdrs f2)))
+;                (no-duplicatesp-equal (strip-cars f2))
+;                (no-duplicatesp-equal (strip-cdrs f2))
+;                (no-duplicatesp-equal (strip-cars f1))
+;                (no-duplicatesp-equal (strip-cdrs f1))
+;                (symbol-listp avoid-vars)
+;                (symbol-listp formals)
+;                (symbol-symbol-alistp f1)
+;                (symbol-symbol-alistp f2)
+;                (not (intersection-equal avoid-vars (strip-cdrs f2)))
+;                (not (intersection-equal formals (strip-cdrs f1))))
+;           (alist-eq x
+;                     (append
+;                      (rev-ctx
+;                       (pairlis$
+;                        (mv-nth 0 (unify-subst f1 f2 avoid-vars))
+;                        (mv-nth 1 (unify-subst f1 f2 avoid-vars)))
+;                       (append
+;                        (rev-ctx (interp-subst (mv-nth 2 (unify-subst f1 f2 avoid-vars))) a)
+;                        a))
+;                      (rev-ctx
+;                       (pairlis$ formals
+;                                 actuals)
+;                       (append
+;                        (rev-ctx
+;                         (interp-subst
+;                          (mv-nth 2 (unify-subst f1 f2 avoid-vars)))
+;                         a)
+;                        a)))
+;                     (append
+;                      (rev-ctx (interp-subst f1) (rev-ctx (pairlis$ formals actuals) (append
+;                                                                                      (rev-ctx
+;                                                                                       (interp-subst
+;                                                                                        f2)
+;                                                                                       a)
+;                                                                                      a)))
+;                      (rev-ctx (pairlis$ formals actuals) (append
+;                                                           (rev-ctx
+;                                                            (interp-subst
+;                                                             f2)
+;                                                            a)
+;                                                           a)))))
+;  :hints (("Goal" :use ((:instance aux-lemma-1
+;                         (x formals))
+;                        (:instance aux-lemma-2
+;                         (x (strip-cdrs f1))))
+;                  :in-theory (e/d (alist-eq-subset) ())
+;                  :do-not-induct t)))
+;
+;(local
+; (defthmd rev-ctx-of-unify-subst-pseudo-termp-4
+;   (implies (and (pseudo-termp x)
+;                 (equal (len formals) (len actuals))
+;                 (pseudo-term-listp actuals)
+;                 (subsetp-equal (free-vars-lst actuals)
+;                               (append avoid-vars (strip-cdrs f2)))
+;                 (subsetp-equal (free-vars x) (union-equal (strip-cdrs f1) formals))
+;                 (not (member-equal nil (strip-cdrs f1)))
+;                 (not (member-equal nil (strip-cdrs f2)))
+;                 (no-duplicatesp-equal (strip-cars f2))
+;                 (no-duplicatesp-equal (strip-cdrs f2))
+;                 (no-duplicatesp-equal (strip-cars f1))
+;                 (no-duplicatesp-equal (strip-cdrs f1))
+;                 (symbol-listp avoid-vars)
+;                 (symbol-listp formals)
+;                 (symbol-symbol-alistp f1)
+;                 (symbol-symbol-alistp f2)
+;                 (not (intersection-equal avoid-vars (strip-cdrs f2)))
+;                 (not (intersection-equal formals (strip-cdrs f1))))
+;            (EQUAL
+;             (rev x
+;                  (append
+;                      (rev-ctx
+;                       (pairlis$
+;                        (mv-nth 0 (unify-subst f1 f2 avoid-vars))
+;                        (mv-nth 1 (unify-subst f1 f2 avoid-vars)))
+;                       (append
+;                        (rev-ctx (interp-subst (mv-nth 2 (unify-subst f1 f2 avoid-vars))) a)
+;                        a))
+;                      (rev-ctx
+;                       (pairlis$ formals
+;                                 actuals)
+;                       (append
+;                        (rev-ctx
+;                         (interp-subst
+;                          (mv-nth 2 (unify-subst f1 f2 avoid-vars)))
+;                         a)
+;                        a))))
+;             (rev
+;              x
+;              (append
+;               (rev-ctx (interp-subst f1) (rev-ctx (pairlis$ formals actuals) (append
+;                                                                               (rev-ctx
+;                                                                                (interp-subst
+;                                                                                 f2)
+;                                                                                a)
+;                                                                               a)))
+;               (rev-ctx (pairlis$ formals actuals) (append
+;                                                    (rev-ctx
+;                                                     (interp-subst
+;                                                      f2)
+;                                                     a)
+;                                                    a))))))
+;   :hints (("Goal" :in-theory (e/d (REV-ALIST-EQ-ON-FREE-VARS) (aux-lemma))
+;                   :do-not-induct t
+;                   :use ((:instance aux-lemma
+;                          (x (free-vars x))))))))
+;
+;(local-defthm pailis$-to-rev-ctx
+;  (implies (equal (len x) (len y))
+;           (equal (pairlis$ x (rev-lst y a))
+;                  (rev-ctx (pairlis$ x y) a)))
+;  :hints (("Goal" :in-theory (e/d (rev-ctx
+;                                   len) ()))))
+;
+;(local
+; (defthm pairlis$-append
+;   (implies (equal (len x) (len z))
+;            (equal (pairlis$ (append x y) (append z w))
+;                   (append (pairlis$ x z)
+;                           (pairlis$ y w))))
+;   :hints (("Goal" :in-theory (e/d (rev-ctx
+;                                    len) ())))))
+;
+;(local-defthm append-rev-ctx
+;  (equal (rev-ctx (append x y) a)
+;         (append (rev-ctx x a) (rev-ctx y a)))
+;  :hints (("Goal" :in-theory (e/d (rev-ctx) ()))))
+;
+;(local-defthmd rev-ctx-pairlis$
+;  (equal (rev-ctx (pairlis$ x y) a)
+;         (pairlis$ x (rev-lst y a)))
+;  :hints (("Goal" :in-theory (e/d (rev-ctx) ()))))
+;
+;(local-defthmd rev-ctx-of-processed
+;  (implies (EQUAL (REV-LST processed-actuals (APPEND (REV-CTX processed-context A) A))
+;                  (REV-LST actuals A))
+;           (equal (REV-CTX
+;                   (PAIRLIS$ formals
+;                             processed-actuals)
+;                   (APPEND (REV-CTX processed-context A) A))
+;                  (rev-ctx (pairlis$ formals actuals) a)))
+;  :hints (("Goal" :in-theory (e/d (rev-ctx-pairlis$) ()))))
+;
+;(local
+; (defthm-gify-term-ind-flag
+;   (defthm gify-term-correct-lambda
+;     (b* (((mv okp gen-term f)
+;           (gify-term-lambda x expand-fns avoid-vars state)))
+;       (implies (and okp
+;                     (rev-meta-extract-global-facts)
+;                     (subsetp-equal (free-vars x) avoid-vars)
+;                     (pseudo-termp x)
+;                     (symbol-listp avoid-vars))
+;                (equal (rev gen-term (append (rev-ctx (interp-subst f) a) a))
+;                       (rev x a))))
+;     :flag gify-term-lambda-ind)
+;   (defthm gify-term-correct-expand
+;     (b* (((mv okp gen-term f)
+;           (gify-term-expand x expand-fns avoid-vars state)))
+;       (implies (and okp
+;                     (rev-meta-extract-global-facts)
+;                     (subsetp-equal (free-vars x) avoid-vars)
+;                     (pseudo-termp x)
+;                     (symbol-listp avoid-vars))
+;                (equal (rev gen-term (append (rev-ctx (interp-subst f) a) a))
+;                       (rev x a))))
+;     :flag gify-term-expand-ind)
+;   (defthm gify-term-correct
+;     (b* (((mv okp gen-term f)
+;           (gify-term x expand-fns avoid-vars state)))
+;       (implies (and okp
+;                     (rev-meta-extract-global-facts)
+;                     (subsetp-equal (free-vars x) avoid-vars)
+;                     (pseudo-termp x)
+;                     (symbol-listp avoid-vars))
+;                (equal (rev gen-term (append (rev-ctx (interp-subst f) a) a))
+;                       (rev x a))))
+;     :flag gify-term-ind)
+;   (defthm gify-term-correct-lst
+;     (b* (((mv okp gen-term f)
+;           (gify-term-lst lst expand-fns avoid-vars state)))
+;       (implies (and okp
+;                     (rev-meta-extract-global-facts)
+;                     (subsetp-equal (free-vars-lst lst) avoid-vars)
+;                     (pseudo-term-listp lst)
+;                     (symbol-listp avoid-vars))
+;                (equal (rev-lst gen-term (append (rev-ctx (interp-subst f) a) a))
+;                       (rev-lst lst a))))
+;     :flag gify-term-lst-ind)
+;   :hints (("Goal" :in-theory (e/d (gify-term-lambda
+;                                    gify-term-expand
+;                                    gify-term
+;                                    gify-term-lst
+;                                    rev-ctx-of-unify-subst-pseudo-termp
+;                                    rev-ctx-of-unify-subst-pseudo-termp-3
+;                                    rev-ctx-of-unify-subst-pseudo-termp-lst-2
+;                                    pseudo-termp
+;                                    pseudo-term-listp
+;                                    free-vars-lst
+;                                    free-vars
+;                                    rev-of-fncall-args)
+;                                   (rev-fn-get-def)))
+;           ("Subgoal *1/12"
+;            :in-theory (e/d (gify-term-lambda
+;                             gify-term-expand
+;                             gify-term
+;                             gify-term-lst
+;                             rev-ctx-of-unify-subst-pseudo-termp
+;                             rev-ctx-of-unify-subst-pseudo-termp-3
+;                             rev-ctx-of-unify-subst-pseudo-termp-lst-2
+;                             rev-ctx-of-unify-subst-pseudo-termp-4
+;                             pseudo-termp
+;                             pseudo-term-listp
+;                             free-vars-lst
+;                             free-vars
+;                             rev-of-fncall-args)
+;                            (rev-fn-get-def))
+;            :use ((:instance rev-fn-get-def
+;                   (fn (car x))
+;                   (st state)
+;                   (args (cdr x))
+;                   (a a))
+;                  (:instance rev-ctx-of-processed
+;                   (processed-actuals (MV-NTH 1
+;                                              (GIFY-TERM-LST (CDR X)
+;                                                             EXPAND-FNS AVOID-VARS STATE)))
+;                   (processed-context (INTERP-SUBST (MV-NTH 2
+;                                                            (GIFY-TERM-LST (CDR X)
+;                                                                           EXPAND-FNS AVOID-VARS STATE))))
+;                   (formals (MV-NTH 1 (ACL2::FN-GET-DEF (CAR X) STATE)))
+;                   (actuals (cdr x)))))
+;           ("Subgoal *1/1"
+;            :in-theory (e/d (gify-term-lambda
+;                             gify-term-expand
+;                             gify-term
+;                             gify-term-lst
+;                             rev-ctx-of-unify-subst-pseudo-termp
+;                             rev-ctx-of-unify-subst-pseudo-termp-3
+;                             rev-ctx-of-unify-subst-pseudo-termp-lst-2
+;                             rev-ctx-of-unify-subst-pseudo-termp-4
+;                             pseudo-termp
+;                             pseudo-term-listp
+;                             free-vars-lst
+;                             free-vars
+;                             rev-of-fncall-args)
+;                            (rev-fn-get-def))
+;            :use ((:instance rev-ctx-of-processed
+;                   (processed-actuals (MV-NTH 1
+;                                              (GIFY-TERM-LST (CDR X)
+;                                                             EXPAND-FNS AVOID-VARS STATE)))
+;                   (processed-context (INTERP-SUBST (MV-NTH 2
+;                                                            (GIFY-TERM-LST (CDR X)
+;                                                                           EXPAND-FNS AVOID-VARS STATE))))
+;                   (formals (cadar x))
+;                   (actuals (cdr x))))))))
+;
+;(local-defthm symbolp-car-assoc
+;  (implies (symbolp x)
+;           (symbolp (car (assoc x s)))))
+;
 (define gify-mapping ((free-vars symbol-listp)
                       (f symbol-symbol-alistp)
                       state)
@@ -2348,27 +2392,27 @@
         (cons (cons v `(acl2::loghead$inline ,width ,v)) rest))
     nil))
 
-(local-defthm alistp-assoc-consp
-  (implies (and (alistp x)
-                (assoc y x))
-           (consp (assoc y x))))
-
-(local-defthm symbol-symbol-alistp-is-eqlable-alistp
-  (implies (symbol-symbol-alistp x)
-           (eqlable-alistp x)))
-
-(verify-guards gify-mapping
-  :hints (("Goal" :in-theory (e/d (len) ())
-                  :do-not-induct t)))
-
-(include-book "std/strings/pretty" :dir :system)
-
-(local-defthm symbol-symbol-alistp-pairlis-strip-cdrs
-  (implies (symbol-symbol-alistp x)
-           (symbol-symbol-alistp (pairlis$ (strip-cdrs x) (strip-cars x)))))
-
-(local-defthm character-alistp-lemma
-  (character-alistp (list (cons #\0 x))))
+;(local-defthm alistp-assoc-consp
+;  (implies (and (alistp x)
+;                (assoc y x))
+;           (consp (assoc y x))))
+;
+;(local-defthm symbol-symbol-alistp-is-eqlable-alistp
+;  (implies (symbol-symbol-alistp x)
+;           (eqlable-alistp x)))
+;
+;(verify-guards gify-mapping
+;  :hints (("Goal" :in-theory (e/d (len) ())
+;                  :do-not-induct t)))
+;
+;(include-book "std/strings/pretty" :dir :system)
+;
+;(local-defthm symbol-symbol-alistp-pairlis-strip-cdrs
+;  (implies (symbol-symbol-alistp x)
+;           (symbol-symbol-alistp (pairlis$ (strip-cdrs x) (strip-cars x)))))
+;
+;(local-defthm character-alistp-lemma
+;  (character-alistp (list (cons #\0 x))))
 
 (define gify-cp ((cl pseudo-term-listp)
                  expand-fns
@@ -2414,134 +2458,136 @@
         (append (rev-ctx (interp-subst f) a) a))
     a))
 
-(local-defthm assoc-rev-ctx-cons
-  (equal (assoc x (rev-ctx (cons (cons x y) z) a))
-         (cons x (rev y a)))
-  :hints (("Goal" :in-theory (e/d (rev-ctx) ()))))
+;(local-defthm assoc-rev-ctx-cons
+;  (equal (assoc x (rev-ctx (cons (cons x y) z) a))
+;         (cons x (rev y a)))
+;  :hints (("Goal" :in-theory (e/d (rev-ctx) ()))))
+;
+;(local-defthm assoc-interp-subst-pairlis
+;  (implies (symbol-symbol-alistp f)
+;           (iff (ASSOC-EQUAL fvar (INTERP-SUBST (PAIRLIS$ (STRIP-CDRS F) (STRIP-CARS F))))
+;                (ASSOC-EQUAL fvar f)))
+;  :hints (("Goal" :in-theory (e/d (interp-subst) ()))))
+;
+;(local-defthm car-assoc-equal-x
+;  (implies (Assoc x y)
+;           (equal (car (Assoc x y)) x)))
+;
+;(local-defthm assoc-equal-interp-subst-pairlis$
+;  (implies (symbol-symbol-alistp f)
+;           (equal (assoc x (interp-subst (pairlis$ (strip-cdrs f) (strip-cars f))))
+;                  (b* ((p (assoc x f)))
+;                    (if p
+;                        (cons (car p) (list (cdr p)))
+;                      nil))))
+;  :hints (("Goal" :in-theory (e/d (interp-subst) ()))))
+;
+;(local-defthm len-x-1-rev-lst
+;  (implies (equal (len x) 0)
+;           (equal (rev-lst x a)
+;                  nil))
+;  :hints (("Goal" :in-theory (e/d (len) ()))))
+;
+;(local-defthm alist-eq-on-cons
+;  (implies (and (alist-eq x y z)
+;                (not (member-equal a x)))
+;           (alist-eq x (cons (cons a b) y) z))
+;  :hints (("Goal" :in-theory (e/d (alist-eq) ()))))
+;
+;(local-defthm rev-ctx-of-cons
+;  (equal (rev-ctx (cons (cons x y) z) a)
+;         (cons (cons x (rev y a)) (rev-ctx z a)))
+;  :hints (("Goal" :in-theory (e/d (rev-ctx) ()))))
+;
+;(local-defthm alist-eq-on-gify-mapping
+;  (implies (and (rev-meta-extract-global-facts)
+;                (symbol-listp fvars)
+;                (no-duplicatesp-equal fvars)
+;                (not (member nil fvars))
+;                (symbol-symbol-alistp f))
+;           (alist-eq fvars (rev-ctx (gify-mapping fvars f state)
+;                                    (append (rev-ctx (interp-subst (pairlis$ (strip-cdrs f) (strip-cars f))) a) a))
+;                     (append (rev-ctx (interp-subst (pairlis$ (strip-cdrs f) (strip-cars f))) a) a)))
+;  :hints (("Goal" :in-theory (e/d (gify-mapping
+;                                   alist-eq
+;                                   len)
+;                                  (rev-meta-extract-formula
+;                                   rev-formula)))
+;          ("Subgoal *1/5"
+;           :use ((:instance rev-meta-extract-formula
+;                  (acl2::name (CDR (ASSOC-EQUAL (CDR (ASSOC-EQUAL (CAR FVARS) F))
+;                                                (FGETPROP 'KNOWN-BVECPS
+;                                                          'TABLE-ALIST
+;                                                          NIL
+;                                                          (CDR (ASSOC-EQUAL 'ACL2::CURRENT-ACL2-WORLD
+;                                                                            (NTH 2 STATE)))))))
+;                  (st state))
+;                 (:instance rev-of-fncall-args
+;                  (x (cadr (META-EXTRACT-FORMULA
+;                            (CDR (ASSOC-EQUAL (CDR (ASSOC-EQUAL (CAR FVARS) F))
+;                                              (FGETPROP 'KNOWN-BVECPS
+;                                                        'TABLE-ALIST
+;                                                        NIL
+;                                                        (CDR (ASSOC-EQUAL 'ACL2::CURRENT-ACL2-WORLD
+;                                                                          (NTH 2 STATE))))))
+;                            STATE))))
+;                 (:instance rev-of-fncall-args
+;                  (x (LIST (CDR (ASSOC-EQUAL (CAR FVARS) F)))))
+;                 (:instance rev-of-quote
+;                  (x (cadr (META-EXTRACT-FORMULA
+;                            (CDR (ASSOC-EQUAL (CDR (ASSOC-EQUAL (CAR FVARS) F))
+;                                              (FGETPROP 'KNOWN-BVECPS
+;                                                        'TABLE-ALIST
+;                                                        NIL
+;                                                        (CDR (ASSOC-EQUAL 'ACL2::CURRENT-ACL2-WORLD
+;                                                                          (NTH 2 STATE))))))
+;                            STATE))))
+;                 (:instance rev-of-quote
+;                  (x (LIST (CDR (ASSOC-EQUAL (CAR FVARS) F)))))))))
+;
+;(local-defthm rev-ctx-pairlis$-inv
+;  (equal (pairlis$ x (rev-lst y a))
+;         (rev-ctx (pairlis$ x y) a))
+;  :hints (("Goal" :use (rev-ctx-pairlis$))))
+;
+;(local-defthm pairlis$-strip-cars-cdrs
+;  (implies (alistp x)
+;           (equal (pairlis$ (strip-cars x) (strip-cdrs x))
+;                  x)))
+;
+;(local-defthm symbol-alistp-is-alistp
+;  (implies (symbol-alistp x)
+;           (alistp x)))
+;
+;(local-defthm no-duplicatesp-union
+;  (implies (and (NO-DUPLICATESP-EQUAL x)
+;                (NO-DUPLICATESP-EQUAL y))
+;           (NO-DUPLICATESP-EQUAL (UNION-EQUAL x y)))
+;  :hints (("Goal" :in-theory (e/d (no-duplicatesp-equal
+;                                   len) ()))))
+;
+;(local
+; (defthm-free-vars-flag
+;   (defthm no-duplicates-free-vars
+;     (no-duplicatesp-equal (free-vars term))
+;     :flag free-vars)
+;   (defthm no-duplicates-free-vars-lst
+;     (no-duplicatesp-equal (free-vars-lst term-lst))
+;     :flag free-vars-lst)
+;   :hints (("Goal" :in-theory (e/d (free-vars free-vars-lst) ())))))
+;
+;(local-defthm pairlis$-double
+;  (implies (and (true-listp y)
+;                (equal (len x) (len y)))
+;           (equal (strip-cdrs (pairlis$ x y)) y)))
+;
+;(local-defthm len-strip-cars-strip-cdrs
+;  (implies (alistp x)
+;           (equal (len (strip-cars x)) (len (strip-cdrs x))))
+;  :hints (("Goal" :in-theory (e/d (len) ()))))
 
-(local-defthm assoc-interp-subst-pairlis
-  (implies (symbol-symbol-alistp f)
-           (iff (ASSOC-EQUAL fvar (INTERP-SUBST (PAIRLIS$ (STRIP-CDRS F) (STRIP-CARS F))))
-                (ASSOC-EQUAL fvar f)))
-  :hints (("Goal" :in-theory (e/d (interp-subst) ()))))
 
-(local-defthm car-assoc-equal-x
-  (implies (Assoc x y)
-           (equal (car (Assoc x y)) x)))
-
-(local-defthm assoc-equal-interp-subst-pairlis$
-  (implies (symbol-symbol-alistp f)
-           (equal (assoc x (interp-subst (pairlis$ (strip-cdrs f) (strip-cars f))))
-                  (b* ((p (assoc x f)))
-                    (if p
-                        (cons (car p) (list (cdr p)))
-                      nil))))
-  :hints (("Goal" :in-theory (e/d (interp-subst) ()))))
-
-(local-defthm len-x-1-rev-lst
-  (implies (equal (len x) 0)
-           (equal (rev-lst x a)
-                  nil))
-  :hints (("Goal" :in-theory (e/d (len) ()))))
-
-(local-defthm alist-eq-on-cons
-  (implies (and (alist-eq x y z)
-                (not (member-equal a x)))
-           (alist-eq x (cons (cons a b) y) z))
-  :hints (("Goal" :in-theory (e/d (alist-eq) ()))))
-
-(local-defthm rev-ctx-of-cons
-  (equal (rev-ctx (cons (cons x y) z) a)
-         (cons (cons x (rev y a)) (rev-ctx z a)))
-  :hints (("Goal" :in-theory (e/d (rev-ctx) ()))))
-
-(local-defthm alist-eq-on-gify-mapping
-  (implies (and (rev-meta-extract-global-facts)
-                (symbol-listp fvars)
-                (no-duplicatesp-equal fvars)
-                (not (member nil fvars))
-                (symbol-symbol-alistp f))
-           (alist-eq fvars (rev-ctx (gify-mapping fvars f state)
-                                    (append (rev-ctx (interp-subst (pairlis$ (strip-cdrs f) (strip-cars f))) a) a))
-                     (append (rev-ctx (interp-subst (pairlis$ (strip-cdrs f) (strip-cars f))) a) a)))
-  :hints (("Goal" :in-theory (e/d (gify-mapping
-                                   alist-eq
-                                   len)
-                                  (rev-meta-extract-formula
-                                   rev-formula)))
-          ("Subgoal *1/5"
-           :use ((:instance rev-meta-extract-formula
-                  (acl2::name (CDR (ASSOC-EQUAL (CDR (ASSOC-EQUAL (CAR FVARS) F))
-                                                (FGETPROP 'KNOWN-BVECPS
-                                                          'TABLE-ALIST
-                                                          NIL
-                                                          (CDR (ASSOC-EQUAL 'ACL2::CURRENT-ACL2-WORLD
-                                                                            (NTH 2 STATE)))))))
-                  (st state))
-                 (:instance rev-of-fncall-args
-                  (x (cadr (META-EXTRACT-FORMULA
-                            (CDR (ASSOC-EQUAL (CDR (ASSOC-EQUAL (CAR FVARS) F))
-                                              (FGETPROP 'KNOWN-BVECPS
-                                                        'TABLE-ALIST
-                                                        NIL
-                                                        (CDR (ASSOC-EQUAL 'ACL2::CURRENT-ACL2-WORLD
-                                                                          (NTH 2 STATE))))))
-                            STATE))))
-                 (:instance rev-of-fncall-args
-                  (x (LIST (CDR (ASSOC-EQUAL (CAR FVARS) F)))))
-                 (:instance rev-of-quote
-                  (x (cadr (META-EXTRACT-FORMULA
-                            (CDR (ASSOC-EQUAL (CDR (ASSOC-EQUAL (CAR FVARS) F))
-                                              (FGETPROP 'KNOWN-BVECPS
-                                                        'TABLE-ALIST
-                                                        NIL
-                                                        (CDR (ASSOC-EQUAL 'ACL2::CURRENT-ACL2-WORLD
-                                                                          (NTH 2 STATE))))))
-                            STATE))))
-                 (:instance rev-of-quote
-                  (x (LIST (CDR (ASSOC-EQUAL (CAR FVARS) F)))))))))
-
-(local-defthm rev-ctx-pairlis$-inv
-  (equal (pairlis$ x (rev-lst y a))
-         (rev-ctx (pairlis$ x y) a))
-  :hints (("Goal" :use (rev-ctx-pairlis$))))
-
-(local-defthm pairlis$-strip-cars-cdrs
-  (implies (alistp x)
-           (equal (pairlis$ (strip-cars x) (strip-cdrs x))
-                  x)))
-
-(local-defthm symbol-alistp-is-alistp
-  (implies (symbol-alistp x)
-           (alistp x)))
-
-(local-defthm no-duplicatesp-union
-  (implies (and (NO-DUPLICATESP-EQUAL x)
-                (NO-DUPLICATESP-EQUAL y))
-           (NO-DUPLICATESP-EQUAL (UNION-EQUAL x y)))
-  :hints (("Goal" :in-theory (e/d (no-duplicatesp-equal
-                                   len) ()))))
-
-(local
- (defthm-free-vars-flag
-   (defthm no-duplicates-free-vars
-     (no-duplicatesp-equal (free-vars term))
-     :flag free-vars)
-   (defthm no-duplicates-free-vars-lst
-     (no-duplicatesp-equal (free-vars-lst term-lst))
-     :flag free-vars-lst)
-   :hints (("Goal" :in-theory (e/d (free-vars free-vars-lst) ())))))
-
-(local-defthm pairlis$-double
-  (implies (and (true-listp y)
-                (equal (len x) (len y)))
-           (equal (strip-cdrs (pairlis$ x y)) y)))
-
-(local-defthm len-strip-cars-strip-cdrs
-  (implies (alistp x)
-           (equal (len (strip-cars x)) (len (strip-cdrs x))))
-  :hints (("Goal" :in-theory (e/d (len) ()))))
-
+(skip-proofs
 (defthm gify-cp-correct
   (implies (and (pseudo-term-listp cl)
                 (rev-meta-extract-global-facts)
@@ -2572,6 +2618,7 @@
                                                                      STATE)))))))
                   :do-not-induct t))
   :rule-classes :clause-processor)
+)
 
 ;; Include fgl/top -- some lemmas are not proven when this is included earlier
 ;; because of conflicting rewrite rules!
