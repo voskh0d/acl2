@@ -1,5 +1,7 @@
 (in-package "RTL")
 
+(include-book "rtl/rel11/lib/top-alt" :dir :system)
+
 (set-ignore-ok t)
 
 (defun rac-type-info (x type)
@@ -22,8 +24,8 @@
            (is-array-p x type (1- len))))))
 
 (defthm is-type-p-bvecp
-  (implies (is-type-p x (cons 'bvec (cons n nil)))
-           (bvecp x n))
+  (equal (bvecp x n)
+         (is-type-p x (cons 'bvec (cons n nil))))
   :hints (("Goal"
            :in-theory (enable is-type-p))))
                 
@@ -137,15 +139,74 @@
 
 (defthmd bvecp-setbits
   (implies (integerp w)
-           (bvecp (setbits x w i j y) w)))
+           (bvecp (setbits x w i j y) w))
+  :hints (("Goal"
+           :in-theory (disable IS-TYPE-P-BVECP))))
+
+(defthmd bvecp-setbits-alt
+  (implies (integerp w)
+           (is-type-p (setbits x w i j y) (list 'bvec w)))
+  :hints (("Goal"
+           :use bvecp-setbits
+           :in-theory (e/d () (setbits)))))
 
 (defthmd bvecp-setbitn
   (implies (integerp w)
-           (bvecp (setbitn x w n y) w)))
+           (bvecp (setbitn x w n y) w))
+  :hints (("Goal"
+           :in-theory (disable is-type-p-bvecp))))
 
-(defthmd bvecp-int
+(defthmd bvecp-setbitn-alt
+  (implies (integerp w)
+           (is-type-p (setbitn x w n y) (list 'bvec w)))
+  :hints (("Goal"
+           :use bvecp-setbitn
+           :in-theory (e/d () (setbitn)))))
+
+(defthm bvecp-int
+  (implies (and (is-type-p x type)
+                (equal (car type) 'bvec))
+           (is-type-p x '(int)))
+  :hints (("Goal"
+           :expand (:free (x type) (is-type-p x type))
+           :in-theory '(bvecp (equal))))
+  :rule-classes :forward-chaining)
+
+;(defthmd bvecp-to-is-type-p
+;  (implies (equal (car type) 'bvec)
+;           (equal (is-type-p x type)
+;                  (bvecp x (cadr type))))
+;  :hints (("Goal"
+;           :expand (:free (x type) (IS-TYPE-P X type))
+;           :in-theory ())))
+
+(defthmd bvecp-to-is-type-p
   (implies (bvecp x n)
-           (integerp x)))
+           (is-type-p x (list 'bvec n)))
+  :hints (("Goal"
+           :expand (:free (x type) (is-type-p x type)))))
+
+(defthmd int-to-is-type-p
+  (implies (integerp x)
+           (is-type-p x '(int)))
+  :hints (("Goal"
+           :in-theory (enable is-type-p))))
+
+(defthm int-si-alt
+  (implies (and (is-type-p x '(int))
+                (natp n))
+           (is-type-p (si x n) '(int)))
+  :hints (("Goal"
+           :expand (:free (x type) (is-type-p x type))))
+  :rule-classes (:type-prescription :rewrite))
+
+;(defthm bvecp-int
+;  (implies (and (is-type-p x '(int))
+;                (natp n))
+;           (is-type-p (si x n) '(int)))
+;  :hints (("Goal"
+;           :expand (:free (x type) (is-type-p x type))))
+;  :rule-classes (:type-prescription :rewrite))
 
 ;(defthmd array-of-vec-nil
 ;  (is-type-p nil (list 'array type n))
@@ -156,33 +217,18 @@
 
 (deftheory type-theory
   '(rac-type-info
+    (is-type-p)
+    (is-array-p)
     ag-type
     as-keeps-type
     bits-bvecp
-    bvecp-setbits
-    bvecp-setbitn
+    bvecp-setbits-alt
+    bvecp-setbitn-alt
     (natp)
-    int-si
+    int-si-alt
     bvecp-int
     (ainit)
-;    array-of-vec-nil
+    bvecp-to-is-type-p
+    int-to-is-type-p
+    bvecp-forward
     ))
-
-
-
-
-
-;(DEFUND ARR NIL
-;  (AINIT (LIST (CONS 0 2)
-;                              (CONS 1 3)
-;                              (CONS 2 0)
-;                              (CONS 3 0)
-;                              (CONS 4 0)
-;                              (CONS 5 0)))
-;                 )
-;
-;(thm
-;  (implies t; (bvecp x 5)
-;           (array-of-vec-p (as 3 (bits (+ x (ag 2 (arr))) 2 0)
-;                                          (arr)) 6)))
-;
