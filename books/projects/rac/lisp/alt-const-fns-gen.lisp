@@ -624,59 +624,12 @@
     ))
 
 
-(mutual-recursion
-
-
-  (defun gen-type-expr-struct (name struct-expr depth)
-    (if (not struct-expr)
-      ()
-      (b* ((field (car struct-expr))
-           (field-name (car field))
-           (field-type (cadr field))
-           (type-thm (gen-type-expr (list 'RTL::ag (list 'quote field-name) name) field-type depth)))
-          (cons type-thm
-                (gen-type-expr-struct name (cdr struct-expr) (* depth 2))))))
-
-  (defun gen-type-expr (name type-expr depth)
-    (b* ((type (car type-expr))
-         (depth (1+ depth)))
-        (cond ((equal type 'RTL::bvec)
-               (list 'RTL::bvecp name (cadr type-expr)))
-              ((or (equal type 'RTL::int) (equal type 'RTL::long))
-               (list 'RTL::integerp name))
-              ((equal type 'RTL::bool)
-               (list 'RTL::bitp name))
-              ((equal type 'RTL::array)
-               ;; TODO refine ? if i >= N; then (ag i val) is 0
-               ;; TODO when types are nested (for example with an array of
-               ;; array, we need to have distinct indexes.
-               (b* ((idx (gen-sym 'i (str::int-to-dec-string depth)))
-                    (len (caddr type-expr))
-                    (hyp (list 'member idx `(quote ,(range len))))
-                    (concl (gen-type-expr (list 'RTL::ag idx name)
-                                          (cadr type-expr)
-                                          depth)))
-                   (list 'implies hyp concl)))
-              ((equal type 'RTL::struct)
-               (cons 'and (gen-type-expr-struct name (cdr type-expr) depth)))
-              (t nil))))
-)
-
-;; It is possible to have multipler RAC-TYPE-INFO for example:
-;;  (B* ((A (RAC-TYPE-INFO ...))
-;;       (B (RAC-TYPE-INFO ...))
-;;    (MV-NTH 0
-;;            (MV-LIST 2
-;;                     (LANE-LOOP-7 ... A B)))))
-
 ;; Returns (type-info ...) of variable "name"
 (defun search-type-info-from-b* (body name)
   (if (not body)
     nil
     (if (and (car body) (caar body)
-;             (or (cw "caar body: ~x0 ~%" (caar body))
-                 (equal (caar body) name))
-;             )
+             (equal (caar body) name))
       (cadar body)
       (search-type-info-from-b* (cdr body) name))))
 
@@ -689,17 +642,11 @@
 (defun gen-type-thm (fn pkg-name extracted-fn-names)
   (b* ((name (cadr fn))
        (body (cadddr fn))
-;       (w (cw "name ~x0 body: ~x1 ~%" name body))
        (type (extract-type-info body name))
-       (thm-name (intern$ (concatenate 'string (symbol-name name) "-TYPE") pkg-name))
-       (thm-body (gen-type-expr (list name) (car (cdr type)) 0)))
-      (if thm-body
-        `(progn
-           (RTL::defthm-using-fgl ,thm-name
-                                  ,thm-body
-                                  :expand-fns (RTL::ainit ,@extracted-fn-names))
-           (table RTL::known-bvecps ',name ',thm-name))
-        (cw "WARNING: could not generate type theorem for ~x0.~%" name))))
+       (thm-name (intern$ (concatenate 'string (symbol-name name) "-TYPE") pkg-name)))
+      `(defthm ,thm-name
+          (RTL::is-type-p (,name) ,type)
+          :hints (("Goal" :in-theory (enable ,name))))))
 
 (defun gen-type-thms (fns pkg-name extracted-fn-names)
   (if (not fns)

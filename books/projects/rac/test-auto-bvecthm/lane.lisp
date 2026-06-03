@@ -996,56 +996,23 @@
                                (ACC))
                             63 0)))))
 
-
-(DEFTHM a-type
-   (array-of-vec-p (A) 4 16)
-   :hints (("Goal"
-            :expand (:free (ELEM OPA OPB A B) (LANE-LOOP-7 ELEM OPA OPB A B))
-            :IN-THEORY (enable a))))
-
-(DEFTHM b-type
-   (array-of-vec-p (b) 4 16)
-   :hints (("Goal"
-            :expand (:free (ELEM OPA OPB A B) (LANE-LOOP-7 ELEM OPA OPB A B))
-            :IN-THEORY (enable b))))
-
-(skip-proofs
-  (defthm partialsproducts8-type
-    (array-of-vec-p (PARTIALSPRODUCTS8 b b_encs bsigned) 5 12))
-  )
-
-(defthm pp-type
-  (array-of-vec-p (pp) 20 40)
-  :hints (("Goal"
-           :IN-THEORY (e/d (pp) (lognot LOGNOT1))
-           :expand ((:free (ELEM A OPA_UNSIGNED B OPB_UNSIGNED B_ENCS PPS_ALIGNED)
-                          (LANE-LOOP-3 ELEM A OPA_UNSIGNED B OPB_UNSIGNED B_ENCS PPS_ALIGNED))
-                    (:free (INDEX PPS_ALIGNED PP)
-                           (LANE-LOOP-2 INDEX PPS_ALIGNED PP)))
-           )))
-
- (PROGN (DEFTHM-USING-FGL
-             PP-TYPE
-             (IMPLIES (MEMBER I1
-                              '(39 38 37 36 35 34 33 32 31 30 29
-                                   28 27 26 25 24 23 22 21 20 19 18 17 16
-                                   15 14 13 12 11 10 9 8 7 6 5 4 3 2 1 0))
-                      (BVECP (AG I1 (PP)) 20))
-             :EXPAND-FNS (AINIT A B PP PPS PPC))
-        (TABLE KNOWN-BVECPS 'PP 'PP-TYPE))
-
- (DEFTHMD LANE-LEMMA
-   (EQUAL (LANE-RES)
-          (LANE (OPA)
-                (OPB)
-                (ACC)
-                (OPA_UNSIGNED)
-                (OPB_UNSIGNED)
-                (SIZE)
-                (WITHOUT_VDOT16)))
-   :HINTS (("Goal" :IN-THEORY NIL
-                   :DO-NOT '(PREPROCESS)
-                   :CLAUSE-PROCESSOR
-                   (EXPAND-REDUCE-CP CLAUSE '(T LANE-RES A B PP PPS PPC LANE)
-                                     STATE)))))
+;(encapsulate ()
+  (local (include-book "types"))
+  (local (in-theory '(type-theory)))
+    (DEFTHM A-TYPE
+     (IS-TYPE-P (A) '(ARRAY (BVEC 16) 4))
+     :HINTS (("Goal" :IN-THEORY (ENABLE A))))
+   (DEFTHM B-TYPE
+     (IS-TYPE-P (B) '(ARRAY (BVEC 16) 4))
+     :HINTS (("Goal" :IN-THEORY (ENABLE B))))
+   (DEFTHM PP-TYPE
+     (IS-TYPE-P (PP) '(ARRAY (BVEC 20) 40))
+     :HINTS (("Goal" :IN-THEORY (ENABLE PP))))
+   (DEFTHM PPS-TYPE
+     (IS-TYPE-P (PPS) NIL)
+     :HINTS (("Goal" :IN-THEORY (ENABLE PPS))))
+   (DEFTHM PPC-TYPE
+     (IS-TYPE-P (PPC) NIL)
+     :HINTS (("Goal" :IN-THEORY (ENABLE PPC))))
+;)
 

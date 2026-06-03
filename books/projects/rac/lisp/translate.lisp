@@ -476,12 +476,38 @@ are more than one).  The test of the IF is simply the test of the loop.
 
 )
 
+(defun make-type-f-name (fname)
+  (intern (string-append (string fname) "-TYPE") "ACL2"))
+
+(defun type-thm-hyps (hyps params)
+  (if (consp hyps)
+    (let* ((cur-type (car hyps))
+           (param (car params)))
+        (cons `(is-type-p ,param ',cur-type)
+              (type-thm-hyps (cdr hyps) (cdr params))))
+  ()))
+
+(defun type-thm (fname params function-sig)
+  (let* ((return-type (cadr function-sig))
+         (params-type (car function-sig))
+         (name (make-type-f-name fname))
+         (param-types-hyp (cons 'and
+                                (type-thm-hyps params-type params))))
+    `(defthm ,name
+       (implies ,param-types-hyp
+                (is-type-p (,fname ,@params) ',return-type))
+       :hints (("Goal"
+                :in-theory (enable ,fname))))))
+
 (defun translate-function (f)
-  (let ((fname (cadr f))
-        (args (caddr f))
-        (body (cadddr f)))
+  (let* ((fname (cadr f))
+         (args (caddr f))
+         (type (caddr (cadddr f)))
+         (type-thm (type-thm fname args type))
+         (body (cadr (cadddr f)))) ;; The addional cadr removes rac-type-info
     (mv-let (term defs) (translate-function-block (cdr body) fname 0)
-      (append defs (list `(defund ,fname ,args ,term))))))
+      (append defs (list `(defund ,fname ,args ,term)
+                         type-thm)))))
 
 (defun translate-program-list (lst)
   (if (consp lst)

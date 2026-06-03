@@ -52,12 +52,21 @@ Symbol s_funcdef("funcdef");
 Sexpression *FunDef::ACL2Expr() {
 
   Plist *sparams = new Plist();
+  Plist *params_types = new Plist();
   for (auto v : params_) {
     sparams->add(v->sym);
+    params_types->add(v->get_type()->ACL2Type());
   }
 
+  Plist *function_type = new Plist({ params_types, returnType_->ACL2Type() });
+
+  Sexpression *translated_body = body_->blockify()->ACL2Expr();
+
+  Sexpression *body_with_function_type = new Plist({
+      &s_rac_type_info, translated_body, function_type });
+
   return new Plist(
-      {&s_funcdef, new Symbol(name_), sparams, body_->blockify()->ACL2Expr()});
+      {&s_funcdef, new Symbol(name_), sparams, body_with_function_type});
 }
 
 // class Template : public FunDef

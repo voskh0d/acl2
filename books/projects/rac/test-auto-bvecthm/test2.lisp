@@ -3,6 +3,7 @@
 (include-book "types")
 (include-book "vdot")
 
+(local (in-theory '(type-theory)))
 
 (defthm partialsproducts8-loop-0-type
   (implies (and (is-type-p i '(int))
@@ -12,7 +13,7 @@
            (is-type-p (partialsproducts8-loop-0 i bval b_encs pps)
                       '(array (bvec 12) 5)))
   :hints (("Goal"
-           :in-theory '(partialsproducts8-loop-0 type-theory))))
+           :in-theory (enable partialsproducts8-loop-0))))
 
 (defthm partialsproducts8-type
   (implies (and (is-type-p b '(bvec 8))
@@ -21,7 +22,7 @@
            (is-type-p (partialsproducts8 b b_encs bsigned)
                       '(array (bvec 12) 5)))
   :hints (("Goal"
-           :in-theory '(partialsproducts8 partialsproducts8-loop-0-type type-theory))))
+           :in-theory (enable partialsproducts8))))
 
 (defun lane-inputs-ok-p (opa opb acc opa_unsigned opb_unsigned size without_vdot16)
   (and (bvecp opa 64)
@@ -63,15 +64,15 @@
 (include-book "rtl/rel11/lib/top" :dir :system)
 (local (include-book "projects/arm/utils/rtl-utils" :dir :system))
 
-(local (bvecthm opa-vec (bvecp (opa) 64) :hints (("Goal" :use inputs-ok))))
-(local (bvecthm opb-vec (bvecp (opb) 64) :hints (("Goal" :use inputs-ok))))
-(local (bvecthm acc-vec (bvecp (acc) 64) :hints (("Goal" :use inputs-ok))))
-(local (bitthm opa_unsigned-vec (bitp (opa_unsigned)) :hints (("Goal" :use inputs-ok))))
-(local (bitthm opb_unsigned-vec (bitp (opb_unsigned)) :hints (("Goal" :use inputs-ok))))
-(local (bitthm size-bit (bitp (size)) :hints (("Goal" :use inputs-ok))))
-(local (bitthm without_vdot16-bit (bitp (without_vdot16)) :hints (("Goal" :use inputs-ok))))
+;(local (bvecthm opa-vec (bvecp (opa) 64) :hints (("Goal" :use inputs-ok))))
+;(local (bvecthm opb-vec (bvecp (opb) 64) :hints (("Goal" :use inputs-ok))))
+;(local (bvecthm acc-vec (bvecp (acc) 64) :hints (("Goal" :use inputs-ok))))
+;(local (bitthm opa_unsigned-vec (bitp (opa_unsigned)) :hints (("Goal" :use inputs-ok))))
+;(local (bitthm opb_unsigned-vec (bitp (opb_unsigned)) :hints (("Goal" :use inputs-ok))))
+;(local (bitthm size-bit (bitp (size)) :hints (("Goal" :use inputs-ok))))
+;(local (bitthm without_vdot16-bit (bitp (without_vdot16)) :hints (("Goal" :use inputs-ok))))
 
-(local (include-book "../lisp/alt-const-fns-gen"))
+;(local (include-book "../lisp/alt-const-fns-gen"))
 
 ;;:ubt lane-res
 ;;  (make-event
@@ -473,7 +474,7 @@
 ;     )
 ;    )
 
-(DEFUNDD A NIL
+(defund A NIL
           (B* ((A (RAC-TYPE-INFO (AINIT (LIST (CONS 0 0)
                                               (CONS 1 0)
                                               (CONS 2 0)
@@ -490,7 +491,7 @@
                                           (OPA)
                                           (OPB)
                                           A B)))))
- (DEFUNDD B NIL
+ (defund B NIL
           (B* ((A (RAC-TYPE-INFO (AINIT (LIST (CONS 0 0)
                                               (CONS 1 0)
                                               (CONS 2 0)
@@ -507,7 +508,7 @@
                                           (OPA)
                                           (OPB)
                                           A B)))))
- (DEFUNDD
+ (defund
   PP NIL
   (B* ((PP (RAC-TYPE-INFO (AINIT (LIST (CONS 0 0)
                                        (CONS 1 0)
@@ -736,7 +737,7 @@
                            PPS_ALIGNED B_ENCS PP)))
        (AS 4 (BITS (+ (AG 4 PP) 704512) 19 0)
            PP)))))
- (DEFUNDD PPS NIL
+ (defund PPS NIL
           (B* ((L0PP (RAC-TYPE-INFO (AINIT (LIST (CONS 0 0)
                                                  (CONS 1 0)
                                                  (CONS 2 0)
@@ -853,7 +854,7 @@
                (L0PP (AS 39 (BITS (ASH (AG 33 (PP)) 14) 35 0)
                          L0PP)))
             (MV-NTH 0 (MV-LIST 2 (COMPRESS L0PP)))))
- (DEFUNDD PPC NIL
+ (defund PPC NIL
           (B* ((L0PP (RAC-TYPE-INFO (AINIT (LIST (CONS 0 0)
                                                  (CONS 1 0)
                                                  (CONS 2 0)
@@ -970,7 +971,7 @@
                (L0PP (AS 39 (BITS (ASH (AG 33 (PP)) 14) 35 0)
                          L0PP)))
             (MV-NTH 1 (MV-LIST 2 (COMPRESS L0PP)))))
- (DEFUNDD LANE-RES NIL
+ (defund LANE-RES NIL
           (IF1 (WITHOUT_VDOT16)
                (B* ((L0PP (RAC-TYPE-INFO (CONVERT_PP (PP))
                                          '(ARRAY (BVEC 21) 40)))
@@ -1000,17 +1001,17 @@
            (and (is-type-p (mv-nth 0 (lane-loop-7 elem opa opb a b)) '(array (bvec 16) 4))
                 (is-type-p (mv-nth 1 (lane-loop-7 elem opa opb a b)) '(array (bvec 16) 4))))
   :hints (("Goal"
-           :in-theory '(lane-loop-7 type-theory))))
+           :in-theory (enable lane-loop-7))))
 
 (defthm a-type
   (is-type-p (a) '(array (bvec 16) 4))
   :hints (("Goal"
-           :in-theory (enable a type-theory lane-loop-7-type inputs-ok))))
+           :in-theory (enable a))))
 
 (defthm b-type
   (is-type-p (b) '(array (bvec 16) 4))
   :hints (("Goal"
-           :in-theory (enable b type-theory lane-loop-7-type inputs-ok))))
+           :in-theory (enable b))))
 
 (defthm lane-loop-1-type
   (implies (and (is-type-p elem '(int))
@@ -1020,7 +1021,7 @@
            (is-type-p (lane-loop-1 elem pps_aligned b_encs pp)
                       '(array (bvec 20) 40)))
   :hints (("Goal"
-           :in-theory '(lane-loop-1 type-theory))))
+           :in-theory (enable lane-loop-1))))
 
 ;(defthm pp-type
 ;  (is-type-p (pp) '(array (bvec 20) 40))
