@@ -23,31 +23,12 @@
       (and (is-type-p (ag (1- len) x) type)
            (is-array-p x type (1- len))))))
 
-(defthm is-type-p-bvecp
+(defthmd is-type-p-bvecp
   (equal (bvecp x n)
-         (is-type-p x (cons 'bvec (cons n nil))))
+         (is-type-p x (list 'bvec n)))
   :hints (("Goal"
            :in-theory (enable is-type-p))))
                 
-
-;;
-
-;(defund test ()
-;  6)
-;(in-theory (disable (test)))
-;(defthm test-type
-;  (is-type-p (test) '(bvec 32))
-;  :hints (("Goal"
-;           :in-theory (enable test))))
-;(thm
-;  (bvecp (test) 32)
-;  )
-
-
-;;;
-
-
-
 (local
   (defun induct-on-nat (n)
     (if (zp n)
@@ -64,7 +45,7 @@
            :induct (induct-on-nat n)
            :in-theory (enable zp is-array-p))))
 
-(defthm ag-type
+(defthmd ag-type
   (implies (and (is-type-p a (list 'array type-expr n))
                 (integerp n)
                 (natp i)
@@ -74,7 +55,7 @@
            :expand (:free (x type) (is-type-p x type))
            :in-theory (enable is-type-p is-array-p-fwd))))
 
-(defthm check-rac-array-type-subset
+(defthmd check-rac-array-type-subset
   (implies (and (is-array-p a type n)
                 (< i n)
                 (integerp n)
@@ -127,7 +108,7 @@
 ;           ;; We want to expand only the nth term not the n-1 !
            :expand (:free (x type) (is-array-p x type n)))))
 
-(defthm as-keeps-type
+(defthmd as-keeps-type
   (implies (and (is-type-p a (list 'array inner-type n))
                 (is-type-p x inner-type)
                 (integerp n)
@@ -163,7 +144,17 @@
            :use bvecp-setbitn
            :in-theory (e/d () (setbitn)))))
 
-(defthm bvecp-int
+(defthmd bits-bvecp-alt
+  (implies (and (<= (+ 1 i (- j)) (cadr expr-type))
+                (equal (car expr-type) 'bvec)
+                (case-split (integerp (cadr expr-type))))
+           (is-type-p (bits x i j) expr-type))
+  :hints (("Goal"
+           :expand (:free () (is-type-p (bits x i j) expr-type))
+           :in-theory ()
+           :use (:instance bits-bvecp (k (cadr expr-type))))))
+
+(defthmd bvecp-int
   (implies (and (is-type-p x type)
                 (equal (car type) 'bvec))
            (is-type-p x '(int)))
@@ -192,7 +183,7 @@
   :hints (("Goal"
            :in-theory (enable is-type-p))))
 
-(defthm int-si-alt
+(defthmd int-si-alt
   (implies (and (is-type-p x '(int))
                 (natp n))
            (is-type-p (si x n) '(int)))
@@ -221,7 +212,7 @@
     (is-array-p)
     ag-type
     as-keeps-type
-    bits-bvecp
+    bits-bvecp-alt
     bvecp-setbits-alt
     bvecp-setbitn-alt
     (natp)
