@@ -8,32 +8,96 @@
   (declare (ignore type))
   x)
 
-(defund valid-type (type)
-  (declare (xargs :guard t))
-  (and (true-listp type)
-       (cond ((equal type '(int)) t)
-             ((equal type '(bool)) t)
-             ((equal (car type) 'bvec) (natp (cadr type)))
-             ((equal (car type) 'array) (and (valid-type (cadr type)) (natp (caddr type)))))))
+;(defund valid-type-lst types (types)
+;  (if (not types)
+;    t
+;    (and (valid-type 
 
+;(defund valid-type (type)
+;;  (declare (xargs :guard t))
+;  (and (true-listp type)
+;       (cond ((equal type '(int)) t)
+;             ((equal type '(bool)) t)
+;             ((equal (car type) 'bvec) (natp (cadr type)))
+;             ((equal (car type) 'array) (and (valid-type (cadr type)) (natp (caddr type)))))))
 
+;(defthm aaa
+;  (implies (consp type)
+;           (< (ACL2-COUNT (MV-NTH I TYPE))
+;              (ACL2-COUNT TYPE))
+;           )
+;  :hints (("Goal"
+;           :in-theory (enable mv-nth))))
+
+;:ubt is-type-p
 (mutual-recursion
   (defund is-type-p (x type)
-    (declare (xargs :guard (valid-type type)
-                    :guard-hints (("Goal" :in-theory (enable valid-type)))))
+    (declare (xargs :measure (acl2-count type)))
+;    (declare (xargs :guard (valid-type type)
+;                    :guard-hints (("Goal" :in-theory (enable valid-type)))))
     (cond ((equal type '(int)) (integerp x))
           ((equal type '(bool)) (bitp x))
           ((equal (car type) 'bvec) (bvecp x (cadr type)))
           ((equal (car type) 'array) (is-array-p x (cadr type) (caddr type)))
+          ((equal (car type) 'mv-type)
+           (if (equal (len x) (1- (len type)))
+             (is-mv-p-loop x (cdr type))
+             nil))
           (t t)))
   (defund is-array-p (x type len)
     (declare (xargs :measure (+ (nfix len) (acl2-count type))
-                    :guard (and (natp len)
-                                (valid-type type))))
+;                    :guard (and (natp len)
+;                                (valid-type type))
+                                ))
     (if (zp len)
       t
       (and (is-type-p (ag (1- len) x) type)
-           (is-array-p x type (1- len))))))
+           (is-array-p x type (1- len)))))
+  (defund is-mv-p-loop (x type)
+    (declare (xargs :measure (acl2-count type)))
+;    (if (or (not (listp type)) (not type))
+    (if (or (not (listp type))
+            (not type))
+      t
+        (and (is-type-p (car x) (car type))
+             (is-mv-p-loop (cdr x) (cdr type)))))
+  )
+
+(defthmd is-type-p-to-mv-p
+  (implies (equal (car type) 'mv-type)
+           (equal (is-type-p x type)
+                  (if (equal (len x) (1- (len type)))
+                    (is-mv-p-loop x (cdr type))
+                    nil)))
+  :hints (("Goal"
+           :in-theory (e/d (is-type-p) (len)))))
+
+(defthmd mv-nth-type-lemma
+  (implies (and (is-mv-p-loop x type)
+                (equal (len type) (len x)))
+           (is-type-p (nth i x)
+                      (nth i type)))
+  :hints (("Goal"
+           :in-theory (enable is-mv-p-loop zp natp nth))))
+
+(local
+  (defthmd mv-nth-to-nth
+    (equal (MV-NTH i x)
+           (nth i x))
+    :hints (("Goal"
+             :in-theory (enable mv-nth)))))
+
+(defthmd mv-nth-type
+  (implies (and (is-type-p x type)
+                (natp i)
+                (equal (car type) 'mv-type)
+                (equal (nth (1+ i) type) type-i))
+           (is-type-p (mv-nth i x) type-i))
+  :hints (("Goal"
+           :use (:instance mv-nth-type-lemma
+                           (type (cdr type)))
+           :in-theory (e/d (natp is-type-p-to-mv-p mv-nth-to-nth)
+                           ()))))
 
 (defthmd is-type-p-bvecp
   (equal (bvecp x n)
@@ -110,12 +174,11 @@
            (is-array-p (as i x a) type n))
   :hints (("Goal"
            :induct (induct-on-nat n)
-           :in-theory (enable 
-                         is-array-p
-                         zp
-                         array-of-vec-p-does-not-change-if-set-outside-of-range-hack)
+           :in-theory (enable is-array-p
+                              zp
+                              array-of-vec-p-does-not-change-if-set-outside-of-range-hack)
            )
-          ("Subgoal *1/2.1"
+          ("Subgoal *1/2.2"
            :cases ((= i (1- n)))
 ;           ;; We want to expand only the nth term not the n-1 !
            :expand (:free (x type) (is-array-p x type n)))))
@@ -134,14 +197,14 @@
   (implies (integerp w)
            (bvecp (setbits x w i j y) w))
   :hints (("Goal"
-           :in-theory (disable IS-TYPE-P-BVECP))))
+           :in-theory (disable is-type-p-bvecp))))
 
 (defthmd bvecp-setbits-alt
   (implies (integerp w)
            (is-type-p (setbits x w i j y) (list 'bvec w)))
   :hints (("Goal"
            :use bvecp-setbits
-           :in-theory (e/d () (setbits)))))
+           :in-theory (e/d (is-type-p-bvecp) (setbits)))))
 
 (defthmd bvecp-setbitn
   (implies (integerp w)
@@ -154,7 +217,7 @@
            (is-type-p (setbitn x w n y) (list 'bvec w)))
   :hints (("Goal"
            :use bvecp-setbitn
-           :in-theory (e/d () (setbitn)))))
+           :in-theory (e/d (is-type-p-bvecp) (setbitn)))))
 
 (defthmd bits-bvecp-alt
   (implies (and (<= (+ 1 i (- j)) (cadr expr-type))
@@ -203,6 +266,48 @@
            :expand (:free (x type) (is-type-p x type))))
   :rule-classes (:type-prescription :rewrite))
 
+(defthmd bitn-bool
+  (is-type-p (bitn x n) '(bool))
+  :hints (("Goal"
+           :in-theory (enable is-type-p))))
+
+(defthmd logior-bvecp-alt
+  (implies (and (equal (car type) 'bvec)
+                (is-type-p x type)
+                (is-type-p y type))
+           (is-type-p (logior x y) type))
+  :hints (("Goal"
+           :expand (:free (x type) (is-type-p x type)))))
+
+(defthmd logior-bvecp-alt-2
+  (implies (and (is-type-p x '(bool))
+                (is-type-p y '(bool)))
+           (is-type-p (logior1 x y) '(bool)))
+  :hints (("Goal"
+           :expand (:free (x type) (is-type-p x type)))))
+
+;;; TODO: can we have a rule (ty & ty) -> ty
+;(defthmd logand-bvecp-alt
+;  (implies (and (equal (car type) 'bvec)
+;                (is-type-p x type)
+;                (is-type-p y type))
+;           (is-type-p (logand x y) type))
+;  :hints (("Goal"
+;           :expand (:free (x type) (is-type-p x type)))))
+
+(defthmd logand-bvecp-alt-2
+  (implies (and (is-type-p x '(bool))
+                (is-type-p y '(bool)))
+           (is-type-p (logand1 x y) '(bool)))
+  :hints (("Goal"
+           :expand (:free (x type) (is-type-p x type)))))
+
+(defthmd lognot1-bvecp-alt-2
+  (implies (is-type-p x '(bool))
+           (is-type-p (lognot1 x) '(bool)))
+  :hints (("Goal"
+           :expand (:free (x type) (is-type-p x type)))))
+
 ;(defthm bvecp-int
 ;  (implies (and (is-type-p x '(int))
 ;                (natp n))
@@ -234,4 +339,39 @@
     bvecp-to-is-type-p
     int-to-is-type-p
     bvecp-forward
+    ;
+    is-type-p-to-mv-p
+    is-mv-p-loop
+    bitn-bool
+    mv-nth-type
+;
+logior-bvecp-alt len cdr-cons car-cons
+logior-bvecp-alt-2
+;logand-bvecp-alt
+logand-bvecp-alt-2
+lognot1-bvecp-alt-2
+;
     ))
+
+(defund search-for-known-types-loop (clause known-types)
+  (declare (xargs :mode :program))
+  (if (not clause)
+    nil
+    (if (listp clause)
+      (append (search-for-known-types-loop (car clause) known-types)
+              (search-for-known-types-loop (cdr clause) known-types))
+      (let ((thm (cdr (assoc clause known-types))))
+        (if thm (list thm) nil)))))
+
+;; TODO instanciate the rule when the rule is a function
+(defund search-for-known-types (id clause world stable-under-simplificationp)
+  (declare (xargs :mode :program)
+            (ignore id))
+  (if (not stable-under-simplificationp)
+    ()
+    (let* ((type-thms (table-alist 'known-types world))
+           (thms-to-use (search-for-known-types-loop clause type-thms)))
+      (if thms-to-use
+        `(:use ,@thms-to-use
+          :in-theory (disable ,@thms-to-use))
+        ()))))
