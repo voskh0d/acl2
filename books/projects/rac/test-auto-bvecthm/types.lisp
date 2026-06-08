@@ -8,126 +8,130 @@
   (declare (ignore type))
   x)
 
-;(defund valid-type-lst types (types)
-;  (if (not types)
-;    t
-;    (and (valid-type 
+(local
+  (defthmd hack
+    (implies (and x (listp x))
+             (< (acl2-count (nth i x))
+                (acl2-count x)))
+    :hints (("Goal"
+             :in-theory (enable nth)))))
 
-;(defund valid-type (type)
-;;  (declare (xargs :guard t))
-;  (and (true-listp type)
-;       (cond ((equal type '(int)) t)
-;             ((equal type '(bool)) t)
-;             ((equal (car type) 'bvec) (natp (cadr type)))
-;             ((equal (car type) 'array) (and (valid-type (cadr type)) (natp (caddr type)))))))
-
-;(defthm aaa
-;  (implies (consp type)
-;           (< (ACL2-COUNT (MV-NTH I TYPE))
-;              (ACL2-COUNT TYPE))
-;           )
-;  :hints (("Goal"
-;           :in-theory (enable mv-nth))))
-
-;:ubt is-type-p
 (mutual-recursion
   (defund is-type-p (x type)
     (declare (xargs :measure (acl2-count type)))
-;    (declare (xargs :guard (valid-type type)
-;                    :guard-hints (("Goal" :in-theory (enable valid-type)))))
     (cond ((equal type '(int)) (integerp x))
           ((equal type '(bool)) (bitp x))
           ((equal (car type) 'bvec) (bvecp x (cadr type)))
           ((equal (car type) 'array) (is-array-p x (cadr type) (caddr type)))
-          ((equal (car type) 'mv-type)
-           (if (equal (len x) (1- (len type)))
-             (is-mv-p-loop x (cdr type))
-             nil))
+          ((equal (car type) 'mv-type) (mv-type-p-loop-alt x (cddr type) (cadr type)))
           (t t)))
   (defund is-array-p (x type len)
-    (declare (xargs :measure (+ (nfix len) (acl2-count type))
-;                    :guard (and (natp len)
-;                                (valid-type type))
-                                ))
+    (declare (xargs :measure (+ (nfix len) (acl2-count type))))
     (if (zp len)
       t
       (and (is-type-p (ag (1- len) x) type)
            (is-array-p x type (1- len)))))
-  (defund is-mv-p-loop (x type)
-    (declare (xargs :measure (acl2-count type)))
-;    (if (or (not (listp type)) (not type))
-    (if (or (not (listp type))
-            (not type))
+  (defun mv-type-p-loop-alt (x type i)
+    (declare (xargs :measure (+ (nfix i) (acl2-count type))
+                    :hints (("Goal" :use (:instance hack (x type) (i (1- i)))))))
+    (if (zp i)
       t
-        (and (is-type-p (car x) (car type))
-             (is-mv-p-loop (cdr x) (cdr type)))))
-  )
+      (and (is-type-p (mv-nth (1- i) x) (nth (1- i) type))
+           (mv-type-p-loop-alt x type (1- i))))))
 
 (defthmd is-type-p-to-mv-p
   (implies (equal (car type) 'mv-type)
            (equal (is-type-p x type)
-                  (if (equal (len x) (1- (len type)))
-                    (is-mv-p-loop x (cdr type))
-                    nil)))
+                  (mv-type-p-loop-alt x (cddr type) (cadr type))))
   :hints (("Goal"
            :in-theory (e/d (is-type-p) (len)))))
 
-(defthmd mv-nth-type-lemma
-  (implies (and (is-mv-p-loop x type)
-                (equal (len type) (len x)))
-           (is-type-p (nth i x)
-                      (nth i type)))
-  :hints (("Goal"
-           :in-theory (enable is-mv-p-loop zp natp nth))))
+(defthmd unroll-mv-type-p-loop-alt
+  (implies (not (zp i))
+           (equal (mv-type-p-loop-alt x types i)
+           (and (is-type-p (mv-nth (1- i) x) (nth (1- i) types))
+                (mv-type-p-loop-alt x types (1- i))))))
 
-(local
-  (defthmd mv-nth-to-nth
-    (equal (mv-nth i x)
-           (nth i x))
-    :hints (("Goal"
-             :in-theory (enable mv-nth)))))
+(defthmd unroll-mv-type-p-loop-alt-2
+  (implies (zp i)
+           (equal (mv-type-p-loop-alt x types i)
+                  t)))
 
-(defthmd mv-nth-type
-  (implies (and (is-type-p x type)
-                (natp i)
-                (equal (car type) 'mv-type)
-                (equal (nth (1+ i) type) type-i))
-           (is-type-p (mv-nth i x) type-i))
-  :hints (("Goal"
-           :use (:instance mv-nth-type-lemma
-                           (type (cdr type)))
-           :in-theory (e/d (natp is-type-p-to-mv-p mv-nth-to-nth)
-                           ()))))
+;  (defund is-mv-p-loop (x type)
+;    (declare (xargs :measure (acl2-count type)))
+;;    (if (or (not (listp type)) (not type))
+;    (if (or (not (listp type))
+;            (not type))
+;      t
+;        (and (is-type-p (car x) (car type))
+;             (is-mv-p-loop (cdr x) (cdr type)))))
+;  )
 
-(defun mv-type-p-loop-alt (i x type)
-  (declare (xargs :measure (+ (nfix (- (len type) i)))
-                  :hints (("Goal" :in-theory (disable is-type-p)))
-                  ))
-  (if (and (natp i) (< i (len type)))
-    (and (is-type-p (mv-nth i x) (nth (1+ i) type))
-         (mv-type-p-loop-alt (1+ i) x type))
-    t))
+;(defthmd is-type-p-to-mv-p
+;  (implies (equal (car type) 'mv-type)
+;           (equal (is-type-p x type)
+;                  (if (equal (len x) (1- (len type)))
+;                    (is-mv-p-loop x (cdr type))
+;                    nil)))
+;  :hints (("Goal"
+;           :in-theory (e/d (is-type-p) (len)))))
+;
+;(defthmd mv-nth-type-lemma
+;  (implies (and (is-mv-p-loop x type)
+;                (equal (len type) (len x)))
+;           (is-type-p (nth i x)
+;                      (nth i type)))
+;  :hints (("Goal"
+;           :in-theory (enable is-mv-p-loop zp natp nth))))
+;
+;(local
+;  (defthmd mv-nth-to-nth
+;    (equal (mv-nth i x)
+;           (nth i x))
+;    :hints (("Goal"
+;             :in-theory (enable mv-nth)))))
+;
+;(defthmd mv-nth-type
+;  (implies (and (is-type-p x type)
+;                (natp i)
+;                (equal (car type) 'mv-type)
+;                (equal (nth (1+ i) type) type-i))
+;           (is-type-p (mv-nth i x) type-i))
+;  :hints (("Goal"
+;           :use (:instance mv-nth-type-lemma
+;                           (type (cdr type)))
+;           :in-theory (e/d (natp is-type-p-to-mv-p mv-nth-to-nth)
+;                           ()))))
+;
+;(defun mv-type-p-loop-alt (i x type)
+;  (declare (xargs :measure (+ (nfix (- (len type) i)))
+;;                  :hints (("Goal" :in-theory (disable is-type-p)))
+;                  ))
+;  (if (and (natp i) (< i (len type)))
+;    (and (is-type-p (mv-nth i x) (nth (1+ i) type))
+;         (mv-type-p-loop-alt (1+ i) x type))
+;    t))
 
-(thm
-  (implies (and (equal (car type) 'mv-type)
-                (listp type)
-                )
-           (equal (is-type-p x type)
-                  (mv-type-p-loop-alt 0 x type)))
-  :hints (("Goal"
-;           :induct
-;           (list
-;             (mv-type-p-loop-alt (nfix i) x type)
-;                         (is-mv-p-loop x (cdr type)))
-;            :expand 
-           :in-theory (enable 
-                        is-type-p-to-mv-p
-                        is-mv-p-loop
-;                        is-type-p
-                        mv-type-p-loop-alt
-;                        mv-nth-type
-                              )
-           )))
+;(thm
+;  (implies (and (equal (car type) 'mv-type)
+;                (listp type)
+;                )
+;           (equal (is-type-p x type)
+;                  (mv-type-p-loop-alt 0 x type)))
+;  :hints (("Goal"
+;;           :induct
+;;           (list
+;;             (mv-type-p-loop-alt (nfix i) x type)
+;;                         (is-mv-p-loop x (cdr type)))
+;;            :expand 
+;           :in-theory (enable 
+;                        is-type-p-to-mv-p
+;                        is-mv-p-loop
+;;                        is-type-p
+;                        mv-type-p-loop-alt
+;;                        mv-nth-type
+;                              )
+;           )))
 
 (defthmd is-type-p-bvecp
   (equal (bvecp x n)
@@ -381,10 +385,10 @@
     int-to-is-type-p
     bvecp-forward
     ;
-    is-type-p-to-mv-p
-    is-mv-p-loop
+;    is-type-p-to-mv-p
+;    is-mv-p-loop
     bitn-bool
-    mv-nth-type
+;    mv-nth-type
 ;
 logior-bvecp-alt len cdr-cons car-cons
 logior-bvecp-alt-2
@@ -393,6 +397,12 @@ logand-bvecp-alt-2
 lognot1-bvecp-alt-2
 ;
 bvecp-right-shift
+;
+is-type-p-to-mv-p
+unroll-mv-type-p-loop-alt
+unroll-mv-type-p-loop-alt-2
+(nth)
+zp
     ))
 
 (defund search-for-known-types-loop (clause known-types)
