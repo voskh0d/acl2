@@ -496,18 +496,21 @@ are more than one).  The test of the IF is simply the test of the loop.
     `(defthm ,name
        (implies ,param-types-hyp
                 (is-type-p (,fname ,@params) ',return-type))
-       :hints (("Goal"
-                :in-theory (enable ,fname))))))
+       :hints (search-for-known-types
+               ("Goal"
+                :in-theory '(type-theory ,fname))))))
 
 (defun translate-function (f)
   (let* ((fname (cadr f))
          (args (caddr f))
          (type (caddr (cadddr f)))
          (type-thm (type-thm fname args type))
+         (thm-name (cadr type-thm))
          (body (cadr (cadddr f)))) ;; The addional cadr removes rac-type-info
     (mv-let (term defs) (translate-function-block (cdr body) fname 0)
       (append defs (list `(defund ,fname ,args ,term)
-                         type-thm)))))
+                         type-thm
+                         `(table known-types (quote ,fname) (quote ,thm-name)))))))
 
 (defun translate-program-list (lst)
   (if (consp lst)

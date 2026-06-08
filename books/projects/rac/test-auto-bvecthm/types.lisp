@@ -82,7 +82,7 @@
 
 (local
   (defthmd mv-nth-to-nth
-    (equal (MV-NTH i x)
+    (equal (mv-nth i x)
            (nth i x))
     :hints (("Goal"
              :in-theory (enable mv-nth)))))
@@ -98,6 +98,36 @@
                            (type (cdr type)))
            :in-theory (e/d (natp is-type-p-to-mv-p mv-nth-to-nth)
                            ()))))
+
+(defun mv-type-p-loop-alt (i x type)
+  (declare (xargs :measure (+ (nfix (- (len type) i)))
+                  :hints (("Goal" :in-theory (disable is-type-p)))
+                  ))
+  (if (and (natp i) (< i (len type)))
+    (and (is-type-p (mv-nth i x) (nth (1+ i) type))
+         (mv-type-p-loop-alt (1+ i) x type))
+    t))
+
+(thm
+  (implies (and (equal (car type) 'mv-type)
+                (listp type)
+                )
+           (equal (is-type-p x type)
+                  (mv-type-p-loop-alt 0 x type)))
+  :hints (("Goal"
+;           :induct
+;           (list
+;             (mv-type-p-loop-alt (nfix i) x type)
+;                         (is-mv-p-loop x (cdr type)))
+;            :expand 
+           :in-theory (enable 
+                        is-type-p-to-mv-p
+                        is-mv-p-loop
+;                        is-type-p
+                        mv-type-p-loop-alt
+;                        mv-nth-type
+                              )
+           )))
 
 (defthmd is-type-p-bvecp
   (equal (bvecp x n)
@@ -322,6 +352,17 @@
 ;           :expand (:free (type n) (is-array-p nil type n))
 ;           :in-theory (enable bvecp is-type-p))))
 
+(encapsulate ()
+  (local (INCLUDE-BOOK "rtl/rel11/lib/top" :dir :system))
+  (defthmd bvecp-right-shift
+    (implies (and (natp i)
+                  (is-type-p x (list 'bvec n)))
+             (is-type-p (ash x (- i)) (list 'bvec n)))
+    :hints (("Goal"
+             :nonlinearp t
+             :in-theory (enable bvecp)
+             :expand (:free (x ty) (is-type-p x ty))))))
+
 
 (deftheory type-theory
   '(rac-type-info
@@ -351,10 +392,10 @@ logior-bvecp-alt-2
 logand-bvecp-alt-2
 lognot1-bvecp-alt-2
 ;
+bvecp-right-shift
     ))
 
 (defund search-for-known-types-loop (clause known-types)
-  (declare (xargs :mode :program))
   (if (not clause)
     nil
     (if (listp clause)
@@ -363,15 +404,78 @@ lognot1-bvecp-alt-2
       (let ((thm (cdr (assoc clause known-types))))
         (if thm (list thm) nil)))))
 
-;; TODO instanciate the rule when the rule is a function
+
+(defund search-vars (formula target)
+  (if (or (not formula) (not (listp formula)))
+    ()
+    (if (equal (car formula) target)
+      (cdr formula)
+      (let ((maybe-res (search-vars (car formula) target)))
+        (if maybe-res
+          maybe-res
+          (search-vars (cdr formula) target))))))
+
+;; TODO est ce que zip existe ?
+(defund zip-2 (l1 l2)
+;  (declare (xargs :mode :program))
+  (if (and (listp l1) (listp l2) l1 l2)
+    (cons (list (car l1) (car l2))
+          (zip-2 (cdr l1) (cdr l2)))
+    ()))
+
+(local (include-book "std/system/theorem-symbolp" :dir :system))
+
+;:ubt instanciate-vars
+(defund instanciate-vars (vars thm-name name world)
+  (declare (xargs :mode :program))
+  (let* ((f (acl2::formula thm-name t world))
+         (thm-vars (search-vars f name))
+         (aa (cw "try to match vars (~x0) with thm-vars (~x1) ~%" vars thm-vars)))
+    (if (or thm-vars
+            (cw "Could not find free variable in ~x0 (~x1 ~% ~x2) ~%" name f name))
+    (zip-2 thm-vars vars)
+    ())))
+
+
+(defund search-for-known-types-loop-2 (clause known-types world)
+  (declare (xargs :mode :program))
+  (if (or (not clause) (not (listp clause)))
+    ()
+    (let* ((maybe-type-thm (assoc (car clause) known-types)))
+      (if maybe-type-thm
+        (if (equal (len clause) 1)
+          (list (cdr maybe-type-thm))
+          (let ((ignore (cw "Current clause ~x0 ~%" clause))
+                (instance (instanciate-vars (cdr clause)
+                                            (cdr maybe-type-thm)
+                                            (car clause) ;; ??
+                                            world)))
+            (if instance
+              (list `(:instance ,(cdr maybe-type-thm) ,@instance))
+              ())))
+        (append (search-for-known-types-loop-2 (car clause) known-types world)
+                (search-for-known-types-loop-2 (cdr clause) known-types world))))))
+
+(defund get-list-of-thm-name (instanciated-thms)
+  (if (and (listp instanciated-thms) instanciated-thms)
+    (cons (cadar instanciated-thms)
+          (get-list-of-thm-name (cdr instanciated-thms)))
+    ()))
+
+
 (defund search-for-known-types (id clause world stable-under-simplificationp)
   (declare (xargs :mode :program)
             (ignore id))
   (if (not stable-under-simplificationp)
     ()
     (let* ((type-thms (table-alist 'known-types world))
-           (thms-to-use (search-for-known-types-loop clause type-thms)))
+           (thms-to-use (search-for-known-types-loop-2 clause type-thms world))
+           (thms-names (get-list-of-thm-name thms-to-use))
+           (aa (cw "Adding: ~x0 ~%" thms-to-use))
+           (aa (cw "Clause at top level~%: ~x0" clause))
+           )
       (if thms-to-use
-        `(:use ,@thms-to-use
-          :in-theory (disable ,@thms-to-use))
-        ()))))
+        `(:use ,thms-to-use
+          :in-theory (disable ,@thms-names))
+        ())))
+)
