@@ -772,3 +772,14 @@ Sexpression *MvType::default_initializer_value() const {
   }
   return res;
 }
+
+
+Sexpression *MvType::ACL2Type() const {
+
+  auto s = new Plist({new Symbol("mv-type")});
+  s->add(Integer(Location::dummy(), size()).ACL2Expr());
+  for (unsigned i = 0; i < size(); ++i) {
+    s->add(get(i)->ACL2Type());
+  }
+  return s;
+}

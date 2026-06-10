@@ -367,6 +367,10 @@
              :in-theory (enable bvecp)
              :expand (:free (x ty) (is-type-p x ty))))))
 
+(defthmd type-of-log<>
+  (is-type-p (log<> x y) '(bool))
+  :hints (("Goal"
+           :in-theory (enable log<> IS-TYPE-P))))
 
 (deftheory type-theory
   '(rac-type-info
@@ -403,6 +407,7 @@ unroll-mv-type-p-loop-alt
 unroll-mv-type-p-loop-alt-2
 (nth)
 zp
+type-of-log<>
     ))
 
 (defund search-for-known-types-loop (clause known-types)
@@ -439,14 +444,15 @@ zp
 (defund instanciate-vars (vars thm-name name world)
   (declare (xargs :mode :program))
   (let* ((f (acl2::formula thm-name t world))
-         (thm-vars (search-vars f name))
-         (aa (cw "try to match vars (~x0) with thm-vars (~x1) ~%" vars thm-vars)))
+         (thm-vars (search-vars f name)))
     (if (or thm-vars
             (cw "Could not find free variable in ~x0 (~x1 ~% ~x2) ~%" name f name))
     (zip-2 thm-vars vars)
     ())))
 
 
+;; TODO we don't look inside of the detected clause, we should always do the
+;; rec call
 (defund search-for-known-types-loop-2 (clause known-types world)
   (declare (xargs :mode :program))
   (if (or (not clause) (not (listp clause)))
@@ -455,10 +461,9 @@ zp
       (if maybe-type-thm
         (if (equal (len clause) 1)
           (list (cdr maybe-type-thm))
-          (let ((ignore (cw "Current clause ~x0 ~%" clause))
-                (instance (instanciate-vars (cdr clause)
+          (let ((instance (instanciate-vars (cdr clause)
                                             (cdr maybe-type-thm)
-                                            (car clause) ;; ??
+                                            (car clause)
                                             world)))
             (if instance
               (list `(:instance ,(cdr maybe-type-thm) ,@instance))
@@ -472,6 +477,13 @@ zp
           (get-list-of-thm-name (cdr instanciated-thms)))
     ()))
 
+(defund remove-duplicate (in out)
+  (declare (xargs :mode :program))
+  (if (not in)
+    out
+    (if (member (car in) out :test 'equal)
+      (remove-duplicate (cdr in) out)
+      (remove-duplicate (cdr in) (cons (car in) out)))))
 
 (defund search-for-known-types (id clause world stable-under-simplificationp)
   (declare (xargs :mode :program)
@@ -479,13 +491,9 @@ zp
   (if (not stable-under-simplificationp)
     ()
     (let* ((type-thms (table-alist 'known-types world))
-           (thms-to-use (search-for-known-types-loop-2 clause type-thms world))
-           (thms-names (get-list-of-thm-name thms-to-use))
-           (aa (cw "Adding: ~x0 ~%" thms-to-use))
-           (aa (cw "Clause at top level~%: ~x0" clause))
-           )
+           (thms-to-use (remove-duplicate (search-for-known-types-loop-2 clause type-thms world) ())))
       (if thms-to-use
         `(:use ,thms-to-use
-          :in-theory (disable ,@thms-names))
+          :in-theory '(type-theory))
         ())))
 )

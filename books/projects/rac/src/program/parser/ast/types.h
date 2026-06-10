@@ -454,7 +454,7 @@ public:
   void makeDef(const char *name, std::ostream &os = std::cout) const override;
 
   Sexpression *ACL2Type() const override {
-    return new Symbol("enum");
+    return new Plist({ new Symbol("enum") });
   }
 
   Sexpression *ACL2Expr();
@@ -520,13 +520,7 @@ public:
     return new MvType(loc(), std::move(tmp));
   }
 
-  Sexpression *ACL2Type() const override {
-    auto s = new Plist({new Symbol("mv-type")});
-    for (unsigned i = 0; i < size(); ++i) {
-      s->add(get(i)->ACL2Type());
-    }
-    return s;
-  }
+  Sexpression *ACL2Type() const override;
 
   Sexpression *cast(Expression *rval) const override;
 
