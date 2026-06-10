@@ -493,7 +493,7 @@ are more than one).  The test of the IF is simply the test of the loop.
          (name (make-type-f-name fname))
          (param-types-hyp (cons 'and
                                 (type-thm-hyps params-type params))))
-    `(defthm ,name
+    `(defthmd ,name
        (implies ,param-types-hyp
                 (is-type-p (,fname ,@params) ',return-type))
        :hints (search-for-known-types

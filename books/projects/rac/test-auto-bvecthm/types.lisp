@@ -365,12 +365,23 @@
     :hints (("Goal"
              :nonlinearp t
              :in-theory (enable bvecp)
-             :expand (:free (x ty) (is-type-p x ty))))))
+             :expand (:free (x ty) (is-type-p x ty)))))
+  (defthmd bvec-is-always-bvec-of-larger
+    (implies (and (equal (car type) 'bvec)
+                  (integerp (cadr type))
+                  (is-type-p x (list 'bvec n))
+                  (< n (cadr type)))
+             (is-type-p x type))
+    :hints (("Goal"
+           :in-theory (enable is-type-p bvecp))))
+  )
 
 (defthmd type-of-log<>
   (is-type-p (log<> x y) '(bool))
   :hints (("Goal"
            :in-theory (enable log<> IS-TYPE-P))))
+
+
 
 (deftheory type-theory
   '(rac-type-info
@@ -387,7 +398,8 @@
     (ainit)
     bvecp-to-is-type-p
     int-to-is-type-p
-    bvecp-forward
+;    bvecp-forward
+    bvec-is-always-bvec-of-larger
     ;
 ;    is-type-p-to-mv-p
 ;    is-mv-p-loop
