@@ -6,8 +6,6 @@
 
 (SET-IRRELEVANT-FORMALS-OK T)
 
-(defun RAC-TYPE-INFO (x type) x)
-
 (DEFUND ENCODE8 (SRC I SMUL)
   (LET ((RES (RAC-TYPE-INFO 0 '(INT))))
     (CASE I
@@ -16,6 +14,18 @@
       (T (- (+ (BITN SRC (* 2 I))
                (BITN SRC (- (* 2 I) 1)))
             (* 2 (BITN SRC (+ (* 2 I) 1))))))))
+
+(DEFTHMD ENCODE8-TYPE
+  (IMPLIES (AND (IS-TYPE-P SRC '(BVEC 9))
+                (IS-TYPE-P I '(INT))
+                (IS-TYPE-P SMUL '(BOOL)))
+           (IS-TYPE-P (ENCODE8 SRC I SMUL) '(INT)))
+  :HINTS
+  (SEARCH-FOR-KNOWN-TYPES ("Goal" :IN-THEORY (ENABLE TYPE-THEORY ENCODE8))))
+
+(TABLE KNOWN-TYPES
+  'ENCODE8
+  'ENCODE8-TYPE)
 
 (DEFUND ENCODE16 (SRC I SMUL)
   (LET ((RES (RAC-TYPE-INFO 0 '(INT))))
@@ -26,12 +36,36 @@
                (BITN SRC (- (* 2 I) 1)))
             (* 2 (BITN SRC (+ (* 2 I) 1))))))))
 
+(DEFTHMD ENCODE16-TYPE
+  (IMPLIES (AND (IS-TYPE-P SRC '(BVEC 18))
+                (IS-TYPE-P I '(INT))
+                (IS-TYPE-P SMUL '(BOOL)))
+           (IS-TYPE-P (ENCODE16 SRC I SMUL)
+                      '(INT)))
+  :HINTS
+  (SEARCH-FOR-KNOWN-TYPES ("Goal" :IN-THEORY (ENABLE TYPE-THEORY ENCODE16))))
+
+(TABLE KNOWN-TYPES
+  'ENCODE16
+  'ENCODE16-TYPE)
+
 (DEFUND ADAPT_ENCODING (X)
   (LET* ((PP (RAC-TYPE-INFO 0 '(BVEC 4)))
          (PP (SETBITN PP 4 0 (LOG= X 1)))
          (PP (SETBITN PP 4 1 (LOG= X 2)))
          (PP (SETBITN PP 4 2 (LOG= X -1))))
     (SETBITN PP 4 3 (LOG= X -2))))
+
+(DEFTHMD ADAPT_ENCODING-TYPE
+  (IMPLIES (AND (IS-TYPE-P X '(INT)))
+           (IS-TYPE-P (ADAPT_ENCODING X)
+                      '(BVEC 4)))
+  :HINTS (SEARCH-FOR-KNOWN-TYPES
+              ("Goal" :IN-THEORY (ENABLE TYPE-THEORY ADAPT_ENCODING))))
+
+(TABLE KNOWN-TYPES
+  'ADAPT_ENCODING
+  'ADAPT_ENCODING-TYPE)
 
 (DEFUND BOOTH8 (X SMUL)
   (LET* ((A (RAC-TYPE-INFO NIL '(ARRAY (INT) 5)))
@@ -40,6 +74,16 @@
          (A (AS 2 (ENCODE8 X 2 SMUL) A))
          (A (AS 3 (ENCODE8 X 3 SMUL) A)))
     (AS 4 (ENCODE8 X 4 SMUL) A)))
+
+(DEFTHMD BOOTH8-TYPE
+  (IMPLIES (AND (IS-TYPE-P X '(BVEC 8))
+                (IS-TYPE-P SMUL '(BOOL)))
+           (IS-TYPE-P (BOOTH8 X SMUL)
+                      '(ARRAY (INT) 5)))
+  :HINTS
+  (SEARCH-FOR-KNOWN-TYPES ("Goal" :IN-THEORY (ENABLE TYPE-THEORY BOOTH8))))
+
+(TABLE KNOWN-TYPES 'BOOTH8 'BOOTH8-TYPE)
 
 (DEFUND BOOTH16 (X SMUL)
   (LET* ((A (RAC-TYPE-INFO NIL '(ARRAY (INT) 9)))
@@ -52,6 +96,18 @@
          (A (AS 6 (ENCODE16 X 6 SMUL) A))
          (A (AS 7 (ENCODE16 X 7 SMUL) A)))
     (AS 8 (ENCODE16 X 8 SMUL) A)))
+
+(DEFTHMD BOOTH16-TYPE
+  (IMPLIES (AND (IS-TYPE-P X '(BVEC 16))
+                (IS-TYPE-P SMUL '(BOOL)))
+           (IS-TYPE-P (BOOTH16 X SMUL)
+                      '(ARRAY (INT) 9)))
+  :HINTS
+  (SEARCH-FOR-KNOWN-TYPES ("Goal" :IN-THEORY (ENABLE TYPE-THEORY BOOTH16))))
+
+(TABLE KNOWN-TYPES
+  'BOOTH16
+  'BOOTH16-TYPE)
 
 (DEFUND PARTIALSPRODUCTS8-LOOP-0 (I BVAL B_ENCS PPS)
   (DECLARE (XARGS :MEASURE (NFIX (- 5 I))))
@@ -80,6 +136,19 @@
                              '(INT))))
     (PARTIALSPRODUCTS8-LOOP-0 (RAC-TYPE-INFO 0 '(INT))
                               BVAL B_ENCS PPS)))
+
+(DEFTHMD PARTIALSPRODUCTS8-TYPE
+  (IMPLIES (AND (IS-TYPE-P B '(BVEC 8))
+                (IS-TYPE-P B_ENCS '(ARRAY (INT) 5))
+                (IS-TYPE-P BSIGNED '(BOOL)))
+           (IS-TYPE-P (PARTIALSPRODUCTS8 B B_ENCS BSIGNED)
+                      '(ARRAY (BVEC 12) 5)))
+  :HINTS (SEARCH-FOR-KNOWN-TYPES
+              ("Goal" :IN-THEORY (ENABLE TYPE-THEORY PARTIALSPRODUCTS8))))
+
+(TABLE KNOWN-TYPES
+  'PARTIALSPRODUCTS8
+  'PARTIALSPRODUCTS8-TYPE)
 
 (DEFUND PARTIALSPRODUCTS16-LOOP-0 (I BVAL B_ENCS PPS)
   (DECLARE (XARGS :MEASURE (NFIX (- 9 I))))
@@ -113,8 +182,30 @@
     (PARTIALSPRODUCTS16-LOOP-0 (RAC-TYPE-INFO 0 '(INT))
                                BVAL B_ENCS PPS)))
 
+(DEFTHMD PARTIALSPRODUCTS16-TYPE
+  (IMPLIES (AND (IS-TYPE-P B '(BVEC 16))
+                (IS-TYPE-P B_ENCS '(ARRAY (INT) 9))
+                (IS-TYPE-P BSIGNED '(BOOL)))
+           (IS-TYPE-P (PARTIALSPRODUCTS16 B B_ENCS BSIGNED)
+                      '(ARRAY (BVEC 20) 9)))
+  :HINTS (SEARCH-FOR-KNOWN-TYPES
+              ("Goal" :IN-THEORY (ENABLE TYPE-THEORY PARTIALSPRODUCTS16))))
+
+(TABLE KNOWN-TYPES
+  'PARTIALSPRODUCTS16
+  'PARTIALSPRODUCTS16-TYPE)
+
 (DEFUND S36 (A B C)
   (LOGXOR (LOGXOR A B) C))
+
+(DEFTHMD S36-TYPE
+  (IMPLIES (AND (IS-TYPE-P A '(BVEC 36))
+                (IS-TYPE-P B '(BVEC 36))
+                (IS-TYPE-P C '(BVEC 36)))
+           (IS-TYPE-P (S36 A B C) '(BVEC 36)))
+  :HINTS (SEARCH-FOR-KNOWN-TYPES ("Goal" :IN-THEORY (ENABLE TYPE-THEORY S36))))
+
+(TABLE KNOWN-TYPES 'S36 'S36-TYPE)
 
 (DEFUND C36 (A B C)
   (BITS (ASH (LOGIOR (LOGIOR (LOGAND A B) (LOGAND B C))
@@ -122,14 +213,41 @@
              1)
         35 0))
 
+(DEFTHMD C36-TYPE
+  (IMPLIES (AND (IS-TYPE-P A '(BVEC 36))
+                (IS-TYPE-P B '(BVEC 36))
+                (IS-TYPE-P C '(BVEC 36)))
+           (IS-TYPE-P (C36 A B C) '(BVEC 36)))
+  :HINTS (SEARCH-FOR-KNOWN-TYPES ("Goal" :IN-THEORY (ENABLE TYPE-THEORY C36))))
+
+(TABLE KNOWN-TYPES 'C36 'C36-TYPE)
+
 (DEFUND S21 (A B C)
   (LOGXOR (LOGXOR A B) C))
+
+(DEFTHMD S21-TYPE
+  (IMPLIES (AND (IS-TYPE-P A '(BVEC 21))
+                (IS-TYPE-P B '(BVEC 21))
+                (IS-TYPE-P C '(BVEC 21)))
+           (IS-TYPE-P (S21 A B C) '(BVEC 21)))
+  :HINTS (SEARCH-FOR-KNOWN-TYPES ("Goal" :IN-THEORY (ENABLE TYPE-THEORY S21))))
+
+(TABLE KNOWN-TYPES 'S21 'S21-TYPE)
 
 (DEFUND C21 (A B C)
   (BITS (ASH (LOGIOR (LOGIOR (LOGAND A B) (LOGAND B C))
                      (LOGAND C A))
              1)
         20 0))
+
+(DEFTHMD C21-TYPE
+  (IMPLIES (AND (IS-TYPE-P A '(BVEC 21))
+                (IS-TYPE-P B '(BVEC 21))
+                (IS-TYPE-P C '(BVEC 21)))
+           (IS-TYPE-P (C21 A B C) '(BVEC 21)))
+  :HINTS (SEARCH-FOR-KNOWN-TYPES ("Goal" :IN-THEORY (ENABLE TYPE-THEORY C21))))
+
+(TABLE KNOWN-TYPES 'C21 'C21-TYPE)
 
 (DEFUND COMPRESS-LOOP-0 (I L7PP L7PPS L7PPC)
   (DECLARE (XARGS :MEASURE (NFIX (- 1 I))))
@@ -546,6 +664,17 @@
                   (MV (AG 0 L7PPS)
                       (AG 0 L7PPC)))))))))))))))))))
 
+(DEFTHMD COMPRESS-TYPE
+  (IMPLIES (AND (IS-TYPE-P L0PP '(ARRAY (BVEC 36) 40)))
+           (IS-TYPE-P (COMPRESS L0PP)
+                      '(MV-TYPE 2 (BVEC 36) (BVEC 36))))
+  :HINTS
+  (SEARCH-FOR-KNOWN-TYPES ("Goal" :IN-THEORY (ENABLE TYPE-THEORY COMPRESS))))
+
+(TABLE KNOWN-TYPES
+  'COMPRESS
+  'COMPRESS-TYPE)
+
 (DEFUND CONVERT_PP (PP)
   (LET* ((L0PP (RAC-TYPE-INFO (AINIT (LIST (CONS 0 0)
                                            (CONS 1 0)
@@ -759,6 +888,17 @@
                    L0PP)))
     (AS 30 (BITS (ASH (AG 30 L0PP) 4) 20 0)
         L0PP)))
+
+(DEFTHMD CONVERT_PP-TYPE
+  (IMPLIES (AND (IS-TYPE-P PP '(ARRAY (BVEC 20) 40)))
+           (IS-TYPE-P (CONVERT_PP PP)
+                      '(ARRAY (BVEC 21) 40)))
+  :HINTS
+  (SEARCH-FOR-KNOWN-TYPES ("Goal" :IN-THEORY (ENABLE TYPE-THEORY CONVERT_PP))))
+
+(TABLE KNOWN-TYPES
+  'CONVERT_PP
+  'CONVERT_PP-TYPE)
 
 (DEFUND COMPRESS_WITHOUT_VDOT16-LOOP-0 (I L5PP L6PPS L6PPC)
   (DECLARE (XARGS :MEASURE (NFIX (- 2 I))))
@@ -1143,6 +1283,17 @@
                (ASSERT (IN-FUNCTION COMPRESS_WITHOUT_VDOT16
                                     (LOG= (BITN L8PP0C 0) 0))))
               (MV L8PP0S L8PP0C)))))))))))))))
+
+(DEFTHMD COMPRESS_WITHOUT_VDOT16-TYPE
+  (IMPLIES (AND (IS-TYPE-P L0PP '(ARRAY (BVEC 21) 40)))
+           (IS-TYPE-P (COMPRESS_WITHOUT_VDOT16 L0PP)
+                      '(MV-TYPE 2 (BVEC 21) (BVEC 21))))
+  :HINTS (SEARCH-FOR-KNOWN-TYPES
+              ("Goal" :IN-THEORY (ENABLE TYPE-THEORY COMPRESS_WITHOUT_VDOT16))))
+
+(TABLE KNOWN-TYPES
+  'COMPRESS_WITHOUT_VDOT16
+  'COMPRESS_WITHOUT_VDOT16-TYPE)
 
 (DEFUND LANE-LOOP-0 (I L0PP)
   (DECLARE (XARGS :MEASURE (NFIX (- 40 I))))
@@ -1656,6 +1807,21 @@
                            ACC)
                         63 0))))))))
 
+(DEFTHMD LANE-TYPE
+  (IMPLIES (AND (IS-TYPE-P OPA '(BVEC 64))
+                (IS-TYPE-P OPB '(BVEC 64))
+                (IS-TYPE-P ACC '(BVEC 64))
+                (IS-TYPE-P OPA_UNSIGNED '(BOOL))
+                (IS-TYPE-P OPB_UNSIGNED '(BOOL))
+                (IS-TYPE-P SIZE '(BOOL))
+                (IS-TYPE-P WITHOUT_VDOT16 '(BOOL)))
+           (IS-TYPE-P (LANE OPA OPB ACC OPA_UNSIGNED
+                            OPB_UNSIGNED SIZE WITHOUT_VDOT16)
+                      '(BVEC 64)))
+  :HINTS (SEARCH-FOR-KNOWN-TYPES ("Goal" :IN-THEORY (ENABLE TYPE-THEORY LANE))))
+
+(TABLE KNOWN-TYPES 'LANE 'LANE-TYPE)
+
 (DEFUND VDOT (OPA OPB ACC OPA_UNSIGNED OPB_UNSIGNED
                   QUAD_RESULT SIZE MMLA SCALAR
                   INDEX_IN SEL_4WAYS WITHOUT_VDOT16)
@@ -1795,4 +1961,25 @@
                   (LET ((RES (SETBITS RES 128 95 64 (BITS LANE3_RES 31 0))))
                     (SETBITS RES 128 127 96 (BITS LANE4_RES 31 0)))
                   RES)))))))))))))
+
+(DEFTHMD VDOT-TYPE
+  (IMPLIES (AND (IS-TYPE-P OPA '(BVEC 128))
+                (IS-TYPE-P OPB '(BVEC 128))
+                (IS-TYPE-P ACC '(BVEC 128))
+                (IS-TYPE-P OPA_UNSIGNED '(BOOL))
+                (IS-TYPE-P OPB_UNSIGNED '(BOOL))
+                (IS-TYPE-P QUAD_RESULT '(BOOL))
+                (IS-TYPE-P SIZE '(BOOL))
+                (IS-TYPE-P MMLA '(BOOL))
+                (IS-TYPE-P SCALAR '(BOOL))
+                (IS-TYPE-P INDEX_IN '(BVEC 2))
+                (IS-TYPE-P SEL_4WAYS '(BOOL))
+                (IS-TYPE-P WITHOUT_VDOT16 '(BOOL)))
+           (IS-TYPE-P (VDOT OPA OPB ACC OPA_UNSIGNED OPB_UNSIGNED
+                            QUAD_RESULT SIZE MMLA SCALAR
+                            INDEX_IN SEL_4WAYS WITHOUT_VDOT16)
+                      '(BVEC 128)))
+  :HINTS (SEARCH-FOR-KNOWN-TYPES ("Goal" :IN-THEORY (ENABLE TYPE-THEORY VDOT))))
+
+(TABLE KNOWN-TYPES 'VDOT 'VDOT-TYPE)
 

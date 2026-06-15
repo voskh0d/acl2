@@ -175,9 +175,11 @@ MulVarDec::MulVarDec(Location loc, std::vector<VarDec *> &&d)
 
 Sexpression *MulVarDec::ACL2Expr() {
   Plist *result = new Plist({&s_list});
+
   for (auto vd : decs) {
     result->add(vd->ACL2Expr());
   }
+
   return result;
 }
 
@@ -393,7 +395,13 @@ Sexpression *MultipleAssignment::ACL2Expr() {
     }
   }
 
-  Plist *mv_assign = new Plist({&s_mv_assign, vars, rval_->ACL2Expr()});
+  Plist *mv_assign =
+//    new Plist({&s_rac_type_info,
+        new Plist({&s_mv_assign, vars, rval_->ACL2Expr()})
+//        ,
+//        rval_->func->returnType()->ACL2Type()
+//    })
+  ;
 
   if (!needs_tmp_vars) {
     return mv_assign;

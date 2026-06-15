@@ -498,7 +498,7 @@ are more than one).  The test of the IF is simply the test of the loop.
                 (is-type-p (,fname ,@params) ',return-type))
        :hints (search-for-known-types
                ("Goal"
-                :in-theory '(type-theory ,fname))))))
+                :in-theory (enable type-theory ,fname))))))
 
 (defun translate-function (f)
   (let* ((fname (cadr f))

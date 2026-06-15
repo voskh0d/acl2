@@ -383,6 +383,11 @@
 
 
 
+(in-theory (disable ash
+   ash-rewrite
+   setbitn
+   setbits))
+
 (deftheory type-theory
   '(rac-type-info
     (is-type-p)
@@ -478,8 +483,9 @@ type-of-log<>
                                             (car clause)
                                             world)))
             (if instance
-              (list `(:instance ,(cdr maybe-type-thm) ,@instance))
-              ())))
+              (cons `(:instance ,(cdr maybe-type-thm) ,@instance)
+                     (search-for-known-types-loop-2 (cdr clause) known-types world))
+               (search-for-known-types-loop-2 (cdr clause) known-types world))))
         (append (search-for-known-types-loop-2 (car clause) known-types world)
                 (search-for-known-types-loop-2 (cdr clause) known-types world))))))
 
@@ -503,7 +509,8 @@ type-of-log<>
   (if (not stable-under-simplificationp)
     ()
     (let* ((type-thms (table-alist 'known-types world))
-           (thms-to-use (remove-duplicate (search-for-known-types-loop-2 clause type-thms world) ())))
+           (thms-to-use (remove-duplicate (search-for-known-types-loop-2 clause type-thms world) ()))
+           (ignore (cw! "search-for-known-types: adding ~%~x0~%~%" thms-to-use)))
       (if thms-to-use
         `(:use ,thms-to-use
           :in-theory '(type-theory))
