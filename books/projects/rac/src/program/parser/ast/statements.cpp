@@ -395,13 +395,11 @@ Sexpression *MultipleAssignment::ACL2Expr() {
     }
   }
 
-  Plist *mv_assign =
-//    new Plist({&s_rac_type_info,
-        new Plist({&s_mv_assign, vars, rval_->ACL2Expr()})
-//        ,
-//        rval_->func->returnType()->ACL2Type()
-//    })
-  ;
+  auto *rval = 
+    new Plist({&s_rac_type_info,
+               rval_->ACL2Expr(),
+               rval_->func->returnType()->ACL2Type()});
+  Plist *mv_assign = new Plist({&s_mv_assign, vars, rval});
 
   if (!needs_tmp_vars) {
     return mv_assign;

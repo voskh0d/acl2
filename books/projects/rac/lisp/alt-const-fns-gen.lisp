@@ -398,11 +398,16 @@
       (if (keywordp (car args))
           (b* (((mv name name-alt) (parse-kwd-names (car args)))
                (var (intern$ name pkg-name))
-               (var-alt (intern$ name-alt pkg-name)))
-            (cons (cons var `(,var-alt)) (make-args-alist (cdr args) pkg-name)))
-        (b* ((var (car args)))
-          (cons (cons var `(,var)) (make-args-alist (cdr args) pkg-name))))
-    nil))
+               (var-alt (intern$ name-alt pkg-name))
+               ((mv args subst) (make-args-alist (cdr args) pkg-name))
+               (old-var-to-alt-var (cons (cons var-alt var) subst)))
+              (mv (cons (cons var `(,var-alt)) args)
+                  old-var-to-alt-var))
+        (b* ((var (car args))
+             ((mv args subst) (make-args-alist (cdr args) pkg-name)))
+            (mv (cons (cons var `(,var)) args)
+                subst)))
+    (mv nil nil)))
 
 (defun extract-fns-for-mvl-vars (mvl-vars rhs-pterm mvl-body pkg-name)
   (b* ((kwd-vars (kwds-of-list mvl-vars))
@@ -413,8 +418,6 @@
     (mv fn-defs mvl-body old-var-to-alt-var)))
 
 
-(set-ignore-ok t)
-
 (mutual-recursion
  (defun extract-fns-from-bindings (bindings let-body pkg-name)
    ;;; Extract functions from a list of bindings.
@@ -422,16 +425,16 @@
        (b* ((first-b (car bindings))
             (rest-b (cdr bindings))
             ((list lhs rhs) first-b)
-            ((mv rhs-fns rhs-pterm old-var-to-alt-var) (extract-fns-from-term rhs pkg-name)))
+            ((mv rhs-fns rhs-pterm rhs-subst) (extract-fns-from-term rhs pkg-name)))
          (if (not (keywordp lhs))
              ;; Not a keyword: extract fns from the rest of term, and add
              ;; binding to all pterms generated.
-             (b* (((mv cdr-fns cdr-pterm old-var-to-alt-var) (extract-fns-from-bindings rest-b let-body pkg-name))
+             (b* (((mv cdr-fns cdr-pterm cdr-subst) (extract-fns-from-bindings rest-b let-body pkg-name))
                   (cdr-pterm (add-binding `(,lhs ,rhs-pterm) cdr-pterm pkg-name))
                   (cdr-fns (add-binding-to-fns `(,lhs ,rhs-pterm) cdr-fns pkg-name)))
                (mv (append rhs-fns cdr-fns)
                    cdr-pterm
-                   old-var-to-alt-var))
+                   (append rhs-subst cdr-subst)))
            ;; In this case, generate fn-def from rhs-pterm, replace variable in
            ;; the rest of the term, and continue extracting functions.
            (b* (((mv name name-alt) (parse-kwd-names lhs))
@@ -444,14 +447,14 @@
                 ((mv cdr-fns cdr-pterm old-var-to-alt-var) (extract-fns-from-bindings rest-b let-body pkg-name)))
              (mv (append rhs-fns (list fn-def) cdr-fns)
                  cdr-pterm
-                 (cons (cons var var-alt) old-var-to-alt-var))))
+                 (append (list (cons (car var-alt) var))
+                         rhs-subst
+                         old-var-to-alt-var)))))
          ;; Extract functions from the let-body
          (extract-fns-from-term let-body pkg-name)))
 
  (defun extract-fns-from-let (term pkg-name)
-   (b* (((list ?let-type bindings let-body) term)
-;        ((mv a b)(extract-fns-from-bindings bindings let-body pkg-name))
-        )
+   (b* (((list ?let-type bindings let-body) term))
      (extract-fns-from-bindings bindings let-body pkg-name)))
 
  (defun extract-fns-from-mv-let (term pkg-name)
@@ -486,11 +489,11 @@
             (fns (append test-fns result-fns rest-fns))
             (body `(,test-pterm ,result-pterm))
             (free-vars (union$ (pterm->free test-pterm) (pterm->free result-pterm)))
-            (old-var-to-alt-var (append test-subst result-subst result-subst)))
+            (old-var-to-alt-var (append test-subst result-subst rest-subst)))
          (mv fns
              (cons (pterm body nil free-vars) rest-pterms)
-             (old-var-to-alt-var)))
-     (mv nil nil)))
+             old-var-to-alt-var))
+     (mv nil nil nil)))
 
  (defun extract-fns-from-case-expr (term pkg-name)
    ;; Generate a list of functions from a case-expression
@@ -502,7 +505,7 @@
         (body `(case ,expr-pterm ,@case-alt-pterms))
         (free-vars (union$ (pterm->free expr-pterm)
                            (union-free-vars-of-pterms case-alt-pterms)))
-        (old-var-to-alt-var (append (expr-subst case-alt-subst))))
+        (old-var-to-alt-var (append expr-subst case-alt-subst)))
      (mv (append expr-fns case-alts-fns)
          (pterm body nil free-vars)
          old-var-to-alt-var)))
@@ -518,7 +521,7 @@
          (mv (append fn-defs cdr-fn-defs)
              (cons p cdr-p)
              old-var-to-alt-var))
-     (mv nil nil)))
+     (mv nil nil nil)))
 
  (defun extract-fns-from-fn-app (term pkg-name)
    ;;; Extract functions from a term which is a function application. The
@@ -630,16 +633,14 @@
     (string-append (symbol-name var) suffix)
     `bits))
 
-;; TODO rename depth in ID and explain it
-
-(defun range (i)
-  (if (zp i)
-    ()
-    (cons (1- i) (range (1- i)))
-    ))
+;(defun range (i)
+;  (if (zp i)
+;    ()
+;    (cons (1- i) (range (1- i)))
+;    ))
 
 
-;; Returns (type-info ...) of variable "name"
+;; Returns (rac-type-info ...) of variable "name"
 (defun search-type-info-from-b* (body name)
   (if (not body)
     nil
@@ -648,28 +649,48 @@
       (cadar body)
       (search-type-info-from-b* (cdr body) name))))
 
+;; Very hacky. It depends a lot of the structure of a mv bindings. Does it
+;; always have the same shape ? I think so, otherwise this is wrong.
+;;
+;; This function expect something looking like this in (last body):
+;   (MV-NTH 1
+;     (MV-LIST 2
+;       (RAC-TYPE-INFO (COMPRESS_WITHOUT_VDOT16 L0PP)
+;                      (MV-TYPE 2 (BVEC 21) (BVEC 21)))))
+;
+(defun search-type-info-from-mv (body name)
+  (let* ((index (cadr body))
+         (type-expr (caddr (caddr (caddr body))))
+         (type-of-name (nth (+ 2 index) type-expr)))
+    `(rac-type-info ,name ,type-of-name)))
 
 (defun extract-type-info (body name)
-  (caddr (if (equal (car body) 'b*)
-           (search-type-info-from-b* (cadr body) name)
-           body)))
+  (caddr 
+    (cond ((equal (caar (last body)) 'mv-nth)
+           (search-type-info-from-mv (car (last body)) name))
+          ((equal (car body) 'b*)
+           (search-type-info-from-b* (cadr body) name))
+          (t body))))
 
-(defun gen-type-thm (fn pkg-name extracted-fn-names)
-  (b* ((name (cadr fn))
+;; TODO not in package RTL
+(defun gen-type-thm (fn pkg-name old-var-to-alt-var)
+  (b* ((new-name (cadr fn))
        (body (cadddr fn))
-       (type (extract-type-info body name))
-       (thm-name (intern$ (concatenate 'string (symbol-name name) "-TYPE") pkg-name)))
-      `((defthm ,thm-name
-          (RTL::is-type-p (,name) ,type)
+       (old-name (cdr (assoc new-name old-var-to-alt-var)))
+       (type (extract-type-info body old-name))
+       (- (cw "search ~x0 in ~x1, found ~x2 ~%" old-name fn type))
+       (thm-new-name (intern$ (concatenate 'string (symbol-name new-name) "-TYPE") pkg-name)))
+      `((defthm ,thm-new-name
+          (RTL::is-type-p (,new-name) ,type)
           :hints (RTL::search-for-known-types
-                  ("Goal" :in-theory (enable RTL::type-theory ,name))))
-        (table RTL::known-types (quote ,name) (quote ,thm-name)))))
+                  ("Goal" :in-theory (enable RTL::type-theory ,new-name))))
+        (table RTL::known-types (quote ,new-name) (quote ,thm-new-name)))))
 
-(defun gen-type-thms (fns pkg-name extracted-fn-names)
+(defun gen-type-thms (fns pkg-name old-var-to-alt-var)
   (if (not fns)
     ()
-    (let* ((maybe-thm (gen-type-thm (car fns) pkg-name extracted-fn-names))
-           (rest (gen-type-thms (cdr fns) pkg-name extracted-fn-names)))
+    (let* ((maybe-thm (gen-type-thm (car fns) pkg-name old-var-to-alt-var))
+           (rest (gen-type-thms (cdr fns) pkg-name old-var-to-alt-var)))
       (if maybe-thm
         (append maybe-thm rest)
         rest))))
@@ -679,15 +700,20 @@
        (pkg-name (symbol-package-name fn-name))
        ;; (fn-name-alt (intern$ (concatenate 'string (symbol-name fn-name) "-RESULT") pkg-name))
        (fn-args (caddr fn-def))
-       (fn-args-alist (make-args-alist fn-args pkg-name))
+       ((mv fn-args-alist args-subst) (make-args-alist fn-args pkg-name))
        (fn-body (cadddr fn-def))
        (fn-body (convert-vars-in-term fn-args-alist fn-body pkg-name))
-       ((mv extracted-fns res-pterm) (extract-fns-from-term fn-body pkg-name))
+       ((mv extracted-fns res-pterm body-subst)
+        (extract-fns-from-term fn-body pkg-name))
+       (old-var-to-alt-var (append args-subst body-subst))
+       (- (cw "~x0 ~%" old-var-to-alt-var))
        (res-fn (make-fn fn-name-alt res-pterm))
        (extracted-fn-names (fn-names-of-fns extracted-fns))
        (theory-list (cons fn-name-alt extracted-fn-names))
        (extracted-fns-flat (flatten-fns extracted-fns))
-       (type-thms (if type-thm-gen (gen-type-thms extracted-fns-flat pkg-name extracted-fn-names) nil))
+       (type-thms (if type-thm-gen
+                    (gen-type-thms extracted-fns-flat pkg-name old-var-to-alt-var)
+                    nil))
        ;; (theory-name (intern$ (concatenate 'string (symbol-name fn-name) "-ALL-FNS") pkg-name))
        (main-lemma-name (intern$ (concatenate 'string (symbol-name fn-name) "-LEMMA") pkg-name)))
     `(encapsulate ()

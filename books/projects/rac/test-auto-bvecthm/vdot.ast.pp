@@ -1548,18 +1548,20 @@
      (ASSIGN PP
              (AS 4 (BITS (+ (AG 4 PP) 704512) 19 0)
                  PP))))
-   (IF WITHOUT_VDOT16 (BLOCK (DECLARE L0PP
-                                      (RAC-TYPE-INFO (CONVERT_PP PP)
-                                                     '(ARRAY (BVEC 21) 40)))
-                             (LIST (DECLARE PPS (RAC-TYPE-INFO 0 '(BVEC 21)))
-                                   (DECLARE PPC (RAC-TYPE-INFO 0 '(BVEC 21))))
-                             (MV-ASSIGN (PPS PPC)
-                                        (COMPRESS_WITHOUT_VDOT16 L0PP))
-                             (DECLARE SUM_PP
-                                      (RAC-TYPE-INFO (BITS (+ PPS PPC) 20 0)
-                                                     '(BVEC 21)))
-                             (RETURN (BITS (+ (+ SUM_PP ACC) 4293918720)
-                                           63 0)))
+   (IF WITHOUT_VDOT16
+       (BLOCK (DECLARE L0PP
+                       (RAC-TYPE-INFO (CONVERT_PP PP)
+                                      '(ARRAY (BVEC 21) 40)))
+              (LIST (DECLARE PPS (RAC-TYPE-INFO 0 '(BVEC 21)))
+                    (DECLARE PPC (RAC-TYPE-INFO 0 '(BVEC 21))))
+              (MV-ASSIGN (PPS PPC)
+                         (RAC-TYPE-INFO (COMPRESS_WITHOUT_VDOT16 L0PP)
+                                        (MV-TYPE 2 (BVEC 21) (BVEC 21))))
+              (DECLARE SUM_PP
+                       (RAC-TYPE-INFO (BITS (+ PPS PPC) 20 0)
+                                      '(BVEC 21)))
+              (RETURN (BITS (+ (+ SUM_PP ACC) 4293918720)
+                            63 0)))
     (BLOCK (DECLARE L0PP
                     (RAC-TYPE-INFO (AINIT (LIST (CONS 0 0)
                                                 (CONS 1 0)
@@ -1712,7 +1714,9 @@
                        L0PP))
            (LIST (DECLARE PPS (RAC-TYPE-INFO 0 '(BVEC 36)))
                  (DECLARE PPC (RAC-TYPE-INFO 0 '(BVEC 36))))
-           (MV-ASSIGN (PPS PPC) (COMPRESS L0PP))
+           (MV-ASSIGN (PPS PPC)
+                      (RAC-TYPE-INFO (COMPRESS L0PP)
+                                     (MV-TYPE 2 (BVEC 36) (BVEC 36))))
            (DECLARE SUM_PP
                     (RAC-TYPE-INFO (BITS (+ PPS PPC) 35 0)
                                    '(BVEC 36)))

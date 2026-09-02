@@ -529,7 +529,7 @@
    - 3 additional Zanabazar Square characters */
 # 0 "<command-line>" 2
 # 1 "<stdin>"
-# 1 "vdot.cpp"
+# 1 "test-auto-bvecthm/vdot.cpp"
 # 1 "/home/jerdub02/acl2/dev/acl2/books/projects/rac/include/ac_int.h" 1
 
 # 1 "/home/jerdub02/acl2/dev/acl2/books/projects/rac/include/ac_int.h"
@@ -59953,7 +59953,7 @@ namespace ac {
 
 
 #pragma GCC diagnostic pop
-# 2 "vdot.cpp" 2
+# 2 "test-auto-bvecthm/vdot.cpp" 2
 # 1 "/usr/include/c++/13/array" 1 3
 
 # 1 "/usr/include/c++/13/array" 3
@@ -60385,7 +60385,7 @@ namespace std __attribute__ ((__visibility__ ("default")))
 
 
 } // namespace std
-# 3 "vdot.cpp" 2
+# 3 "test-auto-bvecthm/vdot.cpp" 2
 # 1 "/home/jerdub02/acl2/dev/acl2/books/projects/rac/include/rac.h" 1
 
 # 1 "/home/jerdub02/acl2/dev/acl2/books/projects/rac/include/rac.h"
@@ -62469,10 +62469,10 @@ namespace std __attribute__ ((__visibility__ ("default")))
 } // namespace std
 # 32 "/home/jerdub02/acl2/dev/acl2/books/projects/rac/include/rac.h" 2
 # 193 "/home/jerdub02/acl2/dev/acl2/books/projects/rac/include/rac.h"
-# 4 "vdot.cpp" 2
-# 19 "vdot.cpp"
+# 4 "test-auto-bvecthm/vdot.cpp" 2
+# 19 "test-auto-bvecthm/vdot.cpp"
 
-# 19 "vdot.cpp"
+# 19 "test-auto-bvecthm/vdot.cpp"
 typedef unsigned uint;
 
 using namespace std;
@@ -62854,7 +62854,7 @@ array<ui21, 40> convert_pp(array<ui20, 40> pp) {
   __RAC_ASSERT(l0pp[38].slc<4>(17) == 0);
 
   l0pp[39] = (pp[12] + 0xAC000 >> 2);
-# 443 "vdot.cpp"
+# 443 "test-auto-bvecthm/vdot.cpp"
 
   // PPS 1
   l0pp[15] <<= 2;
@@ -63127,7 +63127,7 @@ ui64 lane(ui64 opa, ui64 opb, ui64 acc, bool opa_unsigned, bool opb_unsigned,
     // Injecting additional
     pp[4] += 0xAC000;
   }
-# 775 "vdot.cpp"
+# 775 "test-auto-bvecthm/vdot.cpp"
 
   if (without_vdot16) {
 
@@ -63302,7 +63302,7 @@ ui128 vdot(ui128 opa, ui128 opb, ui128 acc, bool opa_unsigned,
   }
   ui128 lane4_res = lane(opa_lane4, opb_lane4, acc.slc<32>(96), opa_unsigned,
                          opb_unsigned, size, without_vdot16);
-# 966 "vdot.cpp"
+# 966 "test-auto-bvecthm/vdot.cpp"
 
   ui128 res = 0;
 
@@ -63334,7 +63334,7 @@ ui128 vdot(ui128 opa, ui128 opb, ui128 acc, bool opa_unsigned,
 }
 
 // RAC end
-# 1048 "vdot.cpp"
+# 1048 "test-auto-bvecthm/vdot.cpp"
 
 
 

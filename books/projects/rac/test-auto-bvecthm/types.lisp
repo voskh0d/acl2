@@ -4,7 +4,11 @@
 
 (set-ignore-ok t)
 
-(defun rac-type-info (x type)
+;(defun rac-type-info (x type)
+;  (declare (ignore type))
+;  x)
+
+(defmacro rac-type-info (x type)
   (declare (ignore type))
   x)
 
@@ -389,7 +393,8 @@
    setbits))
 
 (deftheory type-theory
-  '(rac-type-info
+  '(
+;    rac-type-info
     (is-type-p)
     (is-array-p)
     ag-type
